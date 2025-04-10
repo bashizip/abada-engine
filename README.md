@@ -33,7 +33,7 @@
 ```bash
 git clone https://github.com/your-org/abada-engine.git
 cd abada-engine
-./gradlew bootRun
+mvn spring-boot:run
 ```
 
 Visit `http://localhost:8080/api` to explore the API.
