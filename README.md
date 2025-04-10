@@ -1,3 +1,5 @@
+[logo]!(https://github.com/bashizip/abada-engine/blob/main/assets/logo_small.png)
+
 # 🦄 Abada Engine
 
 **Abada Engine** is a lightweight, pluggable BPMN-based workflow engine built in Java. Designed for developers and teams that want full control over business process automation without relying on bloated or proprietary platforms.
