@@ -1,4 +1,4 @@
-[logo]!(https://github.com/bashizip/abada-engine/blob/main/assets/logo_small.png)
+![logo](https://github.com/bashizip/abada-engine/blob/main/assets/logo_small.png)
 
 # 🦄 Abada Engine
 
