@@ -1,4 +1,4 @@
-package com.macrodev.abadaengine.core;
+package com.abada.engine.core;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,7 +33,11 @@ public class AbadaEngine {
         String next = instance.advance();
         if (def.isUserTask(next)) {
             String taskName = def.getTaskName(next);
-            taskManager.createTask(next, taskName, instance.getId(), null);
+            String assignee = def.getTaskAssignee(next);
+            List<String> candidateUsers = def.getCandidateUsers(next);
+            List<String> candidateGroups = def.getCandidateGroups(next);
+
+            taskManager.createTask(next, taskName, instance.getId(), assignee, candidateUsers, candidateGroups);
         }
 
         return instance.getId();
@@ -50,24 +54,30 @@ public class AbadaEngine {
         ProcessInstance instance = processInstances.get(task.getProcessInstanceId());
         if (instance == null) throw new IllegalStateException("Process instance not found");
 
+        ProcessDefinition def = processDefinitions.get(instance.getId());
+
         taskManager.completeTask(taskId);
         String next = instance.advance();
 
         if (next != null && instance.isUserTask()) {
-            taskManager.createTask(next, instance.getCurrentTaskName(), instance.getId(), null);
+            String taskName = def.getTaskName(next);
+            String assignee = def.getTaskAssignee(next);
+            List<String> candidateUsers = def.getCandidateUsers(next);
+            List<String> candidateGroups = def.getCandidateGroups(next);
+
+            taskManager.createTask(next, taskName, instance.getId(), assignee, candidateUsers, candidateGroups);
         }
     }
 
-    public List<TaskInstance> getUserTasks(String username) {
-        return taskManager.getTasksForUser(username);
+    public List<TaskInstance> getVisibleTasks(String username, List<String> groups) {
+        return taskManager.getVisibleTasksForUser(username, groups);
     }
 
     public List<TaskInstance> getCandidateTasks() {
         return taskManager.getCandidateTasks();
     }
 
-    public boolean claimTask(String taskId, String username) {
-        return taskManager.claimTask(taskId, username);
+    public boolean claimTask(String taskId, String username, List<String> groups) {
+        return taskManager.claimTask(taskId, username, groups);
     }
 }
-

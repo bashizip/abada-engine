@@ -1,4 +1,4 @@
-package com.macrodev.abadaengine.core;
+package com.abada.engine.core;
 
 import java.util.UUID;
 

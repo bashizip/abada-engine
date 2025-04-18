@@ -1,4 +1,4 @@
-package com.macrodev.abadaengine.parser;
+package com.abada.engine.parser;
 
 import org.w3c.dom.*;
 
@@ -18,11 +18,20 @@ public class BpmnParser {
         public String name; // Name of the BPMN process
         public String startEventId; // ID of the start event
 
-        // Map of user task IDs to their names
-        public Map<String, String> userTasks = new LinkedHashMap<>();
-
+        // Map of user task IDs to task metadata
+        public Map<String, TaskMeta> userTasks = new LinkedHashMap<>();
         // List of sequence flows defining transitions between elements
         public List<SequenceFlow> sequenceFlows = new ArrayList<>();
+    }
+
+    /**
+     * Holds metadata for a single user task.
+     */
+    public static class TaskMeta {
+        public String name;
+        public String assignee;
+        public List<String> candidateUsers = new ArrayList<>();
+        public List<String> candidateGroups = new ArrayList<>();
     }
 
     /**
@@ -48,49 +57,51 @@ public class BpmnParser {
      * @throws Exception if parsing fails
      */
     public ParsedProcess parse(InputStream bpmnInputStream) throws Exception {
-        // Set up the XML document parser
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document document = builder.parse(bpmnInputStream);
         document.getDocumentElement().normalize();
 
-        // Get root <definitions> element
         Element definitions = document.getDocumentElement();
-
-        // Locate the <process> element inside definitions
         NodeList processes = definitions.getElementsByTagName("process");
+
         if (processes.getLength() == 0) throw new RuntimeException("No <process> found");
 
         Element process = (Element) processes.item(0);
-
-        // Create container for parsed data
         ParsedProcess parsed = new ParsedProcess();
         parsed.id = process.getAttribute("id");
         parsed.name = process.getAttribute("name");
 
-        // Iterate through child nodes of <process>
         NodeList children = process.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
-            if (node.getNodeType() != Node.ELEMENT_NODE) continue; // Skip non-elements
+            if (node.getNodeType() != Node.ELEMENT_NODE) continue;
 
             Element el = (Element) node;
             switch (el.getTagName()) {
                 case "startEvent" -> parsed.startEventId = el.getAttribute("id");
-                case "userTask" -> parsed.userTasks.put(
+                case "userTask" -> {
+                    TaskMeta meta = new TaskMeta();
+                    meta.name = el.getAttribute("name");
+                    meta.assignee = el.getAttribute("assignee");
+
+                    String candidates = el.getAttribute("candidateUsers");
+                    if (!candidates.isBlank())
+                        meta.candidateUsers = List.of(candidates.split(","));
+
+                    String groups = el.getAttribute("candidateGroups");
+                    if (!groups.isBlank())
+                        meta.candidateGroups = List.of(groups.split(","));
+
+                    parsed.userTasks.put(el.getAttribute("id"), meta);
+                }
+                case "sequenceFlow" -> parsed.sequenceFlows.add(new SequenceFlow(
                         el.getAttribute("id"),
-                        el.getAttribute("name")
-                );
-                case "sequenceFlow" -> parsed.sequenceFlows.add(
-                        new SequenceFlow(
-                                el.getAttribute("id"),
-                                el.getAttribute("sourceRef"),
-                                el.getAttribute("targetRef")
-                        )
-                );
+                        el.getAttribute("sourceRef"),
+                        el.getAttribute("targetRef")
+                ));
             }
         }
-
         return parsed;
     }
 }

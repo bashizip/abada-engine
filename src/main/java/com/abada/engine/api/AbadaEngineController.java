@@ -1,13 +1,14 @@
-package com.macrodev.abadaengine.api;
+package com.abada.engine.api;
 
-
-import com.macrodev.abadaengine.core.*;
-import com.macrodev.abadaengine.parser.*;
+import com.abada.engine.core.*;
+import com.abada.engine.parser.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -16,11 +17,6 @@ public class AbadaEngineController {
 
     private final AbadaEngine engine = new AbadaEngine();
     private final BpmnParser parser = new BpmnParser();
-
-    @GetMapping("/about")
-    public ResponseEntity<String> about() {
-      return ResponseEntity.ok("Abada Engine is running");
-    }
 
     @PostMapping("/deploy")
     public ResponseEntity<String> deploy(@RequestParam("file") MultipartFile file) {
@@ -56,16 +52,18 @@ public class AbadaEngineController {
     }
 
     @GetMapping("/tasks")
-    public ResponseEntity<List<TaskInstance>> tasks(@RequestParam(required = false) String user) {
-        if (user != null) {
-            return ResponseEntity.ok(engine.getUserTasks(user));
-        }
-        return ResponseEntity.ok(engine.getCandidateTasks());
+    public ResponseEntity<List<TaskInstance>> tasks(@RequestParam String user,
+                                                    @RequestParam(required = false) String groups) {
+        List<String> groupList = groups != null ? Arrays.asList(groups.split(",")) : Collections.emptyList();
+        return ResponseEntity.ok(engine.getVisibleTasks(user, groupList));
     }
 
     @PostMapping("/claim")
-    public ResponseEntity<String> claim(@RequestParam String taskId, @RequestParam String user) {
-        boolean claimed = engine.claimTask(taskId, user);
+    public ResponseEntity<String> claim(@RequestParam String taskId,
+                                        @RequestParam String user,
+                                        @RequestParam(required = false) String groups) {
+        List<String> groupList = groups != null ? Arrays.asList(groups.split(",")) : Collections.emptyList();
+        boolean claimed = engine.claimTask(taskId, user, groupList);
         return claimed ? ResponseEntity.ok("Claimed") : ResponseEntity.badRequest().body("Cannot claim");
     }
 }
