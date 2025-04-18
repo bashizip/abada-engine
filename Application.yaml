@@ -24,3 +24,6 @@ server:
         jwt:
           secret-key: this-is-a-long-and-secure-jwt-secret-key-256-bit
 
+logging:
+  level:
+    org.springframework.web: DEBUG

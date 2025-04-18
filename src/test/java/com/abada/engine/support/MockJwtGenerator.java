@@ -1,4 +1,4 @@
-package com.abada.engine.util;
+package com.abada.engine.support;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 public class MockJwtGenerator {
 
