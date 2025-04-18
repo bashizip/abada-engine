@@ -1,107 +1,97 @@
 package com.abada.engine.parser;
 
+import com.abada.engine.core.ProcessDefinition;
 import org.w3c.dom.*;
 
-import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
 import java.util.*;
 
+/**
+ * Parses BPMN XML into Abada process definition metadata.
+ */
 public class BpmnParser {
 
-    /**
-     * Represents a parsed BPMN process containing basic elements like
-     * start event, user tasks, and sequence flows.
-     */
-    public static class ParsedProcess {
-        public String id; // ID of the BPMN process
-        public String name; // Name of the BPMN process
-        public String startEventId; // ID of the start event
-
-        // Map of user task IDs to task metadata
-        public Map<String, TaskMeta> userTasks = new LinkedHashMap<>();
-        // List of sequence flows defining transitions between elements
-        public List<SequenceFlow> sequenceFlows = new ArrayList<>();
-    }
-
-    /**
-     * Holds metadata for a single user task.
-     */
     public static class TaskMeta {
         public String name;
         public String assignee;
-        public List<String> candidateUsers = new ArrayList<>();
-        public List<String> candidateGroups = new ArrayList<>();
+        public List<String> candidateUsers = List.of();
+        public List<String> candidateGroups = List.of();
     }
 
-    /**
-     * Represents a single sequence flow connection between two BPMN elements.
-     */
     public static class SequenceFlow {
-        public String id; // ID of the sequence flow
-        public String sourceRef; // Source element ID
-        public String targetRef; // Target element ID
+        private final String from;
+        private final String to;
 
-        public SequenceFlow(String id, String sourceRef, String targetRef) {
-            this.id = id;
-            this.sourceRef = sourceRef;
-            this.targetRef = targetRef;
+        public SequenceFlow(String id, String from, String to) {
+            this.from = from;
+            this.to = to;
+        }
+
+        public String getFrom() {
+            return from;
+        }
+
+        public String getTo() {
+            return to;
         }
     }
 
-    /**
-     * Parses a BPMN XML file input stream and extracts key process elements.
-     *
-     * @param bpmnInputStream InputStream of a BPMN XML file
-     * @return ParsedProcess object with extracted BPMN data
-     * @throws Exception if parsing fails
-     */
-    public ParsedProcess parse(InputStream bpmnInputStream) throws Exception {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document document = builder.parse(bpmnInputStream);
-        document.getDocumentElement().normalize();
+    public ProcessDefinition parse(InputStream bpmnXml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder().parse(bpmnXml);
+            doc.getDocumentElement().normalize();
 
-        Element definitions = document.getDocumentElement();
-        NodeList processes = definitions.getElementsByTagName("process");
+            Node process = doc.getElementsByTagName("process").item(0);
+            NamedNodeMap attrs = process.getAttributes();
+            String id = attrs.getNamedItem("id").getNodeValue();
+            String name = attrs.getNamedItem("name").getNodeValue();
 
-        if (processes.getLength() == 0) throw new RuntimeException("No <process> found");
+            Map<String, TaskMeta> userTasks = new HashMap<>();
+            List<SequenceFlow> flows = new ArrayList<>();
+            String startEventId = null;
 
-        Element process = (Element) processes.item(0);
-        ParsedProcess parsed = new ParsedProcess();
-        parsed.id = process.getAttribute("id");
-        parsed.name = process.getAttribute("name");
+            NodeList nodes = doc.getElementsByTagName("process").item(0).getChildNodes();
+            for (int i = 0; i < nodes.getLength(); i++) {
+                Node el = nodes.item(i);
+                if (el.getNodeType() != Node.ELEMENT_NODE) continue;
 
-        NodeList children = process.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            Node node = children.item(i);
-            if (node.getNodeType() != Node.ELEMENT_NODE) continue;
+                String tag = el.getNodeName();
+                NamedNodeMap attr = el.getAttributes();
+                String elId = attr.getNamedItem("id").getNodeValue();
 
-            Element el = (Element) node;
-            switch (el.getTagName()) {
-                case "startEvent" -> parsed.startEventId = el.getAttribute("id");
-                case "userTask" -> {
-                    TaskMeta meta = new TaskMeta();
-                    meta.name = el.getAttribute("name");
-                    meta.assignee = el.getAttribute("assignee");
-
-                    String candidates = el.getAttribute("candidateUsers");
-                    if (!candidates.isBlank())
-                        meta.candidateUsers = List.of(candidates.split(","));
-
-                    String groups = el.getAttribute("candidateGroups");
-                    if (!groups.isBlank())
-                        meta.candidateGroups = List.of(groups.split(","));
-
-                    parsed.userTasks.put(el.getAttribute("id"), meta);
+                switch (tag) {
+                    case "startEvent" -> startEventId = elId;
+                    case "userTask" -> {
+                        TaskMeta meta = new TaskMeta();
+                        meta.name = attr.getNamedItem("name").getNodeValue();
+                        if (attr.getNamedItem("assignee") != null)
+                            meta.assignee = attr.getNamedItem("assignee").getNodeValue();
+                        if (attr.getNamedItem("candidateUsers") != null) {
+                            String candidates = attr.getNamedItem("candidateUsers").getNodeValue();
+                            if (!candidates.isBlank())
+                                meta.candidateUsers = Arrays.asList(candidates.split("\\s*,\\s*"));
+                        }
+                        if (attr.getNamedItem("candidateGroups") != null) {
+                            String groups = attr.getNamedItem("candidateGroups").getNodeValue();
+                            if (!groups.isBlank())
+                                meta.candidateGroups = Arrays.asList(groups.split("\\s*,\\s*"));
+                        }
+                        userTasks.put(elId, meta);
+                    }
+                    case "sequenceFlow" -> {
+                        String from = attr.getNamedItem("sourceRef").getNodeValue();
+                        String to = attr.getNamedItem("targetRef").getNodeValue();
+                        flows.add(new SequenceFlow(elId, from, to));
+                    }
                 }
-                case "sequenceFlow" -> parsed.sequenceFlows.add(new SequenceFlow(
-                        el.getAttribute("id"),
-                        el.getAttribute("sourceRef"),
-                        el.getAttribute("targetRef")
-                ));
             }
+
+            return new ProcessDefinition(id, name, startEventId, userTasks, flows);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse BPMN", e);
         }
-        return parsed;
     }
 }

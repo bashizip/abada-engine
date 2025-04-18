@@ -1,15 +1,20 @@
 package com.abada.engine.core;
 
-import java.util.*;
 import com.abada.engine.parser.BpmnParser;
 
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Holds the metadata of a parsed BPMN process definition.
+ */
 public class ProcessDefinition {
 
     private final String id;
     private final String name;
     private final String startEventId;
     private final Map<String, BpmnParser.TaskMeta> userTasks;
-    private final Map<String, String> sequenceMap;
+    private final Map<String, String> sequenceFlows;
 
     public ProcessDefinition(String id, String name, String startEventId,
                              Map<String, BpmnParser.TaskMeta> userTasks,
@@ -18,49 +23,47 @@ public class ProcessDefinition {
         this.name = name;
         this.startEventId = startEventId;
         this.userTasks = userTasks;
-        this.sequenceMap = new HashMap<>();
-        for (BpmnParser.SequenceFlow flow : flows) {
-            sequenceMap.put(flow.sourceRef, flow.targetRef);
-        }
+        this.sequenceFlows = flows.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        BpmnParser.SequenceFlow::getFrom,
+                        BpmnParser.SequenceFlow::getTo));
     }
+
+
 
     public String getId() {
         return id;
-    }
-
-    public String getName() {
-        return name;
     }
 
     public String getStartEventId() {
         return startEventId;
     }
 
-    public String getNextElement(String currentElementId) {
-        return sequenceMap.get(currentElementId);
+    public String getNextElement(String from) {
+        return sequenceFlows.get(from);
     }
 
-    public boolean isUserTask(String elementId) {
-        return userTasks.containsKey(elementId);
+    public boolean isUserTask(String id) {
+        return userTasks.containsKey(id);
     }
 
-    public String getTaskName(String taskId) {
-        return userTasks.get(taskId).name;
+    public String getTaskName(String id) {
+        return userTasks.get(id).name;
     }
 
-    public String getTaskAssignee(String taskId) {
-        return userTasks.get(taskId).assignee;
+    public String getTaskAssignee(String id) {
+        return userTasks.get(id).assignee;
     }
 
-    public List<String> getCandidateUsers(String taskId) {
-        return userTasks.get(taskId).candidateUsers;
+    public List<String> getCandidateUsers(String id) {
+        return userTasks.get(id).candidateUsers;
     }
 
-    public List<String> getCandidateGroups(String taskId) {
-        return userTasks.get(taskId).candidateGroups;
+    public List<String> getCandidateGroups(String id) {
+        return userTasks.get(id).candidateGroups;
     }
 
-    public Set<String> getAllUserTaskIds() {
-        return userTasks.keySet();
+    public String getName() {
+        return name;
     }
 }

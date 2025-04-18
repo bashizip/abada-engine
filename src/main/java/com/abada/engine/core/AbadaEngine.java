@@ -1,83 +1,75 @@
 package com.abada.engine.core;
 
+import com.abada.engine.parser.BpmnParser;
+import org.springframework.stereotype.Component;
+
+import java.io.InputStream;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Core Abada Engine responsible for managing process definitions and instances.
+ * Core engine responsible for managing process definitions and instances.
  */
+@Component
 public class AbadaEngine {
 
-    private final Map<String, ProcessDefinition> processDefinitions = new ConcurrentHashMap<>();
-    private final Map<String, ProcessInstance> processInstances = new ConcurrentHashMap<>();
+    private final BpmnParser parser = new BpmnParser();
+    private final Map<String, ProcessDefinition> processDefinitions = new HashMap<>();
+    private final Map<String, ProcessInstance> instances = new HashMap<>();
     private final TaskManager taskManager = new TaskManager();
 
-    /**
-     * Deploy a parsed process definition into memory.
-     */
-    public void deploy(ProcessDefinition definition) {
+    public void deploy(InputStream bpmnXml) {
+        ProcessDefinition definition = parser.parse(bpmnXml);
         processDefinitions.put(definition.getId(), definition);
     }
 
-    /**
-     * Start a new instance of a process by its definition ID.
-     */
     public String startProcess(String processId) {
         ProcessDefinition def = processDefinitions.get(processId);
-        if (def == null) throw new IllegalArgumentException("Process not found: " + processId);
+        if (def == null) throw new IllegalArgumentException("Unknown process ID: " + processId);
 
         ProcessInstance instance = new ProcessInstance(def);
-        processInstances.put(instance.getId(), instance);
+        instances.put(instance.getId(), instance);
 
-        // Advance the process to its first user task, if any
         String next = instance.advance();
         if (def.isUserTask(next)) {
-            String taskName = def.getTaskName(next);
+            String name = def.getTaskName(next);
             String assignee = def.getTaskAssignee(next);
-            List<String> candidateUsers = def.getCandidateUsers(next);
-            List<String> candidateGroups = def.getCandidateGroups(next);
-
-            taskManager.createTask(next, taskName, instance.getId(), assignee, candidateUsers, candidateGroups);
+            List<String> users = def.getCandidateUsers(next);
+            List<String> groups = def.getCandidateGroups(next);
+            taskManager.createTask(next, name, instance.getId(), assignee, users, groups);
         }
 
         return instance.getId();
     }
 
-    /**
-     * Complete a task and continue the process flow.
-     */
-    public void completeTask(String taskId) {
-        Optional<TaskInstance> optional = taskManager.getTask(taskId);
-        if (optional.isEmpty()) throw new IllegalArgumentException("Task not found: " + taskId);
+    public List<TaskInstance> getVisibleTasks(String user, List<String> groups) {
+        return taskManager.getVisibleTasksForUser(user, groups);
+    }
 
-        TaskInstance task = optional.get();
-        ProcessInstance instance = processInstances.get(task.getProcessInstanceId());
-        if (instance == null) throw new IllegalStateException("Process instance not found");
+    public boolean claim(String taskId, String user, List<String> groups) {
+        return taskManager.claimTask(taskId, user, groups);
+    }
 
-        ProcessDefinition def = processDefinitions.get(instance.getId());
+    public boolean complete(String taskId, String user, List<String> groups) {
+        if (taskManager.canComplete(taskId, user, groups)) {
+            taskManager.completeTask(taskId);
 
-        taskManager.completeTask(taskId);
-        String next = instance.advance();
+            String instanceId = taskManager.getTask(taskId)
+                    .map(TaskInstance::getProcessInstanceId)
+                    .orElseThrow();
 
-        if (next != null && instance.isUserTask()) {
-            String taskName = def.getTaskName(next);
-            String assignee = def.getTaskAssignee(next);
-            List<String> candidateUsers = def.getCandidateUsers(next);
-            List<String> candidateGroups = def.getCandidateGroups(next);
+            ProcessInstance instance = instances.get(instanceId);
+            ProcessDefinition def = instance.getDefinition();
 
-            taskManager.createTask(next, taskName, instance.getId(), assignee, candidateUsers, candidateGroups);
+            String next = instance.advance();
+            if (next != null && def.isUserTask(next)) {
+                String name = def.getTaskName(next);
+                String assignee = def.getTaskAssignee(next);
+                List<String> users = def.getCandidateUsers(next);
+                List<String> groupsList = def.getCandidateGroups(next);
+                taskManager.createTask(next, name, instance.getId(), assignee, users, groupsList);
+            }
+            return true;
         }
-    }
-
-    public List<TaskInstance> getVisibleTasks(String username, List<String> groups) {
-        return taskManager.getVisibleTasksForUser(username, groups);
-    }
-
-    public List<TaskInstance> getCandidateTasks() {
-        return taskManager.getCandidateTasks();
-    }
-
-    public boolean claimTask(String taskId, String username, List<String> groups) {
-        return taskManager.claimTask(taskId, username, groups);
+        return false;
     }
 }

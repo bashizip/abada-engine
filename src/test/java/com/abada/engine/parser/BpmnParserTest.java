@@ -1,5 +1,6 @@
 package com.abada.engine.parser;
 
+import com.abada.engine.core.ProcessDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -10,39 +11,31 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class BpmnParserTest {
 
-    private static final String SAMPLE_BPMN = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+    private static final String SIMPLE_BPMN = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"\n" +
             "             xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
-            "             xsi:schemaLocation=\"http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd\"\n" +
-            "             typeLanguage=\"http://www.w3.org/2001/XMLSchema\"\n" +
-            "             expressionLanguage=\"http://www.w3.org/1999/XPath\"\n" +
-            "             targetNamespace=\"http://abada.engine/test\">\n" +
+            "             targetNamespace=\"http://abada/engine/test\">\n" +
             "  <process id=\"test-process\" name=\"Test Process\" isExecutable=\"true\">\n" +
-            "    <startEvent id=\"startEvent1\" name=\"Start\" />\n" +
-            "    <sequenceFlow id=\"flow1\" sourceRef=\"startEvent1\" targetRef=\"userTask1\" />\n" +
-            "    <userTask id=\"userTask1\" name=\"Review\" assignee=\"john\" candidateUsers=\"alice,bob\" candidateGroups=\"managers,hr\" />\n" +
-            "    <sequenceFlow id=\"flow2\" sourceRef=\"userTask1\" targetRef=\"endEvent1\" />\n" +
-            "    <endEvent id=\"endEvent1\" name=\"End\" />\n" +
+            "    <startEvent id=\"start\"/>\n" +
+            "    <sequenceFlow id=\"flow1\" sourceRef=\"start\" targetRef=\"task1\"/>\n" +
+            "    <userTask id=\"task1\" name=\"Do something\" assignee=\"bob\" candidateUsers=\"alice\" candidateGroups=\"finance,qa\"/>\n" +
+            "    <sequenceFlow id=\"flow2\" sourceRef=\"task1\" targetRef=\"end\"/>\n" +
+            "    <endEvent id=\"end\"/>\n" +
             "  </process>\n" +
-            "</definitions>\n";
+            "</definitions>";
 
     @Test
-    public void shouldParseBasicProcessCorrectly() throws Exception {
+    void shouldParseBasicProcessCorrectly() {
         BpmnParser parser = new BpmnParser();
-        BpmnParser.ParsedProcess process = parser.parse(new ByteArrayInputStream(SAMPLE_BPMN.getBytes(StandardCharsets.UTF_8)));
+        ByteArrayInputStream input = new ByteArrayInputStream(SIMPLE_BPMN.getBytes(StandardCharsets.UTF_8));
 
-        assertEquals("test-process", process.id);
-        assertEquals("Test Process", process.name);
-        assertEquals("startEvent1", process.startEventId);
-        assertEquals(1, process.userTasks.size());
+        ProcessDefinition definition = parser.parse(input);
 
-        BpmnParser.TaskMeta task = process.userTasks.get("userTask1");
-        assertNotNull(task);
-        assertEquals("Review", task.name);
-        assertEquals("john", task.assignee);
-        assertIterableEquals(List.of("alice", "bob"), task.candidateUsers);
-        assertIterableEquals(List.of("managers", "hr"), task.candidateGroups);
-
-        assertEquals(2, process.sequenceFlows.size());
+        assertEquals("test-process", definition.getId());
+        assertTrue(definition.isUserTask("task1"));
+        assertEquals("Do something", definition.getTaskName("task1"));
+        assertEquals("bob", definition.getTaskAssignee("task1"));
+        assertEquals(List.of("alice"), definition.getCandidateUsers("task1"));
+        assertEquals(List.of("finance", "qa"), definition.getCandidateGroups("task1"));
     }
 }

@@ -3,35 +3,36 @@ package com.abada.engine.core;
 import java.util.UUID;
 
 /**
- * Represents a single runtime instance of a process.
- * Holds current position and instance-specific metadata.
+ * Represents a running instance of a BPMN process.
  */
 public class ProcessInstance {
 
-    private final String id; // Unique ID of this instance
-    private final ProcessDefinition definition; // Reference to the process definition
-    private String currentElementId; // Current node in the flow (e.g. task ID)
+    private final String id = UUID.randomUUID().toString();
+    private final ProcessDefinition definition;
+    private String currentElementId;
 
     public ProcessInstance(ProcessDefinition definition) {
-        this.id = UUID.randomUUID().toString();
         this.definition = definition;
-        this.currentElementId = definition.getStartEventId(); // Start at the defined start event
+        this.currentElementId = definition.getStartEventId();
     }
 
     public String getId() {
         return id;
     }
 
+    public ProcessDefinition getDefinition() {
+        return definition;
+    }
+
     public String getCurrentElementId() {
         return currentElementId;
     }
 
-    public boolean isComplete() {
-        return currentElementId == null;
-    }
-
+    /**
+     * Moves the process forward to the next element and returns the new element ID.
+     * Returns null if no next element exists.
+     */
     public String advance() {
-        // Get the next element in the flow from the current one
         String next = definition.getNextElement(currentElementId);
         currentElementId = next;
         return next;
@@ -40,9 +41,4 @@ public class ProcessInstance {
     public boolean isUserTask() {
         return definition.isUserTask(currentElementId);
     }
-
-    public String getCurrentTaskName() {
-        return definition.getTaskName(currentElementId);
-    }
 }
-

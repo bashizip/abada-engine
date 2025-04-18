@@ -3,14 +3,14 @@ package com.abada.engine.core;
 import java.util.List;
 
 /**
- * Represents a user task assigned during a process execution.
+ * Represents a user task instance in a process.
  */
 public class TaskInstance {
 
     private final String taskId;
     private final String taskName;
     private final String processInstanceId;
-    private final String assignee;
+    private String assignee;
     private final List<String> candidateUsers;
     private final List<String> candidateGroups;
 
@@ -38,6 +38,10 @@ public class TaskInstance {
 
     public String getAssignee() {
         return assignee;
+    }
+
+    public void setAssignee(String assignee) {
+        this.assignee = assignee;
     }
 
     public List<String> getCandidateUsers() {

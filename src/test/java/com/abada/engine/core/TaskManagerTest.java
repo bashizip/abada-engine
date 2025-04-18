@@ -24,7 +24,7 @@ public class TaskManagerTest {
         List<TaskInstance> tasks = taskManager.getVisibleTasksForUser("alice", List.of());
         assertEquals(1, tasks.size());
 
-        TaskInstance task = tasks.get(0);
+        TaskInstance task = tasks.getFirst();
         assertEquals("task1", task.getTaskId());
         assertEquals("Approve Invoice", task.getTaskName());
         assertEquals("proc-1", task.getProcessInstanceId());
