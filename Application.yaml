@@ -17,3 +17,10 @@ spring:
 
 server:
   port: 5601
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          secret-key: this-is-a-long-and-secure-jwt-secret-key-256-bit
+
