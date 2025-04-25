@@ -64,5 +64,5 @@ Abada Engine is built for reusability, branding, and portability. Perfect for co
 
 ---
 
-## 🦄 Made with love by the Abada Team
+## 🦄 Made with love by Patrick Bashizi
 
