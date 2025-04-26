@@ -1,3 +1,6 @@
+# Ignore local H2 database files
+/data/*.mv.db
+
 HELP.md
 target/
 !.mvn/wrapper/maven-wrapper.jar

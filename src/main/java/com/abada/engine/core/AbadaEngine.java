@@ -13,17 +13,17 @@ import java.util.*;
 public class AbadaEngine {
 
     private final BpmnParser parser = new BpmnParser();
-    private final Map<String, ProcessDefinition> processDefinitions = new HashMap<>();
+    private final Map<String, ParsedProcessDefinition> processDefinitions = new HashMap<>();
     private final Map<String, ProcessInstance> instances = new HashMap<>();
     private final TaskManager taskManager = new TaskManager();
 
     public void deploy(InputStream bpmnXml) {
-        ProcessDefinition definition = parser.parse(bpmnXml);
+        ParsedProcessDefinition definition = parser.parse(bpmnXml);
         processDefinitions.put(definition.getId(), definition);
     }
 
     public String startProcess(String processId) {
-        ProcessDefinition def = processDefinitions.get(processId);
+        ParsedProcessDefinition def = processDefinitions.get(processId);
         if (def == null) throw new IllegalArgumentException("Unknown process ID: " + processId);
 
         ProcessInstance instance = new ProcessInstance(def);
@@ -58,7 +58,7 @@ public class AbadaEngine {
                     .orElseThrow();
 
             ProcessInstance instance = instances.get(instanceId);
-            ProcessDefinition def = instance.getDefinition();
+            ParsedProcessDefinition def = instance.getDefinition();
 
             String next = instance.advance();
             if (next != null && def.isUserTask(next)) {

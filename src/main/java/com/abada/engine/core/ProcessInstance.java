@@ -8,10 +8,10 @@ import java.util.UUID;
 public class ProcessInstance {
 
     private final String id = UUID.randomUUID().toString();
-    private final ProcessDefinition definition;
+    private final ParsedProcessDefinition definition;
     private String currentElementId;
 
-    public ProcessInstance(ProcessDefinition definition) {
+    public ProcessInstance(ParsedProcessDefinition definition) {
         this.definition = definition;
         this.currentElementId = definition.getStartEventId();
     }
@@ -20,7 +20,7 @@ public class ProcessInstance {
         return id;
     }
 
-    public ProcessDefinition getDefinition() {
+    public ParsedProcessDefinition getDefinition() {
         return definition;
     }
 
@@ -37,6 +37,8 @@ public class ProcessInstance {
         currentElementId = next;
         return next;
     }
+
+
 
     public boolean isUserTask() {
         return definition.isUserTask(currentElementId);
