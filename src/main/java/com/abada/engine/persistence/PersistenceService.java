@@ -19,4 +19,11 @@ public interface PersistenceService {
     ProcessInstanceEntity findProcessInstanceById(String instanceId);
 
     List<TaskEntity> findTasksByProcessInstanceId(String instanceId);
+
+    List<ProcessDefinitionEntity> findAllProcessDefinitions();
+
+    List<ProcessInstanceEntity> findAllProcessInstances();
+
+    List<TaskEntity> findAllTasks();
+
 }

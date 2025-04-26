@@ -54,4 +54,19 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     public List<TaskEntity> findTasksByProcessInstanceId(String instanceId) {
         return taskRepository.findByProcessInstanceId(instanceId);
     }
+
+    @Override
+    public List<ProcessDefinitionEntity> findAllProcessDefinitions() {
+        return processDefinitionRepository.findAll();
+    }
+
+    @Override
+    public List<ProcessInstanceEntity> findAllProcessInstances() {
+        return processInstanceRepository.findAll();
+    }
+
+    @Override
+    public List<TaskEntity> findAllTasks() {
+        return taskRepository.findAll();
+    }
 }

@@ -2,27 +2,22 @@ spring:
   application:
     name: abada
   datasource:
-    url: jdbc:h2:mem:abada;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true
+      url: jdbc:h2:file:./data/abada;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      driver-class-name: org.h2.Driver
+      username: sa
+      password:
   jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: true
-
+      hibernate:
+        ddl-auto: update
+        show-sql: true
+      database-platform: org.hibernate.dialect.H2Dialect
+  h2:
+      console:
+        enabled: true
+        path: /h2-console
 
 server:
   port: 5601
-
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          secret-key: this-is-a-long-and-secure-jwt-secret-key-256-bit
 
 logging:
   level:
