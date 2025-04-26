@@ -72,7 +72,7 @@ Abada Engine is built for reusability, branding, and portability. Perfect for co
 
 ## 📜 License
 
-[MIT License](LICENSE)
+[MIT License](https://github.com/bashizip/abada-engine/blob/dev/LICENCE)
 
 ---
 
