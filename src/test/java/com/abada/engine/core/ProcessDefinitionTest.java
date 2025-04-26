@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ProcessDefinitionTest {
 
-    private ProcessDefinition definition;
+    private ParsedProcessDefinition definition;
 
     @BeforeEach
     void setup() {
@@ -26,7 +26,7 @@ public class ProcessDefinitionTest {
                 new BpmnParser.SequenceFlow("f3", "taskB", "endEvent1")
         );
 
-        definition = new ProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows);
+        definition = new ParsedProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows, "<bpmn>...</bpmn>");
     }
 
     private BpmnParser.TaskMeta taskMeta(String name, String assignee, List<String> users, List<String> groups) {
