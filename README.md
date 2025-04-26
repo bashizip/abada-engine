@@ -13,21 +13,11 @@
 - 🚀 Lightweight and embeddable — no heavy runtimes
 - 🧹 BPMN 2.0 process execution (basic tasks, events, gateways)
 - ⚖️ Java 21 and Spring Boot 3.4 support
-- 🔐 Built-in support for JWT authentication
-- 📃 In-memory H2 database for quick development
+- 📃  H2 database for quick development
 - 🔄 REST API for interacting with processes and tasks
 - 🖼️ Ready for integration with [bpmn-js](https://bpmn.io/toolkit/bpmn-js/) or any custom UI
 
 ---
-
-## 📦 Tech Stack
-
-- Java 21
-- Spring Boot 3.4
-- H2 Database
-- Custom BPMN Runtime (no Camunda/Flowable dependency)
-- JWT Authentication
-
 ---
 
 ## 📄 Getting Started
