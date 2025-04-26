@@ -52,7 +52,7 @@ Visit `http://localhost:8080/api` to explore the API.
 | ✅         | REST API: Start + Complete          | Start process instance, claim and complete tasks                            | Done       | v0.1.0-alpha   | MVP core loop                                 |
 | ✅         | Assignee & Candidate Group Logic    | Parse and enforce `assignee`, `candidateUsers`, `candidateGroups`          | Done       | v0.3.0-alpha   | Enables realistic user routing logic          |
 | ✅         | Persistence (in-memory to H2)       | Persist process definitions, instances, task state                          | Done       | v0.4.0-alpha   | Enables recovery and scaling                  |
-| ✅         | Publish to Maven Central            | Make Abada Engine publicly consumable as a library                          | Done       | v0.7.0-alpha   | Includes Maven coordinates + metadata          |
+| 🕓         | Publish to Maven Central            | Make Abada Engine publicly consumable as a library                          | Planned       | v0.7.0-alpha   | Includes Maven coordinates + metadata          |
 | 🧪         | Engine State Restoration on Startup | Reload process instances and tasks into memory                              | In Progress| v0.5.0-alpha   | Reconstruct in-memory state                   |
 | 🕓         | BPMN: Exclusive Gateway             | Support `<exclusiveGateway>` and conditions                                 | Planned    | v0.6.0-alpha   | Add XML condition support                     |
 | 🕓         | BPMN: Parallel Gateway              | Add `<parallelGateway>` split/join logic                                    | Planned    | v0.6.0-alpha   | Can be simple fork/join engine                |
