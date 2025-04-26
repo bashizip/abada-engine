@@ -2,9 +2,12 @@ package com.abada.engine.runtime;
 
 
 
+import org.springframework.stereotype.Component;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
+@Component
 public class ProcessRegistry {
 
     private final Map<String, DeployedProcessDefinition> definitions = new ConcurrentHashMap<>();
