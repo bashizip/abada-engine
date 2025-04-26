@@ -1,10 +1,12 @@
 package com.abada.engine.parser;
 
-import com.abada.engine.core.ProcessDefinition;
+import com.abada.engine.core.ParsedProcessDefinition;
 import org.w3c.dom.*;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -37,10 +39,14 @@ public class BpmnParser {
         }
     }
 
-    public ProcessDefinition parse(InputStream bpmnXml) {
+    public ParsedProcessDefinition parse(InputStream bpmnXml) {
         try {
+            // Read all bytes once to safely clone the input
+            byte[] rawBytes = bpmnXml.readAllBytes();
+            String rawXml = new String(rawBytes, StandardCharsets.UTF_8);
+
             Document doc = DocumentBuilderFactory.newInstance()
-                    .newDocumentBuilder().parse(bpmnXml);
+                    .newDocumentBuilder().parse(new ByteArrayInputStream(rawBytes));
             doc.getDocumentElement().normalize();
 
             Node process = doc.getElementsByTagName("process").item(0);
@@ -88,7 +94,18 @@ public class BpmnParser {
                 }
             }
 
-            return new ProcessDefinition(id, name, startEventId, userTasks, flows);
+            // Validation phase
+            if (startEventId == null) {
+                throw new RuntimeException("No <startEvent> found in BPMN process!");
+            }
+            if (userTasks.isEmpty()) {
+                throw new RuntimeException("No <userTask> found in BPMN process!");
+            }
+            if (flows.isEmpty()) {
+                throw new RuntimeException("No <sequenceFlow> found in BPMN process!");
+            }
+
+            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows,rawXml);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse BPMN", e);
