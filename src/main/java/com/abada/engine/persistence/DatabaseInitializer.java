@@ -4,7 +4,6 @@ import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 //@Profile("dev")
@@ -31,8 +30,8 @@ public class DatabaseInitializer implements CommandLineRunner {
         // Create and save a Process Instance
         ProcessInstanceEntity instance = new ProcessInstanceEntity();
         instance.setId("demo-inst-1");
-        instance.setDefinitionId("demo-proc-1");
-        instance.setStatus("ACTIVE");
+        instance.setProcessDefinitionId("demo-proc-1");
+        instance.setStatus(ProcessInstanceEntity.Status.RUNNING);
         persistenceService.saveProcessInstance(instance);
 
         // Create and save a Task
@@ -40,7 +39,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         task.setId("demo-task-1");
         task.setProcessInstanceId("demo-inst-1");
         task.setAssignee("admin");
-        task.setStatus("PENDING");
+        task.setStatus(TaskEntity.Status.ASSIGNED);
         persistenceService.saveTask(task);
 
         System.out.println("[AbadaEngine] Demo data preloaded successfully.");

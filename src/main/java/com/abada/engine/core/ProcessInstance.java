@@ -9,11 +9,11 @@ public class ProcessInstance {
 
     private final String id = UUID.randomUUID().toString();
     private final ParsedProcessDefinition definition;
-    private String currentElementId;
+    private String currentActivityId;
 
     public ProcessInstance(ParsedProcessDefinition definition) {
         this.definition = definition;
-        this.currentElementId = definition.getStartEventId();
+        this.currentActivityId = definition.getStartEventId();
     }
 
     public String getId() {
@@ -24,8 +24,8 @@ public class ProcessInstance {
         return definition;
     }
 
-    public String getCurrentElementId() {
-        return currentElementId;
+    public String getCurrentActivityId() {
+        return currentActivityId;
     }
 
     /**
@@ -33,14 +33,22 @@ public class ProcessInstance {
      * Returns null if no next element exists.
      */
     public String advance() {
-        String next = definition.getNextElement(currentElementId);
-        currentElementId = next;
+        String next = definition.getNextElement(currentActivityId);
+        currentActivityId = next;
         return next;
     }
 
+    public boolean isWaitingForUserTask() {
+        // Implement logic to check if current activity is a user task
+        return getDefinition().isUserTask(getCurrentActivityId());
+    }
+
+    public boolean isCompleted() {
+        return getCurrentActivityId() == null;
+    }
 
 
     public boolean isUserTask() {
-        return definition.isUserTask(currentElementId);
+        return definition.isUserTask(currentActivityId);
     }
 }

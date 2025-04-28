@@ -1,9 +1,6 @@
 package com.abada.engine.persistence.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "tasks")
@@ -18,14 +15,45 @@ public class TaskEntity {
     @Column
     private String assignee;
 
-    @Column(nullable = false)
-    private String status;
+    @Column
+    private String taskDefinitionKey;
 
-    public String getStatus() {
+    @Column
+    private String name;
+
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    public enum Status {
+        CREATED,     // Task created, not yet assigned or claimed
+        ASSIGNED,    // Task has been claimed by a user
+        COMPLETED,   // Task completed successfully
+        CANCELLED    // Task was cancelled (optional for admin control)
+    }
+
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public String getTaskDefinitionKey() {
+        return taskDefinitionKey;
+    }
+
+    public void setTaskDefinitionKey(String taskDefinitionKey) {
+        this.taskDefinitionKey = taskDefinitionKey;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setStatus(Status status) {
         this.status = status;
     }
 

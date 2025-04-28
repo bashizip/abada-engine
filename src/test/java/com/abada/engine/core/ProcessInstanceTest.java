@@ -41,19 +41,19 @@ public class ProcessInstanceTest {
         ProcessInstance instance = new ProcessInstance(definition);
 
         // After construction, currentElement should be the startEvent
-        assertEquals("startEvent1", instance.getCurrentElementId());
+        assertEquals("startEvent1", instance.getCurrentActivityId());
         assertFalse(instance.isUserTask());
 
         // Advance to task1
         String step1 = instance.advance();
         assertEquals("task1", step1);
-        assertEquals("task1", instance.getCurrentElementId());
+        assertEquals("task1", instance.getCurrentActivityId());
         assertTrue(instance.isUserTask());
 
         // Advance to endEvent1
         String step2 = instance.advance();
         assertEquals("endEvent1", step2);
-        assertEquals("endEvent1", instance.getCurrentElementId());
+        assertEquals("endEvent1", instance.getCurrentActivityId());
         assertFalse(instance.isUserTask());
 
         // No more steps

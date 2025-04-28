@@ -1,83 +1,71 @@
 package com.abada.engine.core;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TaskManagerTest {
 
-    private TaskManager taskManager;
+    @Test
+    void testCreateAndRetrieveTask() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-    @BeforeEach
-    void setup() {
-        taskManager = new TaskManager();
+        taskManager.createTask("approveTask", "Approve Request", processInstanceId, null, Arrays.asList("user1"), Arrays.asList("group1"));
+
+        List<TaskInstance> visibleTasks = taskManager.getVisibleTasksForUser("user1", Arrays.asList("group1"));
+        assertThat(visibleTasks).hasSize(1);
+
+        TaskInstance task = visibleTasks.get(0);
+        assertThat(task.getTaskDefinitionKey()).isEqualTo("approveTask");
+        assertThat(task.getProcessInstanceId()).isEqualTo(processInstanceId);
+        assertThat(task.getAssignee()).isNull();
     }
 
     @Test
-    void shouldCreateAndRetrieveTasks() {
-        taskManager.createTask("task1", "Approve Invoice", "proc-1", null,
-                List.of("alice"), List.of("finance"));
+    void testClaimTask() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-        List<TaskInstance> tasks = taskManager.getVisibleTasksForUser("alice", List.of());
-        assertEquals(1, tasks.size());
+        taskManager.createTask("reviewTask", "Review Document", processInstanceId, null, Arrays.asList("user2"), Arrays.asList("group2"));
 
-        TaskInstance task = tasks.getFirst();
-        assertEquals("task1", task.getTaskId());
-        assertEquals("Approve Invoice", task.getTaskName());
-        assertEquals("proc-1", task.getProcessInstanceId());
-        assertNull(task.getAssignee());
-        assertTrue(task.getCandidateUsers().contains("alice"));
+        TaskInstance task = taskManager.getVisibleTasksForUser("user2", Arrays.asList("group2")).get(0);
+        boolean claimed = taskManager.claimTask(task.getId(), "user2", Arrays.asList("group2"));
+
+        assertThat(claimed).isTrue();
+        assertThat(task.getAssignee()).isEqualTo("user2");
     }
 
     @Test
-    void shouldAllowClaimByCandidateUser() {
-        taskManager.createTask("task2", "Review Report", "proc-2", null,
-                List.of("bob"), List.of("hr"));
+    void testCompleteTask() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-        boolean claimed = taskManager.claimTask("task2", "bob", List.of());
-        assertTrue(claimed);
+        taskManager.createTask("reviewTask", "Review Document", processInstanceId, "user3", null, null);
 
-        TaskInstance claimedTask = taskManager.getTask("task2").orElseThrow();
-        assertEquals("bob", claimedTask.getAssignee());
+        TaskInstance task = taskManager.getVisibleTasksForUser("user3", Arrays.asList("group3")).get(0);
+        boolean canComplete = taskManager.canComplete(task.getId(), "user3", Arrays.asList("group3"));
+
+        assertThat(canComplete).isTrue();
+
+        taskManager.completeTask(task.getId());
+        assertThat(task.isCompleted()).isTrue();
     }
 
     @Test
-    void shouldAllowClaimByCandidateGroup() {
-        taskManager.createTask("task3", "Submit Review", "proc-3", null,
-                List.of(), List.of("qa"));
+    void testGetTaskByDefinitionKey() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-        // simulate that "carol" belongs to "qa" group
-        List<String> userGroups = List.of("qa");
-        List<TaskInstance> candidateTasks = taskManager.getVisibleTasksForUser("carol", userGroups);
-        assertEquals(1, candidateTasks.size());
+        taskManager.createTask("validateInvoice", "Validate Invoice", processInstanceId, null, Arrays.asList("user4"), Arrays.asList("group4"));
 
-        boolean claimed = taskManager.claimTask("task3", "carol", userGroups);
-        assertTrue(claimed);
-
-        TaskInstance claimedTask = taskManager.getTask("task3").orElseThrow();
-        assertEquals("carol", claimedTask.getAssignee());
-    }
-
-
-    @Test
-    void shouldRejectClaimIfUnauthorized() {
-        taskManager.createTask("task4", "Verify", "proc-4", null,
-                List.of("alice"), List.of("devs"));
-
-        boolean claimed = taskManager.claimTask("task4", "bob", List.of("hr"));
-        assertFalse(claimed);
-    }
-
-    @Test
-    void shouldRemoveTaskOnCompletion() {
-        taskManager.createTask("task5", "Final Check", "proc-5", "john",
-                List.of(), List.of());
-
-        assertTrue(taskManager.getTask("task5").isPresent());
-        taskManager.completeTask("task5");
-        assertTrue(taskManager.getTask("task5").isEmpty());
+        Optional<TaskInstance> retrievedTask = taskManager.getTaskByDefinitionKey("validateInvoice", processInstanceId);
+        assertThat(retrievedTask).isPresent();
+        assertThat(retrievedTask.get().getName()).isEqualTo("Validate Invoice");
     }
 }

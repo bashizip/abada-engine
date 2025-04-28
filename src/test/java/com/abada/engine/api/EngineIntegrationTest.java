@@ -84,7 +84,7 @@ public class EngineIntegrationTest {
         assertNotNull(taskResponse.getBody(), "Response body is null");
         assertTrue(taskResponse.getBody().length > 0, "No tasks returned for alice");
 
-        String taskId = taskResponse.getBody()[0].getTaskId();
+        String taskId = taskResponse.getBody()[0].getId();
 
         ResponseEntity<String> claimResponse = restTemplate.postForEntity(
                 "/engine/claim?taskId=" + taskId, null, String.class);
