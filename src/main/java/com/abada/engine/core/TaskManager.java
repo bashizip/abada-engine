@@ -82,4 +82,8 @@ public class TaskManager {
         return (task.getCandidateUsers() != null && task.getCandidateUsers().contains(user)) ||
                 (task.getCandidateGroups() != null && userGroups.stream().anyMatch(group -> task.getCandidateGroups().contains(group)));
     }
+
+    public void addTask(TaskInstance taskInstance) {
+        tasks.put(taskInstance.getId(), taskInstance);
+    }
 }

@@ -1,19 +1,29 @@
 package com.abada.engine.core;
 
+import com.abada.engine.persistence.entity.ProcessInstanceEntity;
+
 import java.util.UUID;
 
-/**
- * Represents a running instance of a BPMN process.
- */
 public class ProcessInstance {
 
-    private final String id = UUID.randomUUID().toString();
+    private final String id;
     private final ParsedProcessDefinition definition;
     private String currentActivityId;
 
+    // Standard constructor used when starting a new process
     public ProcessInstance(ParsedProcessDefinition definition) {
+        this.id = UUID.randomUUID().toString();
         this.definition = definition;
         this.currentActivityId = definition.getStartEventId();
+    }
+
+
+    public ProcessInstance(String id, ParsedProcessDefinition definition, String currentActivityId) {
+        this.id = id;
+        // IMPORTANT: during reload, we need to reparse the BPMN definition
+        this.definition = definition;
+        this.currentActivityId = currentActivityId;
+        // (Status is managed by currentActivityId already, no need to store it here explicitly)
     }
 
     public String getId() {
@@ -28,27 +38,31 @@ public class ProcessInstance {
         return currentActivityId;
     }
 
-    /**
-     * Moves the process forward to the next element and returns the new element ID.
-     * Returns null if no next element exists.
-     */
-    public String advance() {
-        String next = definition.getNextElement(currentActivityId);
-        currentActivityId = next;
-        return next;
+    public void setCurrentActivityId(String currentActivityId) {
+        this.currentActivityId = currentActivityId;
     }
 
     public boolean isWaitingForUserTask() {
-        // Implement logic to check if current activity is a user task
-        return getDefinition().isUserTask(getCurrentActivityId());
+        return currentActivityId != null && definition.isUserTask(currentActivityId);
     }
 
     public boolean isCompleted() {
-        return getCurrentActivityId() == null;
+        return currentActivityId == null;
     }
 
+    public String advance() {
+        if (currentActivityId == null) {
+            return null;
+        }
 
-    public boolean isUserTask() {
-        return definition.isUserTask(currentActivityId);
+        String next = definition.getNextActivity(currentActivityId);
+
+        if (next == null) {
+            currentActivityId = null;
+        } else {
+            currentActivityId = next;
+        }
+
+        return currentActivityId;
     }
 }

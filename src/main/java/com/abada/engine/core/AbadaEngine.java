@@ -107,6 +107,36 @@ public class AbadaEngine {
     }
 
 
+
+    public void rehydrateProcessInstance(ProcessInstanceEntity entity) {
+        ParsedProcessDefinition def = processDefinitions.get(entity.getProcessDefinitionId());
+        if (def == null) {
+            throw new IllegalStateException("No deployed process definition found for ID: " + entity.getProcessDefinitionId());
+        }
+
+        ProcessInstance instance = new ProcessInstance(
+                entity.getId(),
+                def,
+                entity.getCurrentActivityId()
+        );
+        instances.put(instance.getId(), instance);
+    }
+
+    public void rehydrateTaskInstance(TaskEntity entity) {
+        TaskInstance task = new TaskInstance();
+        task.setId(entity.getId());
+        task.setProcessInstanceId(entity.getProcessInstanceId());
+        task.setTaskDefinitionKey(entity.getTaskDefinitionKey());
+        task.setName(entity.getName());
+        task.setAssignee(entity.getAssignee());
+
+        if (entity.getStatus() == TaskEntity.Status.COMPLETED) {
+            task.setCompleted(true);
+        }
+
+        taskManager.addTask(task);
+    }
+
     private ProcessInstanceEntity convertToEntity(ProcessInstance instance) {
         ProcessInstanceEntity entity = new ProcessInstanceEntity();
         entity.setId(instance.getId());

@@ -60,7 +60,7 @@ public class ParsedProcessDefinition {
      * @param currentElementId ID of the current BPMN element.
      * @return ID of the next BPMN element, or null if none found.
      */
-    public String getNextElement(String currentElementId) {
+    public String getNextActivity(String currentElementId) {
         return sequenceFlows.get(currentElementId);
     }
 
