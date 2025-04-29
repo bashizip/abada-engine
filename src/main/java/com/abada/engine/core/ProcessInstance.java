@@ -54,7 +54,9 @@ public class ProcessInstance {
         String next = definition.getNextActivity(currentActivityId);
         currentActivityId = next;
 
-        if (next == null) return Optional.empty();
+        if (next == null) {
+            return Optional.empty(); // End of process
+        }
 
         if (definition.isUserTask(next)) {
             return Optional.of(new UserTaskPayload(
@@ -66,8 +68,11 @@ public class ProcessInstance {
             ));
         }
 
-        return advance(); // Auto-skip service tasks or gateways
+        // In the future: skip service tasks, gateways, etc.
+        // For now, assume only userTasks and endEvents exist
+        return advance(); // recursively skip non-user tasks if needed
     }
+
 
 
 }
