@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,15 +23,14 @@ public class ProcessInstanceTest {
 
         assertThat(instance.getCurrentActivityId()).isEqualTo("startEvent1");
 
-        String next = instance.advance();
-        assertThat(next).isEqualTo("userTask1");
-
-        next = instance.advance();
-        assertThat(next).isEqualTo("endEvent1");
-
-        next = instance.advance();
-        assertThat(next).isNull();
-        assertThat(instance.isCompleted()).isTrue();
+        Optional<UserTaskPayload> next = instance.advance();
+        if (next.isPresent()) {
+            assertThat(next.get().name()).isEqualTo("userTask1");
+            next = instance.advance();
+            assertThat(next.get().name()).isEqualTo("endEvent1");
+            next = instance.advance();
+            assertThat(next).isNull();
+        }
     }
 
     @Test

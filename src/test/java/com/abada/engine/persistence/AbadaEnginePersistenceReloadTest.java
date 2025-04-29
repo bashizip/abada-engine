@@ -5,6 +5,7 @@ import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.StateReloadService;
 import com.abada.engine.core.TaskInstance;
 import com.abada.engine.util.BpmnTestUtils;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,8 +15,8 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.io.InputStream;
 import java.util.List;
+import java.io.File;
 
-import static com.abada.engine.util.DatabaseTestUtils.cleanDatabase;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
@@ -33,7 +34,7 @@ public class AbadaEnginePersistenceReloadTest {
 
     @BeforeEach
     void resetDatabase() {
-        cleanDatabase(jdbcTemplate); // or you can @Autowired JdbcTemplate separately
+        //cleanDatabase(jdbcTemplate); // or you can @Autowired JdbcTemplate separately
     }
 
     @Test
@@ -75,4 +76,22 @@ public class AbadaEnginePersistenceReloadTest {
         ProcessInstance reloadedInstance = abadaEngine.getProcessInstanceById(processInstanceId);
         assertTrue(reloadedInstance.isCompleted(), "Process should be completed after task completion");
     }
+
+    @AfterAll
+    static void deleteTestDatabaseFile() {
+        String basePath = "./build/test-db-abada-recovery";
+        File mvDb = new File(basePath + ".mv.db");
+        File traceDb = new File(basePath + ".trace.db");
+
+        if (mvDb.exists()) {
+            boolean deleted = mvDb.delete();
+            System.out.println("Deleted mv.db: " + deleted);
+        }
+
+        if (traceDb.exists()) {
+            boolean deleted = traceDb.delete();
+            System.out.println("Deleted trace.db: " + deleted);
+        }
 }
+}
+

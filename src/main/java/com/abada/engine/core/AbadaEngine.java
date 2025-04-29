@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
@@ -34,31 +35,45 @@ public class AbadaEngine {
         saveProcessDefinition(definition);  // 🚨 SAVE real BPMN XML into DB
     }
 
-    public String startProcess(String processId) {
-        ParsedProcessDefinition def = processDefinitions.get(processId);
-        if (def == null) throw new IllegalArgumentException("Unknown process ID: " + processId);
 
-        ProcessInstance instance = new ProcessInstance(def);
+
+    public String startProcess(String processDefinitionId) {
+        ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
+        if (definition == null) {
+            throw new IllegalArgumentException("Unknown process ID: " + processDefinitionId);
+        }
+
+        // 1. Create the new ProcessInstance
+        ProcessInstance instance = new ProcessInstance(definition);
         instances.put(instance.getId(), instance);
 
-        // Persist the new process instance
+        // 2. Persist initial process instance (still at start event)
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
-        String next = instance.advance();
-        if (def.isUserTask(next)) {
-            String name = def.getTaskName(next);
-            String assignee = def.getTaskAssignee(next);
-            List<String> users = def.getCandidateUsers(next);
-            List<String> groups = def.getCandidateGroups(next);
-            taskManager.createTask(next, name, instance.getId(), assignee, users, groups);
+        // 3. Move forward from start event to next node (should reach first userTask or end)
+        Optional<UserTaskPayload> userTask = instance.advance();
 
-            // Persist the newly created task
-            taskManager.getTaskByDefinitionKey(next, instance.getId())
+        // 4. Persist updated process state after advance
+        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
+
+        // 5. If the next node is a user task, create and persist the corresponding TaskInstance
+        userTask.ifPresent(task -> {
+            taskManager.createTask(
+                    task.taskDefinitionKey(),
+                    task.name(),
+                    instance.getId(),
+                    task.assignee(),
+                    task.candidateUsers(),
+                    task.candidateGroups()
+            );
+            // Persist the task into database
+            taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), instance.getId())
                     .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
-        }
+        });
 
         return instance.getId();
     }
+
 
     public List<TaskInstance> getVisibleTasks(String user, List<String> groups) {
         return taskManager.getVisibleTasksForUser(user, groups);
@@ -74,41 +89,47 @@ public class AbadaEngine {
     }
 
     public boolean complete(String taskId, String user, List<String> groups) {
-        if (taskManager.canComplete(taskId, user, groups)) {
-            taskManager.completeTask(taskId);
-
-            taskManager.getTask(taskId)
-                    .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
-
-            String instanceId = taskManager.getTask(taskId)
-                    .map(TaskInstance::getProcessInstanceId)
-                    .orElseThrow();
-
-            ProcessInstance instance = instances.get(instanceId);
-            ParsedProcessDefinition def = instance.getDefinition();
-
-            String next = instance.advance();
-
-            // Persist updated process instance
-            persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
-
-            if (next != null && def.isUserTask(next)) {
-                String name = def.getTaskName(next);
-                String assignee = def.getTaskAssignee(next);
-                List<String> users = def.getCandidateUsers(next);
-                List<String> groupsList = def.getCandidateGroups(next);
-                taskManager.createTask(next, name, instance.getId(), assignee, users, groupsList);
-
-                // Persist the newly created task
-                taskManager.getTaskByDefinitionKey(next, instance.getId())
-                        .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
-            }
-            return true;
+        if (!taskManager.canComplete(taskId, user, groups)) {
+            return false;
         }
-        return false;
+
+        // 1. Mark task as completed in memory
+        taskManager.completeTask(taskId);
+
+        // 2. Persist the updated task
+        taskManager.getTask(taskId)
+                .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
+
+        // 3. Get the associated process instance
+        String processInstanceId = taskManager.getTask(taskId)
+                .map(TaskInstance::getProcessInstanceId)
+                .orElseThrow(() -> new IllegalStateException("Task has no associated process instance"));
+
+        ProcessInstance instance = instances.get(processInstanceId);
+        ParsedProcessDefinition def = instance.getDefinition();
+
+        // 4. Advance process to next activity (could be another user task or end)
+        Optional<UserTaskPayload> nextTask = instance.advance();
+
+        // 5. Persist updated process instance
+        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
+
+        // 6. If next activity is a user task, create and persist it
+        nextTask.ifPresent(task -> {
+            taskManager.createTask(
+                    task.taskDefinitionKey(),
+                    task.name(),
+                    processInstanceId,
+                    task.assignee(),
+                    task.candidateUsers(),
+                    task.candidateGroups()
+            );
+            taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), processInstanceId)
+                    .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
+        });
+
+        return true;
     }
-
-
 
     public void rehydrateProcessInstance(ProcessInstanceEntity entity) {
         ParsedProcessDefinition def = processDefinitions.get(entity.getProcessDefinitionId());

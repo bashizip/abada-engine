@@ -1,5 +1,8 @@
 package com.abada.engine.core;
 
+import com.abada.engine.dto.UserTaskPayload;
+
+import java.util.Optional;
 import java.util.UUID;
 
 public class ProcessInstance {
@@ -47,19 +50,24 @@ public class ProcessInstance {
         return currentActivityId == null;
     }
 
-    public String advance() {
-        if (currentActivityId == null) {
-            return null;
-        }
-
+    public Optional<UserTaskPayload> advance() {
         String next = definition.getNextActivity(currentActivityId);
+        currentActivityId = next;
 
-        if (next == null) {
-            currentActivityId = null;
-        } else {
-            currentActivityId = next;
+        if (next == null) return Optional.empty();
+
+        if (definition.isUserTask(next)) {
+            return Optional.of(new UserTaskPayload(
+                    next,
+                    definition.getTaskName(next),
+                    definition.getTaskAssignee(next),
+                    definition.getCandidateUsers(next),
+                    definition.getCandidateGroups(next)
+            ));
         }
 
-        return currentActivityId;
+        return advance(); // Auto-skip service tasks or gateways
     }
+
+
 }
