@@ -18,7 +18,6 @@ public class ProcessInstanceEntity {
 
     public enum Status {
         RUNNING,
-        WAITING_USER,
         COMPLETED,
         SUSPENDED,
         CANCELLED

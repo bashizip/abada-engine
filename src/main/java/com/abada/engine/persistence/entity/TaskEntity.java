@@ -2,6 +2,9 @@ package com.abada.engine.persistence.entity;
 
 import jakarta.persistence.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "tasks")
 public class TaskEntity {
@@ -20,6 +23,17 @@ public class TaskEntity {
 
     @Column
     private String name;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "task_candidate_users", joinColumns = @JoinColumn(name = "task_id"))
+    @Column(name = "user_id")
+    private List<String> candidateUsers = new ArrayList<>();
+
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "task_candidate_groups", joinColumns = @JoinColumn(name = "task_id"))
+    @Column(name = "group_id")
+    private List<String> candidateGroups = new ArrayList<>();
 
 
     @Column(nullable = false)
@@ -77,7 +91,24 @@ public class TaskEntity {
         return id;
     }
 
+
     public void setId(String id) {
         this.id = id;
+    }
+
+    public List<String> getCandidateUsers() {
+        return candidateUsers;
+    }
+
+    public void setCandidateUsers(List<String> candidateUsers) {
+        this.candidateUsers = candidateUsers;
+    }
+
+    public List<String> getCandidateGroups() {
+        return candidateGroups;
+    }
+
+    public void setCandidateGroups(List<String> candidateGroups) {
+        this.candidateGroups = candidateGroups;
     }
 }

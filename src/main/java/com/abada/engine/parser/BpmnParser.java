@@ -19,6 +19,13 @@ public class BpmnParser {
         public String assignee;
         public List<String> candidateUsers = List.of();
         public List<String> candidateGroups = List.of();
+
+        public TaskMeta(String name, String assignee, List<String> candidateUsers, List<String> candidateGroups) {
+        }
+
+        public TaskMeta() {
+
+        }
     }
 
     public static class SequenceFlow {

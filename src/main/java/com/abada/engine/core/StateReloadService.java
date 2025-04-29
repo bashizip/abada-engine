@@ -1,11 +1,14 @@
 package com.abada.engine.core;
 
 import com.abada.engine.persistence.PersistenceService;
+import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Component
@@ -21,8 +24,17 @@ public class StateReloadService {
 
     @PostConstruct
     public void reloadStateAtStartup() {
-        reloadProcessInstances();
-        reloadTasks();
+        reloadProcessDefinitions();  // 🚨 Reload definitions FIRST
+        reloadProcessInstances();    // 🚨 Then reload instances
+        reloadTasks();               // 🚨 Then reload tasks
+    }
+
+    private void reloadProcessDefinitions() {
+        List<ProcessDefinitionEntity> definitions = persistenceService.findAllProcessDefinitions();
+        for (ProcessDefinitionEntity entity : definitions) {
+            ByteArrayInputStream bpmnXmlStream = new ByteArrayInputStream(entity.getBpmnXml().getBytes(StandardCharsets.UTF_8));
+            abadaEngine.deploy(bpmnXmlStream);
+        }
     }
 
     private void reloadProcessInstances() {

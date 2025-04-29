@@ -1,7 +1,5 @@
 package com.abada.engine.core;
 
-import com.abada.engine.persistence.entity.ProcessInstanceEntity;
-
 import java.util.UUID;
 
 public class ProcessInstance {
@@ -16,7 +14,6 @@ public class ProcessInstance {
         this.definition = definition;
         this.currentActivityId = definition.getStartEventId();
     }
-
 
     public ProcessInstance(String id, ParsedProcessDefinition definition, String currentActivityId) {
         this.id = id;

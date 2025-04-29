@@ -1,19 +1,22 @@
 package com.abada.engine.api;
 
 import com.abada.engine.core.TaskInstance;
+import com.abada.engine.util.BpmnTestUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
+import static com.abada.engine.util.DatabaseTestUtils.cleanDatabase;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -22,24 +25,20 @@ public class EngineIntegrationTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
-    private final String sampleBpmn = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-            "<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"\n" +
-            "             xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
-            "             targetNamespace=\"http://abada/engine/test\">\n" +
-            "  <process id=\"claim-test\" name=\"Claim Test\" isExecutable=\"true\">\n" +
-            "    <startEvent id=\"start\"/>\n" +
-            "    <sequenceFlow id=\"s1\" sourceRef=\"start\" targetRef=\"task1\"/>\n" +
-            "    <userTask id=\"task1\" name=\"Do something\" candidateUsers=\"alice\"/>\n" +
-            "    <sequenceFlow id=\"s2\" sourceRef=\"task1\" targetRef=\"end\"/>\n" +
-            "    <endEvent id=\"end\"/>\n" +
-            "  </process>\n" +
-            "</definitions>";
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
-    private void setupTestProcess() {
+    @BeforeEach
+    void resetDatabase() {
+        System.out.println("cleanDatabase..");
+        cleanDatabase(jdbcTemplate);
+    }
+    private void setupTestProcess() throws IOException {
         HttpHeaders deployHeaders = new HttpHeaders();
         deployHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-        ByteArrayResource file = new ByteArrayResource(sampleBpmn.getBytes(StandardCharsets.UTF_8)) {
+        ByteArrayResource file = new ByteArrayResource(BpmnTestUtils.loadBpmnStream("test-process.bpmn")
+                .readAllBytes()) {
             @Override
             public String getFilename() {
                 return "sample.bpmn20.xml";
@@ -55,12 +54,12 @@ public class EngineIntegrationTest {
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        HttpEntity<String> startRequest = new HttpEntity<>("processId=claim-test", startHeaders);
+        HttpEntity<String> startRequest = new HttpEntity<>("processId=claim-test.bpmn", startHeaders);
         restTemplate.postForEntity("/engine/start", startRequest, String.class);
     }
 
     @Test
-    void shouldReturnTasksVisibleToAlice() {
+    void shouldReturnTasksVisibleToAlice() throws IOException {
         setupTestProcess();
 
         ResponseEntity<TaskInstance[]> response = restTemplate.getForEntity(
@@ -75,7 +74,7 @@ public class EngineIntegrationTest {
     }
 
     @Test
-    void shouldAllowAliceToClaimTask() {
+    void shouldAllowAliceToClaimTask() throws IOException {
         setupTestProcess();
 
         ResponseEntity<TaskInstance[]> taskResponse = restTemplate.getForEntity(

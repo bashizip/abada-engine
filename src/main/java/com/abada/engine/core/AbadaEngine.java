@@ -2,6 +2,7 @@ package com.abada.engine.core;
 
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
+import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
 import org.springframework.stereotype.Component;
@@ -30,6 +31,7 @@ public class AbadaEngine {
     public void deploy(InputStream bpmnXml) {
         ParsedProcessDefinition definition = parser.parse(bpmnXml);
         processDefinitions.put(definition.getId(), definition);
+        saveProcessDefinition(definition);  // 🚨 SAVE real BPMN XML into DB
     }
 
     public String startProcess(String processId) {
@@ -129,13 +131,21 @@ public class AbadaEngine {
         task.setTaskDefinitionKey(entity.getTaskDefinitionKey());
         task.setName(entity.getName());
         task.setAssignee(entity.getAssignee());
+        task.setCandidateUsers(entity.getCandidateUsers());
+        task.setCandidateGroups(entity.getCandidateGroups());
 
         if (entity.getStatus() == TaskEntity.Status.COMPLETED) {
             task.setCompleted(true);
         }
+        else if (entity.getStatus() == TaskEntity.Status.ASSIGNED) {
+            task.setAssignee(entity.getAssignee());
+        }
 
         taskManager.addTask(task);
     }
+
+
+
 
     private ProcessInstanceEntity convertToEntity(ProcessInstance instance) {
         ProcessInstanceEntity entity = new ProcessInstanceEntity();
@@ -143,9 +153,8 @@ public class AbadaEngine {
         entity.setProcessDefinitionId(instance.getDefinition().getId());
         entity.setCurrentActivityId(instance.getCurrentActivityId());
 
-        if (instance.isWaitingForUserTask()) {
-            entity.setStatus(ProcessInstanceEntity.Status.WAITING_USER);
-        } else if (instance.isCompleted()) {
+
+        if (instance.isCompleted()) {
             entity.setStatus(ProcessInstanceEntity.Status.COMPLETED);
         } else {
             entity.setStatus(ProcessInstanceEntity.Status.RUNNING);
@@ -162,6 +171,9 @@ public class AbadaEngine {
         entity.setName(taskInstance.getName());
         entity.setAssignee(taskInstance.getAssignee());
 
+        entity.setCandidateUsers(new ArrayList<>(taskInstance.getCandidateUsers()));
+        entity.setCandidateGroups(new ArrayList<>(taskInstance.getCandidateGroups()));
+
         if (taskInstance.isCompleted()) {
             entity.setStatus(TaskEntity.Status.COMPLETED);
         } else if (taskInstance.isClaimed()) {
@@ -172,4 +184,22 @@ public class AbadaEngine {
 
         return entity;
     }
+
+
+    public void clearMemory() {
+        instances.clear();
+        taskManager.clearTasks();
+    }
+    public ProcessInstance getProcessInstanceById(String id) {
+        return instances.get(id);
+    }
+
+    public void saveProcessDefinition(ParsedProcessDefinition definition) {
+        ProcessDefinitionEntity entity = new ProcessDefinitionEntity();
+        entity.setId(definition.getId());
+        entity.setName(definition.getName());
+        entity.setBpmnXml(definition.getBpmnXml());
+        persistenceService.saveProcessDefinition(entity);
+    }
+
 }

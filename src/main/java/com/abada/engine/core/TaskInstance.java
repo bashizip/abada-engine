@@ -17,8 +17,6 @@ public class TaskInstance {
     public TaskInstance() {
     }
 
-    // Getters and Setters
-
     public String getId() {
         return id;
     }

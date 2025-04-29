@@ -1,21 +1,21 @@
 package com.abada.engine.parser;
 
 import com.abada.engine.core.ParsedProcessDefinition;
+import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+
 
 public class BpmnParserTest {
 
 
     @Test
     void shouldParseBasicProcessCorrectly() {
-        InputStream inputStream = getClass().getResourceAsStream("/bpmn/test-process.bpmn");
+        InputStream inputStream = BpmnTestUtils.loadBpmnStream("test-process.bpmn");
         assertNotNull(inputStream, "Could not find BPMN test file!");
 
         BpmnParser parser = new BpmnParser();

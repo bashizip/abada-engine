@@ -86,4 +86,11 @@ public class TaskManager {
     public void addTask(TaskInstance taskInstance) {
         tasks.put(taskInstance.getId(), taskInstance);
     }
+
+    public void clearTasks() {
+        tasks.clear();
+    }
+
 }
+
+
