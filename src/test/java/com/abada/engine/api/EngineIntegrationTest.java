@@ -1,24 +1,25 @@
 package com.abada.engine.api;
 
+import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.TaskInstance;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.List;
 
-import static com.abada.engine.util.DatabaseTestUtils.cleanDatabase;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -27,70 +28,82 @@ public class EngineIntegrationTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    @MockBean
+    private UserContextProvider context; // <-- inject a fake Context
 
     @BeforeEach
-    void resetDatabase() {
-        System.out.println("cleanDatabase..");
-        cleanDatabase(jdbcTemplate);
+    void setupContext() {
+        // Default user to "alice" before each test
+        when(context.getUsername()).thenReturn("alice");
+        when(context.getGroups()).thenReturn(List.of());
     }
-    private void setupTestProcess() throws IOException {
-        HttpHeaders deployHeaders = new HttpHeaders();
-        deployHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-        ByteArrayResource file = new ByteArrayResource(BpmnTestUtils.loadBpmnStream("test-process.bpmn")
-                .readAllBytes()) {
+    private void setupTestProcess() throws IOException {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        ByteArrayResource file = new ByteArrayResource(
+                BpmnTestUtils.loadBpmnStream("simple-two-task.bpmn").readAllBytes()) {
             @Override
             public String getFilename() {
-                return "sample.bpmn20.xml";
+                return "simple-two-task.bpmn";
             }
         };
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", file);
 
-        HttpEntity<MultiValueMap<String, Object>> deployRequest = new HttpEntity<>(body, deployHeaders);
-        restTemplate.postForEntity("/engine/deploy", deployRequest, String.class);
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
+        restTemplate.postForEntity("/engine/deploy", request, String.class);
 
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        HttpEntity<String> startRequest = new HttpEntity<>("processId=claim-test.bpmn", startHeaders);
+        HttpEntity<String> startRequest = new HttpEntity<>("processId=simple-two-task", startHeaders);
         restTemplate.postForEntity("/engine/start", startRequest, String.class);
     }
 
     @Test
-    void shouldReturnTasksVisibleToAlice() throws IOException {
+    void fullProcessExecution_shouldCompleteAllTasksAndFinishProcess() throws IOException {
         setupTestProcess();
 
-        ResponseEntity<TaskInstance[]> response = restTemplate.getForEntity(
+        // 1. Alice sees the first task
+        ResponseEntity<TaskInstance[]> taskResponse1 = restTemplate.getForEntity(
                 "/engine/tasks", TaskInstance[].class);
+        assertEquals(HttpStatus.OK, taskResponse1.getStatusCode());
+        TaskInstance[] tasksForAlice = taskResponse1.getBody();
+        assertNotNull(tasksForAlice);
+        assertTrue(tasksForAlice.length > 0, "Alice should see a task");
 
-        System.out.println("Status Code: " + response.getStatusCode());
-        System.out.println("Response Body: " + Arrays.toString(response.getBody()));
+        String taskId1 = tasksForAlice[0].getId();
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertTrue(response.getBody().length > 0);
-    }
+        // 2. Alice claims and completes the task
+        restTemplate.postForEntity("/engine/claim?taskId=" + taskId1, null, String.class);
+        restTemplate.postForEntity("/engine/complete?taskId=" + taskId1, null, String.class);
 
-    @Test
-    void shouldAllowAliceToClaimTask() throws IOException {
-        setupTestProcess();
+        // 3. Switch context to Bob in 'managers' group
+        when(context.getUsername()).thenReturn("bob");
+        when(context.getGroups()).thenReturn(List.of("managers"));
 
-        ResponseEntity<TaskInstance[]> taskResponse = restTemplate.getForEntity(
+        // 4. Bob sees the second task
+        ResponseEntity<TaskInstance[]> taskResponse2 = restTemplate.getForEntity(
                 "/engine/tasks", TaskInstance[].class);
+        assertEquals(HttpStatus.OK, taskResponse2.getStatusCode());
+        TaskInstance[] tasksForBob = taskResponse2.getBody();
+        assertNotNull(tasksForBob);
+        assertTrue(tasksForBob.length > 0, "Bob (manager) should see a second task");
 
-        assertNotNull(taskResponse.getBody(), "Response body is null");
-        assertTrue(taskResponse.getBody().length > 0, "No tasks returned for alice");
+        String taskId2 = tasksForBob[0].getId();
 
-        String taskId = taskResponse.getBody()[0].getId();
+        // 5. Bob claims and completes the task
+        restTemplate.postForEntity("/engine/claim?taskId=" + taskId2, null, String.class);
+        restTemplate.postForEntity("/engine/complete?taskId=" + taskId2, null, String.class);
 
-        ResponseEntity<String> claimResponse = restTemplate.postForEntity(
-                "/engine/claim?taskId=" + taskId, null, String.class);
-
-        assertEquals(HttpStatus.OK, claimResponse.getStatusCode());
-        assertTrue(claimResponse.getBody().contains("Claimed"));
+        // 6. No more tasks should remain
+        ResponseEntity<TaskInstance[]> finalTasks = restTemplate.getForEntity(
+                "/engine/tasks", TaskInstance[].class);
+        TaskInstance[] remainingTasks = finalTasks.getBody();
+        assertNotNull(remainingTasks);
+        assertEquals(0, remainingTasks.length, "No tasks should remain, process should be completed");
     }
 }

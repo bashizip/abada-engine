@@ -1,5 +1,9 @@
 package com.abada.engine.util;
 
+import com.abada.engine.core.ParsedProcessDefinition;
+import com.abada.engine.parser.BpmnParser;
+
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
@@ -37,6 +41,21 @@ public final class BpmnTestUtils {
             return scanner.useDelimiter("\\A").next();
         } catch (Exception e) {
             throw new RuntimeException("Failed to load BPMN file as String: " + filename, e);
+        }
+    }
+
+
+    /**
+     * Parses a BPMN file from the test resources folder and returns the parsed process definition.
+     *
+     * @param filename the name of the BPMN file (e.g., "claim-test.bpmn")
+     * @return the parsed ParsedProcessDefinition
+     */
+    public static ParsedProcessDefinition parse(String filename) {
+        try (InputStream stream = loadBpmnStream(filename)) {
+            return new BpmnParser().parse(stream);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read BPMN test file: " + filename, e);
         }
     }
 }

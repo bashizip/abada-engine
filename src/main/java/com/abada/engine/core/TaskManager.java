@@ -55,16 +55,12 @@ public class TaskManager {
         }
     }
 
+
     public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups) {
-        List<TaskInstance> visibleTasks = new ArrayList<>();
-        for (TaskInstance task : tasks.values()) {
-            if (task.getAssignee() == null && isUserEligible(task, user, groups)) {
-                visibleTasks.add(task);
-            } else if (user.equals(task.getAssignee())) {
-                visibleTasks.add(task);
-            }
-        }
-        return visibleTasks;
+        return tasks.values().stream()
+                .filter(task -> !task.isCompleted())  // ✅ hide completed tasks
+                .filter(task -> isUserEligible(task, user, groups))
+                .toList();
     }
 
     public Optional<TaskInstance> getTask(String taskId) {
@@ -78,10 +74,14 @@ public class TaskManager {
                 .findFirst();
     }
 
-    private boolean isUserEligible(TaskInstance task, String user, List<String> userGroups) {
-        return (task.getCandidateUsers() != null && task.getCandidateUsers().contains(user)) ||
-                (task.getCandidateGroups() != null && userGroups.stream().anyMatch(group -> task.getCandidateGroups().contains(group)));
+    private boolean isUserEligible(TaskInstance task, String user, List<String> groups) {
+        if (task.getAssignee() != null) {
+            return task.getAssignee().equals(user); // direct assignee match
+        }
+        return task.getCandidateUsers().contains(user) ||
+                groups.stream().anyMatch(task.getCandidateGroups()::contains);
     }
+
 
     public void addTask(TaskInstance taskInstance) {
         tasks.put(taskInstance.getId(), taskInstance);

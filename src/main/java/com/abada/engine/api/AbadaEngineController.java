@@ -43,6 +43,8 @@ public class AbadaEngineController {
         return ResponseEntity.ok(visible);
     }
 
+
+
     @PostMapping("/claim")
     public ResponseEntity<String> claim(@RequestParam String taskId) {
         boolean claimed = engine.claim(taskId, context.getUsername(), context.getGroups());

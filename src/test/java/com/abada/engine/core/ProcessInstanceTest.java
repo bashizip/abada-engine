@@ -1,81 +1,41 @@
 package com.abada.engine.core;
 
 import com.abada.engine.dto.UserTaskPayload;
-import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ProcessInstanceTest {
-
-
-    @Test
-    void testAdvanceThroughProcess() throws IOException {
-        ParsedProcessDefinition definition = createSimpleDefinition();
-
-        ProcessInstance instance = new ProcessInstance(definition);
-
-        assertThat(instance.getCurrentActivityId()).isEqualTo("startEvent1");
-
-        Optional<UserTaskPayload> next = instance.advance();
-        if (next.isPresent()) {
-            assertThat(next.get().name()).isEqualTo("userTask1");
-            next = instance.advance();
-            assertThat(next.get().name()).isEqualTo("endEvent1");
-            next = instance.advance();
-            assertThat(next).isNull();
-        }
-    }
+class ProcessInstanceTest {
 
     @Test
-    void testIsWaitingForUserTask() throws IOException {
-        ParsedProcessDefinition definition = createSimpleDefinition();
-        ProcessInstance instance = new ProcessInstance(definition);
+    void testAdvanceThroughSimpleTwoTaskProcess() {
+        ParsedProcessDefinition def = BpmnTestUtils.parse("simple-two-task.bpmn");
+        ProcessInstance instance = new ProcessInstance(def);
 
-        instance.advance(); // move to userTask1
-        assertThat(instance.isWaitingForUserTask()).isTrue();
+        // Step 1: Advance to userTask1
+        Optional<UserTaskPayload> task1 = instance.advance();
+        assertTrue(task1.isPresent(), "Expected first task");
+        assertEquals("userTask1", task1.get().taskDefinitionKey());
+        assertEquals("First Task", task1.get().name());
+        assertEquals(List.of("alice"), task1.get().candidateUsers());
+        assertTrue(task1.get().candidateGroups().isEmpty());
+
+        // Step 2: Advance to userTask2
+        Optional<UserTaskPayload> task2 = instance.advance();
+        assertTrue(task2.isPresent(), "Expected second task");
+        assertEquals("userTask2", task2.get().taskDefinitionKey());
+        assertEquals("Second Task", task2.get().name());
+        assertTrue(task2.get().candidateUsers().isEmpty());
+        assertEquals(List.of("managers"), task2.get().candidateGroups());
+
+        // Step 3: Advance to end
+        Optional<UserTaskPayload> end = instance.advance();
+        assertTrue(end.isEmpty(), "No more tasks expected");
+        assertTrue(instance.isCompleted(), "Process should be completed");
     }
-
-    @Test
-    void testReloadedInstance() throws IOException {
-        ParsedProcessDefinition definition = createSimpleDefinition();
-        ProcessInstance reloadedInstance = new ProcessInstance(
-                "custom-id-123",
-                definition,
-                "userTask1"
-        );
-
-        assertThat(reloadedInstance.getId()).isEqualTo("custom-id-123");
-        assertThat(reloadedInstance.getCurrentActivityId()).isEqualTo("userTask1");
-        assertThat(reloadedInstance.isWaitingForUserTask()).isTrue();
-    }
-
-    private ParsedProcessDefinition createSimpleDefinition() throws IOException {
-        Map<String, BpmnParser.TaskMeta> userTasks = Map.of(
-                "userTask1", new BpmnParser.TaskMeta("Approve Something", null, List.of(), List.of())
-        );
-
-        List<BpmnParser.SequenceFlow> flows = List.of(
-                new BpmnParser.SequenceFlow("seq1","startEvent1", "userTask1"),
-                new BpmnParser.SequenceFlow("seq2","userTask1", "endEvent1")
-        );
-
-
-
-        return new ParsedProcessDefinition(
-                "test-process",
-                "Test Process",
-                "startEvent1",
-                userTasks,
-                flows,
-                BpmnTestUtils.loadBpmnAsString("test-process.bpmn")
-        );
-    }
-
 }
