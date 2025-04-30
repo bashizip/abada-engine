@@ -40,9 +40,9 @@ public class ProcessDefinitionTest {
 
     @Test
     void shouldReturnNextElementId() {
-        assertEquals("taskA", definition.getNextElement("startEvent1"));
-        assertEquals("taskB", definition.getNextElement("taskA"));
-        assertEquals("endEvent1", definition.getNextElement("taskB"));
+        assertEquals("taskA", definition.getNextActivity("startEvent1"));
+        assertEquals("taskB", definition.getNextActivity("taskA"));
+        assertEquals("endEvent1", definition.getNextActivity("taskB"));
     }
 
     @Test

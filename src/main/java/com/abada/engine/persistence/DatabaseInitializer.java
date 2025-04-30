@@ -1,48 +1,56 @@
 package com.abada.engine.persistence;
 
-import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
-import com.abada.engine.persistence.entity.ProcessInstanceEntity;
-import com.abada.engine.persistence.entity.TaskEntity;
-import org.springframework.boot.CommandLineRunner;
+import com.abada.engine.core.AbadaEngine;
+import com.abada.engine.util.BpmnUtils;
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
-//@Profile("dev")
+import java.io.InputStream;
+import java.util.List;
+
+@Profile("dev")
 @Component
-public class DatabaseInitializer implements CommandLineRunner {
+public class DatabaseInitializer {
 
+    private final AbadaEngine abadaEngine;
     private final PersistenceService persistenceService;
+    private final Environment env;
 
-    public DatabaseInitializer(PersistenceService persistenceService) {
+    public DatabaseInitializer(AbadaEngine abadaEngine,
+                               PersistenceService persistenceService,
+                               Environment env) {
+        this.abadaEngine = abadaEngine;
         this.persistenceService = persistenceService;
+        this.env = env;
     }
 
-    @Override
-    public void run(String... args) throws Exception {
-        System.out.println("[AbadaEngine] Preloading demo data into H2 database...");
+    @PostConstruct
+    public void initialize() {
+        List<String> activeProfiles = List.of(env.getActiveProfiles());
+        if (activeProfiles.contains("dev")) {
+            System.out.println("[DEV] Auto-deploying sample process...");
+            deploySampleProcessIfNotExists();
+        }
+    }
 
-        // Create and save a Process Definition
-        ProcessDefinitionEntity definition = new ProcessDefinitionEntity();
-        definition.setId("demo-proc-1");
-        definition.setName("Demo Process 1");
-        definition.setBpmnXml("<bpmn>Demo BPMN XML</bpmn>");
-        persistenceService.saveProcessDefinition(definition);
+    private void deploySampleProcessIfNotExists() {
+        boolean alreadyDeployed = persistenceService
+                .findAllProcessDefinitions()
+                .stream()
+                .anyMatch(def -> def.getId().equals("simple-two-task"));
 
-        // Create and save a Process Instance
-        ProcessInstanceEntity instance = new ProcessInstanceEntity();
-        instance.setId("demo-inst-1");
-        instance.setDefinitionId("demo-proc-1");
-        instance.setStatus("ACTIVE");
-        persistenceService.saveProcessInstance(instance);
+        if (alreadyDeployed) {
+            System.out.println("[DEV] Sample process already deployed.");
+            return;
+        }
 
-        // Create and save a Task
-        TaskEntity task = new TaskEntity();
-        task.setId("demo-task-1");
-        task.setProcessInstanceId("demo-inst-1");
-        task.setAssignee("admin");
-        task.setStatus("PENDING");
-        persistenceService.saveTask(task);
-
-        System.out.println("[AbadaEngine] Demo data preloaded successfully.");
+        try (InputStream stream = BpmnUtils.loadBpmnStream("simple-two-task.bpmn")) {
+            abadaEngine.deploy(stream);
+            System.out.println("[DEV] Sample process deployed.");
+        } catch (Exception e) {
+            System.err.println("[DEV] Failed to deploy sample process: " + e.getMessage());
+        }
     }
 }

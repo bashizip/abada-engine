@@ -1,9 +1,9 @@
 package com.abada.engine.persistence.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "tasks")
@@ -18,14 +18,56 @@ public class TaskEntity {
     @Column
     private String assignee;
 
-    @Column(nullable = false)
-    private String status;
+    @Column
+    private String taskDefinitionKey;
 
-    public String getStatus() {
+    @Column
+    private String name;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "task_candidate_users", joinColumns = @JoinColumn(name = "task_id"))
+    @Column(name = "user_id")
+    private List<String> candidateUsers = new ArrayList<>();
+
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "task_candidate_groups", joinColumns = @JoinColumn(name = "task_id"))
+    @Column(name = "group_id")
+    private List<String> candidateGroups = new ArrayList<>();
+
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    public enum Status {
+        CREATED,     // Task created, not yet assigned or claimed
+        ASSIGNED,    // Task has been claimed by a user
+        COMPLETED,   // Task completed successfully
+        CANCELLED    // Task was cancelled (optional for admin control)
+    }
+
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public String getTaskDefinitionKey() {
+        return taskDefinitionKey;
+    }
+
+    public void setTaskDefinitionKey(String taskDefinitionKey) {
+        this.taskDefinitionKey = taskDefinitionKey;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setStatus(Status status) {
         this.status = status;
     }
 
@@ -49,7 +91,24 @@ public class TaskEntity {
         return id;
     }
 
+
     public void setId(String id) {
         this.id = id;
+    }
+
+    public List<String> getCandidateUsers() {
+        return candidateUsers;
+    }
+
+    public void setCandidateUsers(List<String> candidateUsers) {
+        this.candidateUsers = candidateUsers;
+    }
+
+    public List<String> getCandidateGroups() {
+        return candidateGroups;
+    }
+
+    public void setCandidateGroups(List<String> candidateGroups) {
+        this.candidateGroups = candidateGroups;
     }
 }

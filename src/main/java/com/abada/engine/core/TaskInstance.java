@@ -1,39 +1,52 @@
 package com.abada.engine.core;
 
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Represents a user task instance in a process.
- */
 public class TaskInstance {
 
-    private final String taskId;
-    private final String taskName;
-    private final String processInstanceId;
+    private String id;
+    private String processInstanceId;
+    private String taskDefinitionKey;
+    private String name;
     private String assignee;
-    private final List<String> candidateUsers;
-    private final List<String> candidateGroups;
+    private boolean completed;
+    private List<String> candidateUsers = new ArrayList<>();
+    private List<String> candidateGroups = new ArrayList<>();
 
-    public TaskInstance(String taskId, String taskName, String processInstanceId,
-                        String assignee, List<String> candidateUsers, List<String> candidateGroups) {
-        this.taskId = taskId;
-        this.taskName = taskName;
-        this.processInstanceId = processInstanceId;
-        this.assignee = assignee;
-        this.candidateUsers = candidateUsers;
-        this.candidateGroups = candidateGroups;
+    public TaskInstance() {
     }
 
-    public String getTaskId() {
-        return taskId;
+    public String getId() {
+        return id;
     }
 
-    public String getTaskName() {
-        return taskName;
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getProcessInstanceId() {
         return processInstanceId;
+    }
+
+    public void setProcessInstanceId(String processInstanceId) {
+        this.processInstanceId = processInstanceId;
+    }
+
+    public String getTaskDefinitionKey() {
+        return taskDefinitionKey;
+    }
+
+    public void setTaskDefinitionKey(String taskDefinitionKey) {
+        this.taskDefinitionKey = taskDefinitionKey;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getAssignee() {
@@ -44,11 +57,33 @@ public class TaskInstance {
         this.assignee = assignee;
     }
 
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
+    }
+
     public List<String> getCandidateUsers() {
         return candidateUsers;
     }
 
+    public void setCandidateUsers(List<String> candidateUsers) {
+        this.candidateUsers = candidateUsers;
+    }
+
     public List<String> getCandidateGroups() {
         return candidateGroups;
+    }
+
+    public void setCandidateGroups(List<String> candidateGroups) {
+        this.candidateGroups = candidateGroups;
+    }
+
+    // Helper methods
+
+    public boolean isClaimed() {
+        return assignee != null && !assignee.isEmpty();
     }
 }

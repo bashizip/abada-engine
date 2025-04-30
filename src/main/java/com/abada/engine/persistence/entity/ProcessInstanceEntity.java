@@ -1,9 +1,6 @@
 package com.abada.engine.persistence.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "process_instances")
@@ -12,12 +9,32 @@ public class ProcessInstanceEntity {
     @Id
     private String id;
 
-    @Column(nullable = false)
-    private String definitionId;
+    private String processDefinitionId;
 
-    @Column(nullable = false)
-    private String status;
+    private String currentActivityId;
 
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    public enum Status {
+        RUNNING,
+        COMPLETED,
+        SUSPENDED,
+        CANCELLED
+    }
+
+    // Constructors
+    public ProcessInstanceEntity() {
+    }
+
+    public ProcessInstanceEntity(String id, String processDefinitionId, String currentActivityId, Status status) {
+        this.id = id;
+        this.processDefinitionId = processDefinitionId;
+        this.currentActivityId = currentActivityId;
+        this.status = status;
+    }
+
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -26,19 +43,27 @@ public class ProcessInstanceEntity {
         this.id = id;
     }
 
-    public String getDefinitionId() {
-        return definitionId;
+    public String getProcessDefinitionId() {
+        return processDefinitionId;
     }
 
-    public void setDefinitionId(String definitionId) {
-        this.definitionId = definitionId;
+    public void setProcessDefinitionId(String processDefinitionId) {
+        this.processDefinitionId = processDefinitionId;
     }
 
-    public String getStatus() {
+    public String getCurrentActivityId() {
+        return currentActivityId;
+    }
+
+    public void setCurrentActivityId(String currentActivityId) {
+        this.currentActivityId = currentActivityId;
+    }
+
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
 }

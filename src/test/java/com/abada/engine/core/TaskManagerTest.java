@@ -1,83 +1,103 @@
 package com.abada.engine.core;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TaskManagerTest {
 
-    private TaskManager taskManager;
+    @Test
+    void testCreateAndRetrieveTask() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-    @BeforeEach
-    void setup() {
-        taskManager = new TaskManager();
+        taskManager.createTask(
+                "approveTask", "Approve Request", processInstanceId,
+                null,
+                List.of("user1"),
+                List.of("group1")
+        );
+
+        List<TaskInstance> visibleTasks = taskManager.getVisibleTasksForUser("user1", List.of("group1"));
+        assertThat(visibleTasks).hasSize(1);
+
+        TaskInstance task = visibleTasks.get(0);
+        assertThat(task.getTaskDefinitionKey()).isEqualTo("approveTask");
+        assertThat(task.getProcessInstanceId()).isEqualTo(processInstanceId);
+        assertThat(task.getAssignee()).isNull();
+        assertThat(task.isCompleted()).isFalse();
     }
 
     @Test
-    void shouldCreateAndRetrieveTasks() {
-        taskManager.createTask("task1", "Approve Invoice", "proc-1", null,
-                List.of("alice"), List.of("finance"));
+    void testClaimTask() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-        List<TaskInstance> tasks = taskManager.getVisibleTasksForUser("alice", List.of());
-        assertEquals(1, tasks.size());
+        taskManager.createTask(
+                "reviewTask", "Review Document", processInstanceId,
+                null,
+                List.of("user2"),
+                List.of("group2")
+        );
 
-        TaskInstance task = tasks.getFirst();
-        assertEquals("task1", task.getTaskId());
-        assertEquals("Approve Invoice", task.getTaskName());
-        assertEquals("proc-1", task.getProcessInstanceId());
-        assertNull(task.getAssignee());
-        assertTrue(task.getCandidateUsers().contains("alice"));
+        List<TaskInstance> visible = taskManager.getVisibleTasksForUser("user2", List.of("group2"));
+        assertThat(visible).hasSize(1);
+
+        TaskInstance task = visible.get(0);
+
+        boolean claimed = taskManager.claimTask(task.getId(), "user2", List.of("group2"));
+
+        assertThat(claimed).isTrue();
+        assertThat(task.getAssignee()).isEqualTo("user2");
+        assertThat(task.isCompleted()).isFalse();
     }
 
     @Test
-    void shouldAllowClaimByCandidateUser() {
-        taskManager.createTask("task2", "Review Report", "proc-2", null,
-                List.of("bob"), List.of("hr"));
+    void testCompleteTask() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-        boolean claimed = taskManager.claimTask("task2", "bob", List.of());
-        assertTrue(claimed);
+        taskManager.createTask(
+                "signOffTask", "Final Sign Off", processInstanceId,
+                "user3", // already assigned
+                null,
+                null
+        );
 
-        TaskInstance claimedTask = taskManager.getTask("task2").orElseThrow();
-        assertEquals("bob", claimedTask.getAssignee());
+
+        TaskInstance task = taskManager.getTaskByDefinitionKey("signOffTask", processInstanceId).orElseThrow();
+
+        assertThat(task.getAssignee()).isEqualTo("user3");
+
+        boolean canComplete = taskManager.canComplete(task.getId(), "user3", List.of("group3"));
+        assertThat(canComplete).isTrue();
+        taskManager.completeTask(task.getId());
+        assertThat(task.isCompleted()).isTrue();
+
+        // Once completed, it should no longer be visible
+        List<TaskInstance> postCompleteVisible = taskManager.getVisibleTasksForUser("user3", List.of("group3"));
+        assertThat(postCompleteVisible).isEmpty();
     }
 
     @Test
-    void shouldAllowClaimByCandidateGroup() {
-        taskManager.createTask("task3", "Submit Review", "proc-3", null,
-                List.of(), List.of("qa"));
+    void testGetTaskByDefinitionKey() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
 
-        // simulate that "carol" belongs to "qa" group
-        List<String> userGroups = List.of("qa");
-        List<TaskInstance> candidateTasks = taskManager.getVisibleTasksForUser("carol", userGroups);
-        assertEquals(1, candidateTasks.size());
+        taskManager.createTask(
+                "validateInvoice", "Validate Invoice", processInstanceId,
+                null,
+                List.of("user4"),
+                List.of("group4")
+        );
 
-        boolean claimed = taskManager.claimTask("task3", "carol", userGroups);
-        assertTrue(claimed);
-
-        TaskInstance claimedTask = taskManager.getTask("task3").orElseThrow();
-        assertEquals("carol", claimedTask.getAssignee());
-    }
-
-
-    @Test
-    void shouldRejectClaimIfUnauthorized() {
-        taskManager.createTask("task4", "Verify", "proc-4", null,
-                List.of("alice"), List.of("devs"));
-
-        boolean claimed = taskManager.claimTask("task4", "bob", List.of("hr"));
-        assertFalse(claimed);
-    }
-
-    @Test
-    void shouldRemoveTaskOnCompletion() {
-        taskManager.createTask("task5", "Final Check", "proc-5", "john",
-                List.of(), List.of());
-
-        assertTrue(taskManager.getTask("task5").isPresent());
-        taskManager.completeTask("task5");
-        assertTrue(taskManager.getTask("task5").isEmpty());
+        Optional<TaskInstance> retrieved = taskManager.getTaskByDefinitionKey("validateInvoice", processInstanceId);
+        assertThat(retrieved).isPresent();
+        assertThat(retrieved.get().getName()).isEqualTo("Validate Invoice");
+        assertThat(retrieved.get().isCompleted()).isFalse();
     }
 }

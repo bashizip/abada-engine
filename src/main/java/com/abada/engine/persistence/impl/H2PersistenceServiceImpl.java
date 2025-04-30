@@ -1,15 +1,20 @@
-package com.abada.engine.persistence;
+package com.abada.engine.persistence.impl;
 
+import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.ProcessDefinitionRepository;
 import com.abada.engine.persistence.repository.ProcessInstanceRepository;
 import com.abada.engine.persistence.repository.TaskRepository;
+import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Component
 @Service
 public class H2PersistenceServiceImpl implements PersistenceService {
 
@@ -26,17 +31,29 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     }
 
     @Override
+    @Transactional
+    public void saveOrUpdateProcessInstance(ProcessInstanceEntity instance) {
+        if (instance == null) {
+            throw new IllegalArgumentException("ProcessInstance cannot be null");
+        }
+        processInstanceRepository.save(instance);
+    }
+    @Override
     public void saveProcessDefinition(ProcessDefinitionEntity definition) {
         processDefinitionRepository.save(definition);
     }
 
     @Override
+    @Transactional
     public void saveProcessInstance(ProcessInstanceEntity instance) {
-        processInstanceRepository.save(instance);
+          saveOrUpdateProcessInstance(instance);
     }
 
     @Override
     public void saveTask(TaskEntity task) {
+        if (task == null) {
+            throw new IllegalArgumentException("task cannot be null");
+        }
         taskRepository.save(task);
     }
 

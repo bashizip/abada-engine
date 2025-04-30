@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 /**
  * Holds the metadata of a parsed BPMN process definition.
  */
-public class ParsedProcessDefinition {
+public class  ParsedProcessDefinition {
 
     private final String id;
     private final String name;
@@ -32,6 +32,7 @@ public class ParsedProcessDefinition {
                 .collect(Collectors.toMap(BpmnParser.SequenceFlow::getFrom, BpmnParser.SequenceFlow::getTo));
         this.bpmnXml = bpmnXml;
     }
+
 
     public String getId() {
         return id;
@@ -60,7 +61,7 @@ public class ParsedProcessDefinition {
      * @param currentElementId ID of the current BPMN element.
      * @return ID of the next BPMN element, or null if none found.
      */
-    public String getNextElement(String currentElementId) {
+    public String getNextActivity(String currentElementId) {
         return sequenceFlows.get(currentElementId);
     }
 
