@@ -2,7 +2,7 @@
 
 # 🦄 Abada Engine
 
-**Abada Engine** is a lightweight, pluggable BPMN-based workflow engine built in Java. Designed for developers and teams that want full control over business process automation without relying on bloated or proprietary platforms.
+**Abada Engine** is a lightweight, embeddable BPMN-based workflow engine written in Java. Designed for teams that want full control over business process automation — without relying on bloated or proprietary platforms.
 
 > Inspired by the mythical African unicorn *Abada* — rare, agile, and powerful.
 
@@ -10,66 +10,75 @@
 
 ## ✨ Features
 
-- 🚀 Lightweight and embeddable — no heavy runtimes
-- 🧹 BPMN 2.0 process execution (basic tasks, events, gateways)
-- ⚖️ Java 21 and Spring Boot 3.4 support
-- 📃  H2 database for quick development
-- 🔄 REST API for interacting with processes and tasks
-- 🖼️ Ready for integration with [bpmn-js](https://bpmn.io/toolkit/bpmn-js/) or any custom UI
+- 🚀 Lightweight and pluggable — embeddable into any Spring Boot app
+- 🧠 Clean BPMN 2.0 execution model (start events, user tasks, sequence flows)
+- 🧾 Support for assignee, candidate users, and groups
+- 💾 Persistent process and task state with automatic recovery on reboot
+- 🔁 State reload logic with BPMN XML stored directly in the database
+- 🔍 REST API to deploy, start, claim, complete, and inspect processes
+- 📦 Java 21 + Spring Boot 3.4 compatible
+- 🖼️ Ready for integration with [bpmn-js](https://bpmn.io/toolkit/bpmn-js/) for live rendering
 
 ---
----
 
-## 📄 Getting Started
+## 🚀 Getting Started
 
 ```bash
-git clone https://github.com/your-org/abada-engine.git
+git clone https://github.com/bashizip/abada-engine.git
 cd abada-engine
 mvn spring-boot:run
 ```
 
-Visit `http://localhost:8080/api` to explore the API.
+Visit `http://localhost:8080/engine/processes` to list deployed processes.
 
 ---
 
-## 🧪 Roadmap
-## 🛣️ Roadmap
+## 🧪 Current Milestone: `v0.5.0-alpha`
 
-| ✅ / 🕓 / 🧪 | Task                                | Description                                                                 | Status     | Version        | Note                                           |
-|------------|-------------------------------------|-----------------------------------------------------------------------------|------------|----------------|------------------------------------------------|
-| ✅         | BPMN XML Parser (basic)             | Load BPMN 2.0 XML, extract start events, user tasks, sequence flows         | Done       | v0.1.0-alpha   | Supports minimal flow to bootstrap engine     |
-| ✅         | REST API: Deploy BPMN               | Upload `.bpmn20.xml` and register definition                                | Done       | v0.1.0-alpha   | Uses `multipart/form-data`                    |
-| ✅         | REST API: Start + Complete          | Start process instance, claim and complete tasks                            | Done       | v0.1.0-alpha   | MVP core loop                                 |
-| ✅         | Assignee & Candidate Group Logic    | Parse and enforce `assignee`, `candidateUsers`, `candidateGroups`          | Done       | v0.3.0-alpha   | Enables realistic user routing logic          |
-| ✅         | Persistence (in-memory to H2)       | Persist process definitions, instances, task state                          | Done       | v0.4.0-alpha   | Enables recovery and scaling                  |
-| 🕓         | Publish to Maven Central            | Make Abada Engine publicly consumable as a library                          | Planned       | v0.7.0-alpha   | Includes Maven coordinates + metadata          |
-| 🧪         | Engine State Restoration on Startup | Reload process instances and tasks into memory                              | In Progress| v0.5.0-alpha   | Reconstruct in-memory state                   |
-| 🕓         | BPMN: Exclusive Gateway             | Support `<exclusiveGateway>` and conditions                                 | Planned    | v0.6.0-alpha   | Add XML condition support                     |
-| 🕓         | BPMN: Parallel Gateway              | Add `<parallelGateway>` split/join logic                                    | Planned    | v0.6.0-alpha   | Can be simple fork/join engine                |
-| 🕓         | BPMN: Sub-Process                   | Support nested elements (`<subProcess>`)                                    | Planned    | v0.8.0-alpha   | Inline only (no call activity)                |
-| 🕓         | BPMN: Boundary Timer Event          | Add support for `<boundaryEvent>` with `<timerEventDefinition>`            | Planned    | v0.6.0-alpha   | Timer delay logic (non-interrupting not required) |
-| 🕓         | BPMN: Service Task (Stub)           | Accept `<serviceTask>` and simulate placeholder execution                   | Planned    | v0.6.0-alpha   | Log action or trigger mock endpoint           |
-| 🕓         | BPMN: Script Task (Optional)        | Support Java-based or mock scripting task                                   | Optional   | v0.6.0-alpha   | Can be skipped or mocked                      |
-| 🕓         | Validation: BPMN Schema Check       | Validate input BPMN files against BPMN 2.0 XSD                              | Planned    | v0.6.0-alpha   | Reject broken XML early                       |
-| 🕓         | Process History Logging             | Log transitions, task state changes per instance                            | Planned    | v0.2.0-alpha   | Use internal event model                      |
-| ✅         | Unit Tests for Core Components      | Add component-level unit testing coverage                                   | Done       | v0.3.0-alpha   | Foundation for engine behavior validation     |
-| 🕓         | WT Authentication                   | Implement WT token authentication for endpoints                             | Planned    | v0.3.0-alpha   | Enhance security model                        |
+- ✅ Process and task persistence using H2 (with support for JDBC)
+- ✅ State reload after reboot — recover processes and tasks in memory
+- ✅ Clean orchestration with `advance()` and `UserTaskPayload`
+- ✅ Auto-deploy `simple-two-task.bpmn` in `dev` profile
+- ✅ REST APIs:
+    - `GET /engine/processes` — list deployed processes
+    - `GET /engine/processes/{id}` — process metadata + BPMN XML
+    - `GET /engine/processes/{id}/diagram` — raw XML for bpmn-js
+- ✅ Integration test: Alice → Bob → complete flow
+- ✅ `/docs/persistence.md`: internal docs on recovery & limitations
 
 ---
+
+## 📄 Roadmap
+
+| Status | Task                                | Description                                                       | Version      |
+|--------|-------------------------------------|-------------------------------------------------------------------|--------------|
+| ✅     | BPMN Parser (basic)                 | Parse XML: start, user tasks, sequence flows                      | v0.1.0-alpha |
+| ✅     | Deploy via REST                     | Upload `.bpmn` via multipart                                      | v0.1.0-alpha |
+| ✅     | Start / Claim / Complete            | Execute process, manage user tasks                                | v0.1.0-alpha |
+| ✅     | Assignee & Candidate Logic          | Support `assignee`, `candidateUsers`, `candidateGroups`          | v0.3.0-alpha |
+| ✅     | In-memory to DB persistence         | Store process instances & tasks                                   | v0.4.0-alpha |
+| ✅     | Reload from DB at startup           | Rebuild engine state on reboot                                    | v0.5.0-alpha |
+| ✅     | Process listing API                 | Query deployed processes via REST                                 | v0.5.0-alpha |
+| 🕓     | Publish to Maven Central            | Make it a reusable Java library                                   | v0.7.0-alpha |
+| 🕓     | Exclusive + Parallel Gateway        | Add condition-based routing and fork/join                         | v0.6.0-alpha |
+| 🕓     | Service Task Support                | Simulate service tasks or call stubs                              | v0.6.0-alpha |
+| 🕓     | Sub-processes & Events              | Add `<subProcess>`, `<boundaryEvent>`                             | v0.8.0-alpha |
+| 🕓     | BPMN Schema Validation              | Validate input XML using official BPMN XSD                        | v0.6.0-alpha |
+| 🕓     | History Logging                     | Track transitions & task states                                   | v0.6.0-alpha |
+
 
 ## 🧠 Philosophy
 
-> Build your own engine, not your own prison.
+> Build your own engine — not your own prison.
 
-Abada Engine is built for reusability, branding, and portability. Perfect for companies or integrators building tailored process solutions across customers.
+Abada Engine is built to be lightweight, hackable, and open. Whether you're building internal automation or selling workflow-driven platforms, Abada gives you full control — from task routing to UI integration.
 
 ---
 
 ## 📜 License
 
-[MIT License](https://github.com/bashizip/abada-engine/blob/dev/LICENCE)
+[MIT License](https://github.com/bashizip/abada-engine/blob/main/LICENCE)
 
 ---
 
 ## 🦄 Made with love by Patrick Bashizi
-
