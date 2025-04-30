@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://abada/engine/test">
+  <process id="simple-two-task" name="Simple Two Task Process" isExecutable="true">
+    <startEvent id="start"/>
+    <sequenceFlow id="flow1" sourceRef="start" targetRef="userTask1"/>
+    <userTask id="userTask1" name="First Task" candidateUsers="alice"/>
+    <sequenceFlow id="flow2" sourceRef="userTask1" targetRef="userTask2"/>
+    <userTask id="userTask2" name="Second Task" candidateGroups="managers"/>
+    <sequenceFlow id="flow3" sourceRef="userTask2" targetRef="end"/>
+    <endEvent id="end"/>
+  </process>
+</definitions>

@@ -36,6 +36,13 @@ public class AbadaEngine {
     }
 
 
+    public List<ProcessDefinitionEntity> getDeployedProcesses() {
+        return persistenceService.findAllProcessDefinitions();
+    }
+
+    public Optional<ProcessDefinitionEntity> getProcessDefinitionById(String id) {
+        return Optional.ofNullable(persistenceService.findProcessDefinitionById(id));
+    }
 
     public String startProcess(String processDefinitionId) {
         ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);

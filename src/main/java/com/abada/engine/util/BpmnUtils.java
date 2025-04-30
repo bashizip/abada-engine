@@ -11,9 +11,9 @@ import java.util.Scanner;
 /**
  * Utility class to help load BPMN resources for testing.
  */
-public final class BpmnTestUtils {
+public final class BpmnUtils {
 
-    private BpmnTestUtils() {
+    private BpmnUtils() {
         // Utility class, no instantiation
     }
 
@@ -23,7 +23,7 @@ public final class BpmnTestUtils {
      * @return InputStream of the BPMN XML
      */
     public static InputStream loadBpmnStream(String filename) {
-        InputStream stream = BpmnTestUtils.class.getClassLoader().getResourceAsStream("bpmn/" + filename);
+        InputStream stream = BpmnUtils.class.getClassLoader().getResourceAsStream("bpmn/" + filename);
         if (stream == null) {
             throw new IllegalArgumentException("BPMN file not found: " + filename);
         }
