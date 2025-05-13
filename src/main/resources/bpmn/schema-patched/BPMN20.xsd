@@ -9,7 +9,7 @@
 
   <xs:complexType name="tBaseElement">
     <xs:sequence/>
-        <xs:anyAttribute processContents="lax" namespace="##other"/>
+    <xs:anyAttribute processContents="lax" namespace="##other"/>
   </xs:complexType>
 
   <xs:complexType name="tActivity">

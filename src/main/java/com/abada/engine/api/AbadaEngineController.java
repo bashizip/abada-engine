@@ -58,6 +58,7 @@ public class AbadaEngineController {
     @PostMapping("/start")
     public ResponseEntity<String> start(@RequestParam("processId") String processId) {
         String instanceId = engine.startProcess(processId);
+
         return ResponseEntity.ok("Started instance: " + instanceId);
     }
 

@@ -1,6 +1,6 @@
 package com.abada.engine.util;
 
-import com.abada.engine.core.ParsedProcessDefinition;
+import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.parser.BpmnParser;
 
 import java.io.IOException;

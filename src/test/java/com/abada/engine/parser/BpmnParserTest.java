@@ -1,31 +1,50 @@
 package com.abada.engine.parser;
 
-import com.abada.engine.core.ParsedProcessDefinition;
+
+import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.util.BpmnTestUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
 public class BpmnParserTest {
 
+    private ParsedProcessDefinition parsed;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        InputStream xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
+        CamundaSchemaValidator.validate(xmlStream);
+
+        // Re-open stream for parsing
+        xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
+        parsed = new BpmnParser().parse(xmlStream);
+    }
 
     @Test
-    void shouldParseBasicProcessCorrectly() {
-        InputStream inputStream = BpmnTestUtils.loadBpmnStream("test-process.bpmn");
-        assertNotNull(inputStream, "Could not find BPMN test file!");
+    void testProcessIdAndName() {
+        assertEquals("recipe_cook", parsed.getId());
+        assertNotNull(parsed.getStartEventId());
+    }
 
-        BpmnParser parser = new BpmnParser();
-        ParsedProcessDefinition definition = parser.parse(inputStream);
+    @Test
+    void testUserTasksExist() {
+        assertTrue(parsed.isUserTask("Activity_0b1232f"));
+        assertTrue(parsed.isUserTask("Activity_1lzaw3z"));
+    }
 
-        assertEquals("test-process", definition.getId());
-        assertTrue(definition.isUserTask("task1"));
-        assertEquals("Do something", definition.getTaskName("task1"));
-        assertEquals("bob", definition.getTaskAssignee("task1"));
-        assertEquals(List.of("alice"), definition.getCandidateUsers("task1"));
-        assertEquals(List.of("finance", "qa"), definition.getCandidateGroups("task1"));
+    @Test
+    void testAssigneeAndGroupsParsed() {
+        assertEquals("alice", parsed.getTaskAssignee("Activity_1lzaw3z"));
+        assertTrue(parsed.getCandidateGroups("Activity_1lzaw3z").contains("cuistos"));
+    }
+
+    @Test
+    void testFlowGraphConstruction() {
+        assertFalse(parsed.getNextActivities("Activity_0b1232f").isEmpty());
+        assertFalse(parsed.getNextActivities("Gateway_0ih95cn").isEmpty());
     }
 }

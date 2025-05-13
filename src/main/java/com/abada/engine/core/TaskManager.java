@@ -26,6 +26,11 @@ public class TaskManager {
         tasks.put(task.getId(), task);
     }
 
+
+    public Map<String, TaskInstance> getAllTasks() {
+        return tasks;
+    }
+
     public boolean claimTask(String taskId, String user, List<String> userGroups) {
         TaskInstance task = tasks.get(taskId);
         if (task == null || task.getAssignee() != null) {

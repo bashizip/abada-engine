@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
@@ -77,6 +78,14 @@ public class AbadaEngine {
             taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), instance.getId())
                     .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
         });
+
+        Map<String, TaskInstance>  allTasks =  taskManager.getAllTasks();
+
+        System.out.println("Process started, advancing...");
+        System.out.println("Tasks loaded: " + allTasks);
+
+       allTasks.forEach((k,t) ->
+                System.out.println("→ " + t.getId() + ": " + t.getName()));
 
         return instance.getId();
     }
@@ -226,7 +235,7 @@ public class AbadaEngine {
         ProcessDefinitionEntity entity = new ProcessDefinitionEntity();
         entity.setId(definition.getId());
         entity.setName(definition.getName());
-        entity.setBpmnXml(definition.getBpmnXml());
+        entity.setBpmnXml(definition.getRawXml());
         persistenceService.saveProcessDefinition(entity);
     }
 

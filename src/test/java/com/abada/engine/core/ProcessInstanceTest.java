@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.Test;

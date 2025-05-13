@@ -4,7 +4,7 @@ import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.runtime.DeployedProcessDefinition;
 import com.abada.engine.runtime.ProcessRegistry;
-import com.abada.engine.core.ParsedProcessDefinition;
+import com.abada.engine.core.model.ParsedProcessDefinition;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -35,11 +35,11 @@ public class DeployProcessService {
         ProcessDefinitionEntity entity = new ProcessDefinitionEntity();
         entity.setId(parsed.getId());
         entity.setName(parsed.getName());
-        entity.setBpmnXml(parsed.getBpmnXml());
+        entity.setBpmnXml(parsed.getRawXml());
         return entity;
     }
 
     private DeployedProcessDefinition mapToDeployed(ParsedProcessDefinition parsed) {
-        return new DeployedProcessDefinition(parsed.getId(), parsed.getName(), parsed.getBpmnXml());
+        return new DeployedProcessDefinition(parsed.getId(), parsed.getName(), parsed.getRawXml());
     }
 }
