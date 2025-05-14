@@ -27,6 +27,13 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+     # Step 3: Set up Maven
+      # This action configures a Maven environment for use in actions.
+    - name: Set up Maven
+      uses: actions/setup-maven@v4
+      with:
+          maven-version: '3.8.8' # Specify the Maven version you want to use, or leave for default
+
     - name: Build with Maven
       run: mvn -B package --file pom.xml
 
