@@ -6,10 +6,11 @@ import com.abada.engine.core.model.TaskMeta;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
+import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.StartEvent;
 import org.camunda.bpm.model.bpmn.instance.UserTask;
-import org.camunda.bpm.model.bpmn.instance.Process;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -19,7 +20,9 @@ public class BpmnParser {
     public ParsedProcessDefinition parse(InputStream bpmnXml) {
         try {
             BpmnModelInstance model = Bpmn.readModelFromStream(bpmnXml);
-            String rawXml = new String(model.toString().getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            Bpmn.writeModelToStream(out, model);
+            String rawXml = out.toString(StandardCharsets.UTF_8);
 
             Process process = model.getModelElementsByType(Process.class).stream()
                     .findFirst()

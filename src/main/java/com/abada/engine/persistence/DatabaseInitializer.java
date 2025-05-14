@@ -39,14 +39,14 @@ public class DatabaseInitializer {
         boolean alreadyDeployed = persistenceService
                 .findAllProcessDefinitions()
                 .stream()
-                .anyMatch(def -> def.getId().equals("simple-two-task"));
+                .anyMatch(def -> def.getId().equals("recipe-cook"));
 
         if (alreadyDeployed) {
             System.out.println("[DEV] Sample process already deployed.");
             return;
         }
 
-        try (InputStream stream = BpmnUtils.loadBpmnStream("simple-two-task.bpmn")) {
+        try (InputStream stream = BpmnUtils.loadBpmnStream("recipe-cook.bpmn")) {
             abadaEngine.deploy(stream);
             System.out.println("[DEV] Sample process deployed.");
         } catch (Exception e) {

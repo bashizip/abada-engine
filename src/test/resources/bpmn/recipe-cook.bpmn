@@ -1,15 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions
-xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
- xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-   xmlns:modeler="http://camunda.org/schema/modeler/1.0"
-    id="Definitions_0im7viy" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.35.0"
-     modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.23.0">
-  <bpmn:process id="recipe_cook" isExecutable="true" camunda:candidateStarterGroups="customers" camunda:versionTag="1.0.0">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_0im7viy" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.35.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.23.0">
+  <bpmn:process id="recipe-cook" name="recipe-cook"  isExecutable="true" camunda:candidateStarterGroups="customers" camunda:versionTag="1.0.0">
     <bpmn:startEvent id="StartEvent_1">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
@@ -28,12 +19,12 @@ xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
       <bpmn:incoming>Flow_5</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_5" sourceRef="Activity_1lzaw3z" targetRef="Event_070a4fe" />
-    <bpmn:userTask id="Activity_0b1232f" name="Choose Recipe" camunda:formKey="fk_choose_recipe" camunda:candidateUsers="john, alice, jeannot" camunda:candidateGroups="customers">
+    <bpmn:userTask id="Activity_0b1232f" name="Choose Recipe" camunda:formKey="fk_choose_recipe" camunda:candidateUsers="john, black, jeannot" camunda:candidateGroups="customers">
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:incoming>Flow_3</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:userTask id="Activity_1lzaw3z" name="Cook Recipe" camunda:formKey="fk_cook_recipe" camunda:assignee="alice" camunda:candidateGroups="cuistos">
+    <bpmn:userTask id="Activity_1lzaw3z" name="Cook Recipe" camunda:formKey="fk_cook_recipe" camunda:candidateGroups="cuistos">
       <bpmn:incoming>Flow_4</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:userTask>
@@ -42,7 +33,7 @@ xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
     </bpmn:sequenceFlow>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="recipe_cook">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="recipe-cook">
       <bpmndi:BPMNShape id="Gateway_0ih95cn_di" bpmnElement="Gateway_0ih95cn" isMarkerVisible="true">
         <dc:Bounds x="425" y="175" width="50" height="50" />
         <bpmndi:BPMNLabel>

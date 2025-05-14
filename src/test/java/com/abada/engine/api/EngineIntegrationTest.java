@@ -59,7 +59,7 @@ public class EngineIntegrationTest {
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe_cook", startHeaders);
+        HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
         restTemplate.postForEntity("/engine/start", startRequest, String.class);
 
     }
