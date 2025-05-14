@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             targetNamespace="http://example.com/bpmn">
+  <process id="brokenProcess" isExecutable="true">
+    <userTask id="task1"
+  </process>
+</definitions>

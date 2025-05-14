@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.dto.UserTaskPayload;
 
 import java.util.Optional;

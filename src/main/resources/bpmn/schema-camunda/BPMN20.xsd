@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.omg.org/spec/BPMN/20100524/MODEL"
+           xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:import namespace="http://www.omg.org/spec/BPMN/20100524/DI" schemaLocation="BPMNDI.xsd"/>
+  <xs:import namespace="http://www.omg.org/spec/DD/20100524/DI" schemaLocation="DI.xsd"/>
+  <xs:import namespace="http://www.omg.org/spec/DD/20100524/DC" schemaLocation="DC.xsd"/>
+  <xs:import namespace="http://camunda.org/schema/1.0/bpmn" schemaLocation="camunda.xsd"/>
+</xs:schema>

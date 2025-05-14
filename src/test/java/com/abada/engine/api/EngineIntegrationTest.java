@@ -35,7 +35,7 @@ public class EngineIntegrationTest {
     void setupContext() {
         // Default user to "alice" before each test
         when(context.getUsername()).thenReturn("alice");
-        when(context.getGroups()).thenReturn(List.of());
+        when(context.getGroups()).thenReturn(List.of("customers"));
     }
 
     private void setupTestProcess() throws IOException {
@@ -43,10 +43,10 @@ public class EngineIntegrationTest {
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         ByteArrayResource file = new ByteArrayResource(
-                BpmnTestUtils.loadBpmnStream("simple-two-task.bpmn").readAllBytes()) {
+                BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
             @Override
             public String getFilename() {
-                return "simple-two-task.bpmn";
+                return "recipe-cook.bpmn";
             }
         };
 
@@ -59,8 +59,9 @@ public class EngineIntegrationTest {
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        HttpEntity<String> startRequest = new HttpEntity<>("processId=simple-two-task", startHeaders);
+        HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
         restTemplate.postForEntity("/engine/start", startRequest, String.class);
+
     }
 
     @Test
@@ -81,9 +82,9 @@ public class EngineIntegrationTest {
         restTemplate.postForEntity("/engine/claim?taskId=" + taskId1, null, String.class);
         restTemplate.postForEntity("/engine/complete?taskId=" + taskId1, null, String.class);
 
-        // 3. Switch context to Bob in 'managers' group
+        // 3. Switch context to Bob in 'cuistos' group
         when(context.getUsername()).thenReturn("bob");
-        when(context.getGroups()).thenReturn(List.of("managers"));
+        when(context.getGroups()).thenReturn(List.of("cuistos"));
 
         // 4. Bob sees the second task
         ResponseEntity<TaskInstance[]> taskResponse2 = restTemplate.getForEntity(

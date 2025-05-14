@@ -8,6 +8,7 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -23,16 +24,22 @@ public class StateReloadService {
     }
 
     @PostConstruct
-    public void reloadStateAtStartup() {
+    public void reloadStateAtStartup() throws IOException {
         reloadProcessDefinitions();  // 🚨 Reload definitions FIRST
         reloadProcessInstances();    // 🚨 Then reload instances
         reloadTasks();               // 🚨 Then reload tasks
     }
 
-    private void reloadProcessDefinitions() {
+    private void reloadProcessDefinitions() throws IOException {
         List<ProcessDefinitionEntity> definitions = persistenceService.findAllProcessDefinitions();
         for (ProcessDefinitionEntity entity : definitions) {
             ByteArrayInputStream bpmnXmlStream = new ByteArrayInputStream(entity.getBpmnXml().getBytes(StandardCharsets.UTF_8));
+
+           /* bpmnXmlStream.mark(1024); // Allow resetting
+            byte[] head = bpmnXmlStream.readNBytes(200);
+            System.out.println("--- BPMN XML Preview ---");
+            System.out.println(new String(head, StandardCharsets.UTF_8));
+            bpmnXmlStream.reset();*/
             abadaEngine.deploy(bpmnXmlStream);
         }
     }

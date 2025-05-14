@@ -1,6 +1,8 @@
 package com.abada.engine.core;
 
-import com.abada.engine.parser.BpmnParser;
+import com.abada.engine.core.model.ParsedProcessDefinition;
+import com.abada.engine.core.model.SequenceFlow;
+import com.abada.engine.core.model.TaskMeta;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,22 +17,22 @@ public class ProcessDefinitionTest {
 
     @BeforeEach
     void setup() {
-        Map<String, BpmnParser.TaskMeta> tasks = Map.of(
+        Map<String,TaskMeta> tasks = Map.of(
                 "taskA", taskMeta("Review", "alice", List.of("bob"), List.of("team")),
                 "taskB", taskMeta("Approve", null, List.of("carol"), List.of("qa"))
         );
 
-        List<BpmnParser.SequenceFlow> flows = List.of(
-                new BpmnParser.SequenceFlow("f1", "startEvent1", "taskA"),
-                new BpmnParser.SequenceFlow("f2", "taskA", "taskB"),
-                new BpmnParser.SequenceFlow("f3", "taskB", "endEvent1")
+        List<SequenceFlow> flows = List.of(
+                new SequenceFlow("f1", "startEvent1", "taskA"),
+                new SequenceFlow("f2", "taskA", "taskB"),
+                new SequenceFlow("f3", "taskB", "endEvent1")
         );
 
         definition = new ParsedProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows, "<bpmn>...</bpmn>");
     }
 
-    private BpmnParser.TaskMeta taskMeta(String name, String assignee, List<String> users, List<String> groups) {
-        BpmnParser.TaskMeta meta = new BpmnParser.TaskMeta();
+    private TaskMeta taskMeta(String name, String assignee, List<String> users, List<String> groups) {
+        TaskMeta meta = new TaskMeta();
         meta.name = name;
         meta.assignee = assignee;
         meta.candidateUsers = users;
