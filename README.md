@@ -1,3 +1,5 @@
+[![Build with Maven](https://github.com/bashizip/abada-engine/actions/workflows/build-test.yml/badge.svg)](https://github.com/bashizip/abada-engine/actions/workflows/build-test.yml)
+
 ![logo](https://github.com/bashizip/abada-engine/blob/main/assets/logo_small.png)
 
 # 🦄 Abada Engine
