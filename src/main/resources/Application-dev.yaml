@@ -17,7 +17,7 @@ spring:
         path: /h2-console
 
 server:
-  port: 5601
+  port: ${SERVER_PORT:5601} # Uses 5601 unless overridden by env var
 
 logging:
   level:
