@@ -65,8 +65,31 @@ Deploy with Docker for maximum portability and cloud-native integration.
 
 ## 📦 Quick Start (Standalone)
 
-```bash
-docker run -p 8080:8080 ghcr.io/bashizip/abada-engine:latest
+### 🐳 Run with Docker Compose
+
+To run **Abada Engine** using Docker Compose:
+
+1. Create a `docker-compose.yml` file:
+
+```yaml
+version: '3.8'
+
+services:
+  abada-engine:
+    image: ghcr.io/bashizip/abada-engine:latest
+    container_name: abada-engine
+    ports:
+      - "5601:5601"
+    volumes:
+      - abada-data:/app/data
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVER_PORT=5601
+    restart: unless-stopped
+
+volumes:
+  abada-data:
+```
 
 ## 🧠 Philosophy
 
