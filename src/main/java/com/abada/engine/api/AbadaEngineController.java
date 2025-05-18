@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/abada")
+@RequestMapping("/abada/process")
 public class AbadaEngineController {
 
     private final AbadaEngine engine;
@@ -31,17 +31,7 @@ public class AbadaEngineController {
         return ResponseEntity.ok("Deployed");
     }
 
-    @GetMapping("/info")
-    public Map<String, Object> info() {
-        return Map.of(
-                "status", "UP",
-                "engineVersion", "0.5.0-alpha",
-                "bpmnSupport", "basic userTask/sequenceFlow"
-        );
-    }
-
-
-    @GetMapping("/processes")
+    @GetMapping("/")
     public ResponseEntity<List<Map<String, String>>> listDeployedProcesses() {
         List<ProcessDefinitionEntity> definitions = engine.getDeployedProcesses();
 
