@@ -31,7 +31,7 @@ public class AbadaEngineController {
         return ResponseEntity.ok("Deployed");
     }
 
-    @GetMapping("/")
+    @GetMapping
     public ResponseEntity<List<Map<String, String>>> listDeployedProcesses() {
         List<ProcessDefinitionEntity> definitions = engine.getDeployedProcesses();
 
@@ -74,7 +74,7 @@ public class AbadaEngineController {
         return completed ? ResponseEntity.ok("Completed") : ResponseEntity.badRequest().body("Cannot complete");
     }
 
-    @GetMapping("/processes/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<Map<String, String>> getProcessById(@PathVariable String id) {
         return engine.getProcessDefinitionById(id)
                 .map(def -> Map.of(

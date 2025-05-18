@@ -11,7 +11,6 @@
           </option>
           <option name="goals">
             <list>
-              <option value="mvn" />
               <option value="spring-boot:run" />
               <option value="-Dspring-boot.run.profiles=dev" />
             </list>
