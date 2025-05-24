@@ -12,4 +12,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  abada-data:
+  data:
