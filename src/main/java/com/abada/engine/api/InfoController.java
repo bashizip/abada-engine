@@ -18,7 +18,7 @@ public class InfoController {
 
     }
 
-    @GetMapping("/info")
+    @GetMapping
     public Map<String, Object> info() {
         return Map.of(
                 "status", "UP",
