@@ -81,7 +81,7 @@ services:
     ports:
       - "5601:5601"
     volumes:
-      - abada-data:/app/data
+      - .data:/app/data
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SERVER_PORT=5601

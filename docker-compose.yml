@@ -1,0 +1,15 @@
+services:
+  abada-engine:
+    image: ghcr.io/bashizip/abada-engine:latest
+    container_name: abada-engine
+    ports:
+      - "5601:5601"
+    volumes:
+      - .data:/app/data
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVER_PORT=5601
+    restart: unless-stopped
+
+volumes:
+  abada-data:

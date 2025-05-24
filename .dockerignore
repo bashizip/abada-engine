@@ -1,0 +1,14 @@
+target/
+.git/
+build/
+.idea/
+.github/
+docs/
+data/
+assets/
+.run-tests/
+HELP.md
+.gitattributes
+.gitignore
+README.md
+Dockerfile

@@ -8,6 +8,7 @@ public class SequenceFlow implements Serializable {
     private final String targetRef;
     private final String name;
     private final String conditionExpression;
+    private String language; // (optional: to support expression languages like groovy, js, etc.)
 
     public SequenceFlow(String id, String sourceRef, String targetRef) {
         this(id, sourceRef, targetRef, null, null);

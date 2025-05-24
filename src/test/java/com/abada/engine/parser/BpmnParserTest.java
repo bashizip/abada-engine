@@ -31,19 +31,19 @@ public class BpmnParserTest {
 
     @Test
     void testUserTasksExist() {
-        assertTrue(parsed.isUserTask("Activity_0b1232f"));
-        assertTrue(parsed.isUserTask("Activity_1lzaw3z"));
+        assertTrue(parsed.isUserTask("choose-recipe"));
+        assertTrue(parsed.isUserTask("cook-recipe"));
     }
 
     @Test
     void testAssigneeAndGroupsParsed() {
-     //   assertEquals("bob", parsed.getTaskAssignee("Activity_1lzaw3z"));
-        assertTrue(parsed.getCandidateGroups("Activity_1lzaw3z").contains("cuistos"));
+     //   assertEquals("bob", parsed.getTaskAssignee("choose-recipe"));
+        assertTrue(parsed.getCandidateGroups("cook-recipe").contains("cuistos"));
     }
 
     @Test
     void testFlowGraphConstruction() {
-        assertFalse(parsed.getNextActivities("Activity_0b1232f").isEmpty());
-        assertFalse(parsed.getNextActivities("Gateway_0ih95cn").isEmpty());
+        assertFalse(parsed.getNextActivities("choose-recipe").isEmpty());
+        assertFalse(parsed.getNextActivities("cook-recipe").isEmpty());
     }
 }

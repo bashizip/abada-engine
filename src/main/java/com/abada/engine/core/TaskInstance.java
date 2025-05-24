@@ -1,8 +1,11 @@
 package com.abada.engine.core;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TaskInstance {
 
     private String id;

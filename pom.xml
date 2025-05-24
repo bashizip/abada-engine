@@ -9,9 +9,9 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>dev.abada</groupId>
-    <artifactId>AbadaEngine</artifactId>
-    <version>0.4.0-alpha</version>
-    <name>AbadaEngine</name>
+    <artifactId>abada-engine</artifactId>
+    <version>0.6.1-alpha</version>
+    <name>Abada Engine</name>
     <description>Lightweight, pluggable BPMN-based workflow engine</description>
     <url/>
     <licenses>
@@ -49,7 +49,11 @@
             <artifactId>spring-boot-devtools</artifactId>
             <scope>runtime</scope>
         </dependency>
-       <dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>3.24.2</version>
