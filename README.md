@@ -91,6 +91,50 @@ volumes:
   abada-data:
 ```
 
+Then:
+
+```bash
+docker compose up -d
+```
+
+This will start the engine and expose the API at:
+
+```
+http://localhost:5601/abada/api/v1
+```
+
+### Example Endpoints
+
+- **Deploy a BPMN process**
+  ```http
+  POST /abada/api/v1/processes/deploy
+  Content-Type: multipart/form-data
+  Body: file=<your_bpmn_file>
+  ```
+
+- **Start a process instance**
+  ```http
+  POST /abada/api/v1/processes/start
+  Content-Type: application/x-www-form-urlencoded
+  Body: processId=recipeProcess
+  ```
+
+- **Get available tasks for the user**
+  ```http
+  GET /abada/api/v1/tasks
+  ```
+
+- **Claim a task**
+  ```http
+  POST /abada/api/v1/tasks/claim?taskId=choose-recipe
+  ```
+
+- **Complete a task**
+  ```http
+  POST /abada/api/v1/tasks/complete?taskId=choose-recipe
+  ```
+
+
 ## 🧠 Philosophy
 
 > Build your own engine — not your own prison.
