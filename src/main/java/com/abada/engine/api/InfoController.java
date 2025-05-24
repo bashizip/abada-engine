@@ -1,6 +1,6 @@
 package com.abada.engine.api;
 
-import org.springframework.boot.info.BuildProperties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -8,20 +8,21 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/abada")
+@RequestMapping("/v1/info")
 public class InfoController {
 
-    private final BuildProperties buildProperties;
+    @Value("${app.version}")
+    private String appVersion;
 
-    public InfoController(BuildProperties buildProperties) {
-        this.buildProperties = buildProperties;
+    public InfoController() {
+
     }
 
     @GetMapping("/info")
     public Map<String, Object> info() {
         return Map.of(
                 "status", "UP",
-                "engineVersion", buildProperties.getVersion(),
+                "engineVersion", appVersion,
                 "bpmnSupport", "BPMN model Validation"
         );
     }

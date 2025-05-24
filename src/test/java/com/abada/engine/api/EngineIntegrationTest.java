@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.test.context.ActiveProfiles;
@@ -29,16 +30,16 @@ public class EngineIntegrationTest {
     private TestRestTemplate restTemplate;
 
     @MockBean
-    private UserContextProvider context; // <-- inject a fake Context
+    private UserContextProvider context;
 
     @BeforeEach
-    void setupContext() {
-        // Default user to "alice" before each test
+    void setup() throws IOException {
         when(context.getUsername()).thenReturn("alice");
         when(context.getGroups()).thenReturn(List.of("customers"));
+        deployAndStartProcess();
     }
 
-    private void setupTestProcess() throws IOException {
+    private void deployAndStartProcess() throws IOException {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
@@ -54,57 +55,67 @@ public class EngineIntegrationTest {
         body.add("file", file);
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
-        restTemplate.postForEntity("/engine/deploy", request, String.class);
+        restTemplate.postForEntity("/v1/processes/deploy", request, String.class);
 
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
-        restTemplate.postForEntity("/engine/start", startRequest, String.class);
-
+        restTemplate.postForEntity("/v1/processes/start", startRequest, String.class);
     }
 
     @Test
-    void fullProcessExecution_shouldCompleteAllTasksAndFinishProcess() throws IOException {
-        setupTestProcess();
+    void shouldCompleteAllTasksAndFinishProcess() {
+        ResponseEntity<String> rawResponse1 = restTemplate.getForEntity("/v1/tasks", String.class);
+        System.out.println("Raw JSON for Alice: " + rawResponse1.getBody());
+        assertEquals(HttpStatus.OK, rawResponse1.getStatusCode());
 
-        // 1. Alice sees the first task
-        ResponseEntity<TaskInstance[]> taskResponse1 = restTemplate.getForEntity(
-                "/engine/tasks", TaskInstance[].class);
-        assertEquals(HttpStatus.OK, taskResponse1.getStatusCode());
-        TaskInstance[] tasksForAlice = taskResponse1.getBody();
+        ResponseEntity<List<TaskInstance>> taskResponse1 = restTemplate.exchange(
+                "/v1/tasks",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {}
+        );
+        List<TaskInstance> tasksForAlice = taskResponse1.getBody();
         assertNotNull(tasksForAlice);
-        assertTrue(tasksForAlice.length > 0, "Alice should see a task");
+        assertFalse(tasksForAlice.isEmpty());
 
-        String taskId1 = tasksForAlice[0].getId();
+        String taskId1 = tasksForAlice.get(0).getId();
+        restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId1, null, String.class);
+        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId1, null, String.class);
 
-        // 2. Alice claims and completes the task
-        restTemplate.postForEntity("/engine/claim?taskId=" + taskId1, null, String.class);
-        restTemplate.postForEntity("/engine/complete?taskId=" + taskId1, null, String.class);
-
-        // 3. Switch context to Bob in 'cuistos' group
         when(context.getUsername()).thenReturn("bob");
         when(context.getGroups()).thenReturn(List.of("cuistos"));
 
-        // 4. Bob sees the second task
-        ResponseEntity<TaskInstance[]> taskResponse2 = restTemplate.getForEntity(
-                "/engine/tasks", TaskInstance[].class);
-        assertEquals(HttpStatus.OK, taskResponse2.getStatusCode());
-        TaskInstance[] tasksForBob = taskResponse2.getBody();
+        ResponseEntity<String> rawResponse2 = restTemplate.getForEntity("/v1/tasks", String.class);
+        System.out.println("Raw JSON for Bob: " + rawResponse2.getBody());
+        assertEquals(HttpStatus.OK, rawResponse2.getStatusCode());
+
+        ResponseEntity<List<TaskInstance>> taskResponse2 = restTemplate.exchange(
+                "/v1/tasks",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {}
+        );
+        List<TaskInstance> tasksForBob = taskResponse2.getBody();
         assertNotNull(tasksForBob);
-        assertTrue(tasksForBob.length > 0, "Bob (manager) should see a second task");
+        assertFalse(tasksForBob.isEmpty());
 
-        String taskId2 = tasksForBob[0].getId();
+        String taskId2 = tasksForBob.get(0).getId();
+        restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId2, null, String.class);
+        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId2, null, String.class);
 
-        // 5. Bob claims and completes the task
-        restTemplate.postForEntity("/engine/claim?taskId=" + taskId2, null, String.class);
-        restTemplate.postForEntity("/engine/complete?taskId=" + taskId2, null, String.class);
+        ResponseEntity<String> rawFinal = restTemplate.getForEntity("/v1/tasks", String.class);
+        System.out.println("Raw JSON for final task check: " + rawFinal.getBody());
 
-        // 6. No more tasks should remain
-        ResponseEntity<TaskInstance[]> finalTasks = restTemplate.getForEntity(
-                "/engine/tasks", TaskInstance[].class);
-        TaskInstance[] remainingTasks = finalTasks.getBody();
+        ResponseEntity<List<TaskInstance>> finalTasks = restTemplate.exchange(
+                "/v1/tasks",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {}
+        );
+        List<TaskInstance> remainingTasks = finalTasks.getBody();
         assertNotNull(remainingTasks);
-        assertEquals(0, remainingTasks.length, "No tasks should remain, process should be completed");
+        assertEquals(0, remainingTasks.size());
     }
 }

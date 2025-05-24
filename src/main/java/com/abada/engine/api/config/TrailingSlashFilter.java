@@ -1,4 +1,4 @@
-package com.abada.engine.api;
+package com.abada.engine.api.config;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;

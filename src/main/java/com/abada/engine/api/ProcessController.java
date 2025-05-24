@@ -2,7 +2,6 @@ package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
-import com.abada.engine.core.TaskInstance;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,13 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/abada/process")
-public class AbadaEngineController {
+@RequestMapping("v1/processes")
+public class ProcessController {
 
     private final AbadaEngine engine;
     private final UserContextProvider context;
 
-    public AbadaEngineController(AbadaEngine engine, UserContextProvider context) {
+    public ProcessController(AbadaEngine engine, UserContextProvider context) {
         this.engine = engine;
         this.context = context;
     }
@@ -52,27 +51,7 @@ public class AbadaEngineController {
         return ResponseEntity.ok("Started instance: " + instanceId);
     }
 
-    @GetMapping("/tasks")
-    public ResponseEntity<List<TaskInstance>> tasks() {
-        String user = context.getUsername();
-        List<String> groups = context.getGroups();
-        List<TaskInstance> visible = engine.getVisibleTasks(user, groups);
-        return ResponseEntity.ok(visible);
-    }
 
-
-
-    @PostMapping("/claim")
-    public ResponseEntity<String> claim(@RequestParam String taskId) {
-        boolean claimed = engine.claim(taskId, context.getUsername(), context.getGroups());
-        return claimed ? ResponseEntity.ok("Claimed") : ResponseEntity.badRequest().body("Cannot claim");
-    }
-
-    @PostMapping("/complete")
-    public ResponseEntity<String> complete(@RequestParam String taskId) {
-        boolean completed = engine.complete(taskId, context.getUsername(), context.getGroups());
-        return completed ? ResponseEntity.ok("Completed") : ResponseEntity.badRequest().body("Cannot complete");
-    }
 
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, String>> getProcessById(@PathVariable String id) {
