@@ -6,7 +6,7 @@ xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
 xmlns:modeler="http://camunda.org/schema/modeler/1.0"
-id="recipe-cook targetNamespace="http://bpmn.io/schema/bpmn"
+id="Definitions_0im7viy targetNamespace="http://bpmn.io/schema/bpmn"
 exporter="Camunda Modeler" exporterVersion="5.35.0"
 modeler:executionPlatform="Abada Engine"
 modeler:executionPlatformVersion="7.23.0">
