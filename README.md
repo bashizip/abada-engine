@@ -148,5 +148,3 @@ Abada Engine is built to be lightweight, hackable, and open. Whether you're buil
 [MIT License](https://github.com/bashizip/abada-engine/blob/main/LICENCE)
 
 ---
-
-## 🦄 Made with love by Patrick Bashizi
