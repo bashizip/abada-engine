@@ -100,4 +100,23 @@ public class TaskManagerTest {
         assertThat(retrieved.get().getName()).isEqualTo("Validate Invoice");
         assertThat(retrieved.get().isCompleted()).isFalse();
     }
+
+    @Test
+    void testVisibleTasksHandleNullGroupsAndCandidates() {
+        TaskManager taskManager = new TaskManager();
+        String processInstanceId = UUID.randomUUID().toString();
+
+        // Simulate a task loaded from persistence with null candidate lists
+        TaskInstance task = new TaskInstance();
+        task.setId(UUID.randomUUID().toString());
+        task.setProcessInstanceId(processInstanceId);
+        task.setTaskDefinitionKey("t1");
+        task.setCandidateUsers(null);
+        task.setCandidateGroups(null);
+        taskManager.addTask(task);
+
+        // Should not throw when groups parameter is null
+        List<TaskInstance> visible = taskManager.getVisibleTasksForUser("user", null);
+        assertThat(visible).isEmpty();
+    }
 }

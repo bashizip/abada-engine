@@ -73,7 +73,8 @@ public class TaskInstance {
     }
 
     public void setCandidateUsers(List<String> candidateUsers) {
-        this.candidateUsers = candidateUsers;
+        // Ensure the internal list is never null to avoid NullPointerExceptions
+        this.candidateUsers = candidateUsers != null ? candidateUsers : new ArrayList<>();
     }
 
     public List<String> getCandidateGroups() {
@@ -81,7 +82,8 @@ public class TaskInstance {
     }
 
     public void setCandidateGroups(List<String> candidateGroups) {
-        this.candidateGroups = candidateGroups;
+        // Ensure the internal list is never null to avoid NullPointerExceptions
+        this.candidateGroups = candidateGroups != null ? candidateGroups : new ArrayList<>();
     }
 
     // Helper methods
