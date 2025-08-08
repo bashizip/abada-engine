@@ -83,8 +83,10 @@ public class TaskManager {
         if (task.getAssignee() != null) {
             return task.getAssignee().equals(user); // direct assignee match
         }
+        // Treat null inputs as empty collections to prevent NullPointerExceptions
+        List<String> userGroups = groups != null ? groups : List.of();
         return task.getCandidateUsers().contains(user) ||
-                groups.stream().anyMatch(task.getCandidateGroups()::contains);
+                userGroups.stream().anyMatch(task.getCandidateGroups()::contains);
     }
 
 
