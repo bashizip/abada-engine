@@ -104,7 +104,8 @@ public class AbadaEngine {
         return false;
     }
 
-    public boolean complete(String taskId, String user, List<String> groups) {
+    public boolean complete(String taskId, String user, List<String> groups, Map<String, Object> variables) {
+        System.out.println("Completing task " + taskId + " with variables: " + variables);
         if (!taskManager.canComplete(taskId, user, groups)) {
             return false;
         }
@@ -122,6 +123,12 @@ public class AbadaEngine {
                 .orElseThrow(() -> new IllegalStateException("Task has no associated process instance"));
 
         ProcessInstance instance = instances.get(processInstanceId);
+        
+        // Set variables
+        if (variables != null) {
+            variables.forEach(instance::setVariable);
+        }
+
         ParsedProcessDefinition def = instance.getDefinition();
 
         // 4. Advance process to next activity (could be another user task or end)
@@ -140,6 +147,7 @@ public class AbadaEngine {
                     task.candidateUsers(),
                     task.candidateGroups()
             );
+            System.out.println("New task created: " + taskManager.getAllTasks());
             taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), processInstanceId)
                     .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
         });

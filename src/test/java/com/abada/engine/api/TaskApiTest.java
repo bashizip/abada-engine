@@ -1,6 +1,7 @@
 package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
+import com.abada.engine.core.TaskInstance;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,13 +10,16 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -78,24 +82,28 @@ class TaskApiTest {
 
     @Test
     void shouldClaimTask() {
-        String taskId = "choose-recipe";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        ResponseEntity<List<TaskInstance>> responseEntity = restTemplate.exchange(baseUrl(), HttpMethod.GET, null, new ParameterizedTypeReference<List<TaskInstance>>() {});
+        List<TaskInstance> tasks = responseEntity.getBody();
+        String taskId = tasks.get(0).getId();
 
-        HttpEntity<String> request = new HttpEntity<>("taskId=" + taskId, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(baseUrl() + "/claim", request, String.class);
+        HttpHeaders claimHeaders = new HttpHeaders();
+        claimHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        HttpEntity<String> claimRequest = new HttpEntity<>(null, claimHeaders);
+        ResponseEntity<String> response = restTemplate.postForEntity(baseUrl() + "/claim?taskId=" + taskId, claimRequest, String.class);
 
         assertThat(response.getStatusCode()).isIn(HttpStatus.OK, HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void shouldCompleteTask() {
-        String taskId = "choose-recipe";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        ResponseEntity<List<TaskInstance>> responseEntity = restTemplate.exchange(baseUrl(), HttpMethod.GET, null, new ParameterizedTypeReference<List<TaskInstance>>() {});
+        List<TaskInstance> tasks = responseEntity.getBody();
+        String taskId = tasks.get(0).getId();
 
-        HttpEntity<String> request = new HttpEntity<>("taskId=" + taskId, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(baseUrl() + "/complete", request, String.class);
+        HttpHeaders completeHeaders = new HttpHeaders();
+        completeHeaders.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> completeRequest = new HttpEntity<>(Collections.emptyMap(), completeHeaders);
+        ResponseEntity<String> response = restTemplate.postForEntity(baseUrl() + "/complete?taskId=" + taskId, completeRequest, String.class);
 
         assertThat(response.getStatusCode()).isIn(HttpStatus.OK, HttpStatus.BAD_REQUEST);
     }

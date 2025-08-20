@@ -1,18 +1,21 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.GatewayMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
+import com.abada.engine.core.model.SequenceFlow;
+import com.abada.engine.core.model.TaskMeta;
 import com.abada.engine.dto.UserTaskPayload;
+import com.abada.engine.util.ConditionEvaluator;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class ProcessInstance {
 
     private final String id;
     private final ParsedProcessDefinition definition;
     private String currentActivityId;
+    private final Map<String, Object> variables = new HashMap<>();
 
-    // Standard constructor used when starting a new process
     public ProcessInstance(ParsedProcessDefinition definition) {
         this.id = UUID.randomUUID().toString();
         this.definition = definition;
@@ -21,10 +24,8 @@ public class ProcessInstance {
 
     public ProcessInstance(String id, ParsedProcessDefinition definition, String currentActivityId) {
         this.id = id;
-        // IMPORTANT: during reload, we need to reparse the BPMN definition
         this.definition = definition;
         this.currentActivityId = currentActivityId;
-        // (Status is managed by currentActivityId already, no need to store it here explicitly)
     }
 
     public String getId() {
@@ -43,6 +44,18 @@ public class ProcessInstance {
         this.currentActivityId = currentActivityId;
     }
 
+    public void setVariable(String key, Object value) {
+        variables.put(key, value);
+    }
+
+    public Object getVariable(String key) {
+        return variables.get(key);
+    }
+
+    public Map<String, Object> getVariables() {
+        return Collections.unmodifiableMap(variables);
+    }
+
     public boolean isWaitingForUserTask() {
         return currentActivityId != null && definition.isUserTask(currentActivityId);
     }
@@ -52,26 +65,59 @@ public class ProcessInstance {
     }
 
     public Optional<UserTaskPayload> advance() {
-        String next = definition.getNextActivity(currentActivityId);
-        currentActivityId = next;
-
-        if (next == null) {
-            return Optional.empty(); // End of process
+        if (currentActivityId == null) {
+            return Optional.empty();
         }
 
-        if (definition.isUserTask(next)) {
-            return Optional.of(new UserTaskPayload(
-                    next,
-                    definition.getTaskName(next),
-                    definition.getTaskAssignee(next),
-                    definition.getCandidateUsers(next),
-                    definition.getCandidateGroups(next)
-            ));
+        // Keep advancing until we hit a user task or the end of the process
+        while (currentActivityId != null) {
+            if (definition.isUserTask(currentActivityId)) {
+                TaskMeta task = definition.getUserTask(currentActivityId);
+                return Optional.of(new UserTaskPayload(
+                        currentActivityId,
+                        task.getName(),
+                        task.getAssignee(),
+                        task.getCandidateUsers(),
+                        task.getCandidateGroups()
+                ));
+            }
+
+            if (definition.isGateway(currentActivityId)) {
+                GatewayMeta gateway = definition.getGateway(currentActivityId);
+                List<SequenceFlow> outgoing = definition.getOutgoingFlows(currentActivityId);
+
+                boolean conditionMet = false;
+                for (SequenceFlow flow : outgoing) {
+                    String expr = flow.getConditionExpression();
+                    if (expr != null && !expr.isBlank()) {
+                        if (ConditionEvaluator.evaluate(expr, variables)) {
+                            currentActivityId = flow.getTargetRef();
+                            conditionMet = true;
+                            break; // Exit after finding the first valid flow
+                        }
+                    }
+                }
+
+                if (!conditionMet) {
+                    // If no conditional flow was taken, try to find a default flow
+                    for (SequenceFlow flow : outgoing) {
+                        if (flow.isDefault()) {
+                            currentActivityId = flow.getTargetRef();
+                            conditionMet = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!conditionMet) {
+                    throw new IllegalStateException("No valid outgoing sequence flow from gateway: " + currentActivityId);
+                }
+            } else {
+                // If it's not a gateway or user task, just move to the next activity
+                currentActivityId = definition.getNextActivity(currentActivityId);
+            }
         }
 
-        // In the future: skip service tasks, gateways, etc.
-        // For now, assume only userTasks and endEvents exist
-        return advance(); // recursively skip non-user tasks if needed
+        return Optional.empty(); // End of process
     }
-
 }

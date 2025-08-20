@@ -6,6 +6,7 @@ import com.abada.engine.core.model.TaskMeta;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -23,20 +24,20 @@ public class ProcessDefinitionTest {
         );
 
         List<SequenceFlow> flows = List.of(
-                new SequenceFlow("f1", "startEvent1", "taskA"),
-                new SequenceFlow("f2", "taskA", "taskB"),
-                new SequenceFlow("f3", "taskB", "endEvent1")
+                new SequenceFlow("f1", "startEvent1", "taskA", null, null, false),
+                new SequenceFlow("f2", "taskA", "taskB", null, null, false),
+                new SequenceFlow("f3", "taskB", "endEvent1", null, null, false)
         );
 
-        definition = new ParsedProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows, "<bpmn>...</bpmn>");
+        definition = new ParsedProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows, Collections.emptyMap(), "<bpmn>...</bpmn>");
     }
 
     private TaskMeta taskMeta(String name, String assignee, List<String> users, List<String> groups) {
         TaskMeta meta = new TaskMeta();
-        meta.name = name;
-        meta.assignee = assignee;
-        meta.candidateUsers = users;
-        meta.candidateGroups = groups;
+        meta.setName(name);
+        meta.setAssignee(assignee);
+        meta.setCandidateUsers(users);
+        meta.setCandidateGroups(groups);
         return meta;
     }
 

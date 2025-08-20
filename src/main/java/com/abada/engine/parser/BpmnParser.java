@@ -1,11 +1,13 @@
 package com.abada.engine.parser;
 
+import com.abada.engine.core.model.GatewayMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.SequenceFlow;
 import com.abada.engine.core.model.TaskMeta;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
+import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
 import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.StartEvent;
 import org.camunda.bpm.model.bpmn.instance.UserTask;
@@ -43,17 +45,17 @@ public class BpmnParser {
             Map<String, TaskMeta> userTasks = new HashMap<>();
             for (UserTask task : model.getModelElementsByType(UserTask.class)) {
                 TaskMeta meta = new TaskMeta();
-                meta.name = task.getName();
-                meta.assignee = task.getCamundaAssignee();
+                meta.setName(task.getName());
+                meta.setAssignee(task.getCamundaAssignee());
 
                 String candidates = task.getCamundaCandidateUsers();
                 if (candidates != null && !candidates.isBlank()) {
-                    meta.candidateUsers = Arrays.asList(candidates.split("\\s*,\\s*"));
+                    meta.setCandidateUsers(Arrays.asList(candidates.split("\s*,\s*")));
                 }
 
                 String groups = task.getCamundaCandidateGroups();
                 if (groups != null && !groups.isBlank()) {
-                    meta.candidateGroups = Arrays.asList(groups.split("\\s*,\\s*"));
+                    meta.setCandidateGroups( Arrays.asList(groups.split("\s*,\s*")));
                 }
 
                 userTasks.put(task.getId(), meta);
@@ -61,10 +63,20 @@ public class BpmnParser {
 
             List<SequenceFlow> flows = new ArrayList<>();
             for (org.camunda.bpm.model.bpmn.instance.SequenceFlow flow : model.getModelElementsByType(org.camunda.bpm.model.bpmn.instance.SequenceFlow.class)) {
-                flows.add(new SequenceFlow(flow.getId(), flow.getSource().getId(), flow.getTarget().getId()));
+                flows.add(new SequenceFlow(
+                        flow.getId(),
+                        flow.getSource().getId(),
+                        flow.getTarget().getId(),flow.getName(),
+                        flow.getConditionExpression() != null ? flow.getConditionExpression().getRawTextContent() : null,
+                        flow.isImmediate()));
             }
 
-            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, rawXml);
+            Map<String, GatewayMeta> gateways = new HashMap<>();
+            for (ExclusiveGateway gateway : model.getModelElementsByType(ExclusiveGateway.class)) {
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, null));
+            }
+
+            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, rawXml);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse BPMN", e);

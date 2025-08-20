@@ -1,4 +1,15 @@
 package com.abada.engine.core.model;
 
-public class GatewayMeta {
+import java.io.Serializable;
+
+public record GatewayMeta(String id,
+                          GatewayMeta.Type type,
+                          String defaultFlowId) implements Serializable {
+
+    public enum Type {
+        EXCLUSIVE,
+        PARALLEL,
+        INCLUSIVE
+    }
+
 }

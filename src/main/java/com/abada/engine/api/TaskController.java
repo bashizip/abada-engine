@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("v1/tasks")
@@ -39,8 +40,8 @@ public class TaskController {
     }
 
     @PostMapping("/complete")
-    public ResponseEntity<String> complete(@RequestParam String taskId) {
-        boolean completed = engine.complete(taskId, context.getUsername(), context.getGroups());
+    public ResponseEntity<String> complete(@RequestParam String taskId, @RequestBody(required = false) Map<String, Object> variables) {
+        boolean completed = engine.complete(taskId, context.getUsername(), context.getGroups(), variables);
         return completed ? ResponseEntity.ok("Completed") : ResponseEntity.badRequest().body("Cannot complete");
     }
 
