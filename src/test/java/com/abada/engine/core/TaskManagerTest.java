@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.TaskInstance;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

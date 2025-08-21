@@ -33,10 +33,10 @@ class ProcessApiTest {
     @Test
     void shouldDeployProcess() throws Exception {
         ByteArrayResource file = new ByteArrayResource(
-                BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
+                BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn").readAllBytes()) {
             @Override
             public String getFilename() {
-                return "recipe-cook.bpmn";
+                return "recipe-cook-test.bpmn";
             }
         };
 

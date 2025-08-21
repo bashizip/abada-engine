@@ -3,7 +3,7 @@ package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
-import com.abada.engine.core.TaskInstance;
+import com.abada.engine.core.model.TaskInstance;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,10 +24,10 @@ public class TaskController {
 
     // return all visible tasks for a user
     @GetMapping
-    public ResponseEntity<List<TaskInstance>> tasks() {
+    public ResponseEntity<List<TaskInstance>> getTasks() {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
-        List<TaskInstance> visible = engine.getVisibleTasks(user, groups);
+        List<TaskInstance> visible = engine.getTaskManager().getVisibleTasksForUser(user, groups);
         ResponseEntity<List<TaskInstance>> res= ResponseEntity.ok(visible);
         System.out.printf(res.toString());
         return res;

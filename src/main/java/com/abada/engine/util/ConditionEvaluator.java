@@ -37,6 +37,7 @@ public final class ConditionEvaluator {
         }
 
         try {
+            System.out.println("Evaluating expression: " + expr + " with variables: " + vars);
             Object result = engine.eval(expr);
             if (result instanceof Boolean) return (Boolean) result;
             if (result == null) return false;

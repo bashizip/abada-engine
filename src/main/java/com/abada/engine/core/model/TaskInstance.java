@@ -1,4 +1,4 @@
-package com.abada.engine.core;
+package com.abada.engine.core.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

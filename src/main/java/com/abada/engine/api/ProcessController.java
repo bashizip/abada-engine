@@ -48,9 +48,9 @@ public class ProcessController {
 
     @PostMapping("/start")
     public ResponseEntity<String> start(@RequestParam("processId") String processId) {
-        String instanceId = engine.startProcess(processId);
+        ProcessInstance instanceId = engine.startProcess(processId);
 
-        return ResponseEntity.ok("Started instance: " + instanceId);
+        return ResponseEntity.ok("Started instance: " + instanceId.getId());
     }
 
     @GetMapping("/instance/{id}")

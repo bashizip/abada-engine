@@ -3,7 +3,7 @@ package com.abada.engine.api;
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
-import com.abada.engine.core.TaskInstance;
+import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,10 +54,10 @@ public class EngineIntegrationTest {
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         ByteArrayResource file = new ByteArrayResource(
-                BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
+                BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn").readAllBytes()) {
             @Override
             public String getFilename() {
-                return "recipe-cook.bpmn";
+                return "recipe-cook-test.bpmn";
             }
         };
 

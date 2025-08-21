@@ -46,6 +46,7 @@ public class BpmnParser {
             Map<String, TaskMeta> userTasks = new HashMap<>();
             for (UserTask task : model.getModelElementsByType(UserTask.class)) {
                 TaskMeta meta = new TaskMeta();
+                meta.setId(task.getId());
                 meta.setName(task.getName());
                 meta.setAssignee(task.getCamundaAssignee());
 
@@ -82,7 +83,11 @@ public class BpmnParser {
                 endEvents.put(endEvent.getId(), null);
             }
 
-            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, endEvents, rawXml);
+            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, endEvents, rawXml);
+            for (SequenceFlow flow : flows) {
+                definition.addOutgoing(flow.getSourceRef(), flow);
+            }
+            return definition;
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse BPMN", e);

@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.TaskInstance;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -12,6 +13,7 @@ public class TaskManager {
     public void createTask(String taskDefinitionKey, String name, String processInstanceId,
                            String assignee, List<String> candidateUsers, List<String> candidateGroups) {
 
+        System.out.println("Creating task: " + name);
         TaskInstance task = new TaskInstance();
         task.setId(UUID.randomUUID().toString());
         task.setTaskDefinitionKey(taskDefinitionKey);

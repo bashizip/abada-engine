@@ -1,6 +1,7 @@
 package com.abada.engine.core;
 
 import com.abada.engine.core.model.ParsedProcessDefinition;
+import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
@@ -45,7 +46,7 @@ public class AbadaEngine {
         return Optional.ofNullable(persistenceService.findProcessDefinitionById(id));
     }
 
-    public String startProcess(String processDefinitionId) {
+    public ProcessInstance startProcess(String processDefinitionId) {
         ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
         if (definition == null) {
             throw new IllegalArgumentException("Unknown process ID: " + processDefinitionId);
@@ -87,12 +88,7 @@ public class AbadaEngine {
        allTasks.forEach((k,t) ->
                 System.out.println("→ " + t.getId() + ": " + t.getName()));
 
-        return instance.getId();
-    }
-
-
-    public List<TaskInstance> getVisibleTasks(String user, List<String> groups) {
-        return taskManager.getVisibleTasksForUser(user, groups);
+        return instance;
     }
 
     public boolean claim(String taskId, String user, List<String> groups) {
@@ -163,7 +159,7 @@ public class AbadaEngine {
 
         return true;
     }
-    
+
 
     public void rehydrateProcessInstance(ProcessInstanceEntity entity) {
         ParsedProcessDefinition def = processDefinitions.get(entity.getProcessDefinitionId());

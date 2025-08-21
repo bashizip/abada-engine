@@ -4,7 +4,7 @@ import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.StateReloadService;
-import com.abada.engine.core.TaskInstance;
+import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,14 +50,14 @@ public class AbadaEnginePersistenceReloadTest {
     @Test
     void shouldRestoreEngineStateAfterMemoryWipe() throws Exception {
         // 1. Deploy and start
-        InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
+        InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn");
         abadaEngine.deploy(bpmnStream);
 
-        String processInstanceId = abadaEngine.startProcess("recipe-cook");
-        assertNotNull(processInstanceId, "Process instance should be created");
+        ProcessInstance processInstance= abadaEngine.startProcess("recipe-cook");
+        assertNotNull(processInstance.getId(), "Process instance should be created");
 
         // 2. Validate task visibility before memory clear
-        List<TaskInstance> visibleTasksBefore = abadaEngine.getVisibleTasks("alice", List.of("customers"));
+        List<TaskInstance> visibleTasksBefore = abadaEngine.getTaskManager().getVisibleTasksForUser("alice", List.of("customers"));
         assertFalse(visibleTasksBefore.isEmpty(), "Alice should see tasks before memory clear");
 
         String taskIdBefore = visibleTasksBefore.get(0).getId();
@@ -69,7 +69,7 @@ public class AbadaEnginePersistenceReloadTest {
         stateReloadService.reloadStateAtStartup();
 
         // 5. Validate task visibility after reload
-        List<TaskInstance> visibleTasksAfter = abadaEngine.getVisibleTasks("alice", List.of("customers"));
+        List<TaskInstance> visibleTasksAfter = abadaEngine.getTaskManager().getVisibleTasksForUser("alice", List.of("customers"));
         assertFalse(visibleTasksAfter.isEmpty(), "Alice should still see tasks after reload");
 
         String taskIdAfter = visibleTasksAfter.get(0).getId();
@@ -87,7 +87,7 @@ public class AbadaEnginePersistenceReloadTest {
         when(context.getUsername()).thenReturn("bob");
         when(context.getGroups()).thenReturn(List.of("cuistos"));
 
-        List<TaskInstance> tasksForBob = abadaEngine.getVisibleTasks("bob", List.of("cuistos"));
+        List<TaskInstance> tasksForBob = abadaEngine.getTaskManager().getVisibleTasksForUser("bob", List.of("cuistos"));
         assertFalse(tasksForBob.isEmpty(), "Bob should see the second task after Alice completes the first");
 
         String secondTaskId = tasksForBob.get(0).getId();
@@ -98,7 +98,7 @@ public class AbadaEnginePersistenceReloadTest {
         boolean bobCompleted = abadaEngine.completeTask(secondTaskId, "bob", List.of("cuistos"), Collections.emptyMap());
         assertTrue(bobCompleted, "Bob should be able to complete the second task");
 
-        ProcessInstance reloadedInstance = abadaEngine.getProcessInstanceById(processInstanceId);
+        ProcessInstance reloadedInstance = abadaEngine.getProcessInstanceById(processInstance.getId());
         assertTrue(reloadedInstance.isCompleted(), "Process should be completed after Bob's task");
     }
 

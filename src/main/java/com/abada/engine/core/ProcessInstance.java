@@ -121,9 +121,9 @@ public class ProcessInstance {
             }
 
             // Default behavior: follow the first outgoing sequence flow
-            String target = outgoing.get(0).getTargetRef();
-            if (log.isDebugEnabled()) log.debug("pi={} pass-through {} -> {}", id, pointer, target);
-            pointer = target;
+            pointer = outgoing.get(0).getTargetRef();
+            if (log.isDebugEnabled()) log.debug("pi={} pass-through {} -> {}", id, this.currentActivityId, pointer);
+            this.currentActivityId = pointer;
         }
     }
 }
