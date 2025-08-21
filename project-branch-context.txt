@@ -1,0 +1,317 @@
+diff --git a/pom.xml b/pom.xml
+index 583076a..1722703 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -85,8 +85,12 @@
+     <build>
+         <plugins>
+             <plugin>
+-                <groupId>org.springframework.boot</groupId>
+-                <artifactId>spring-boot-maven-plugin</artifactId>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-surefire-plugin</artifactId>
++                <version>3.5.2</version>
++                <configuration>
++                    <runOrder>random</runOrder>
++                </configuration>
+             </plugin>
+         </plugins>
+     </build>
+diff --git a/src/main/java/com/abada/engine/context/HardcodedUserContext.java b/src/main/java/com/abada/engine/context/HardcodedUserContext.java
+index 6747c78..d79240e 100644
+--- a/src/main/java/com/abada/engine/context/HardcodedUserContext.java
++++ b/src/main/java/com/abada/engine/context/HardcodedUserContext.java
+@@ -7,7 +7,7 @@ import java.util.List;
+ 
+ /**
+  * A simple fixed user context for local development or testing.
+- * Replace with a dynamic implementation in production.
++ * Replace it with a dynamic implementation in production.
+  */
+ @Component
+ public class HardcodedUserContext implements UserContextProvider {
+diff --git a/src/main/java/com/abada/engine/core/AbadaEngine.java b/src/main/java/com/abada/engine/core/AbadaEngine.java
+index cb171fd..9ab4647 100644
+--- a/src/main/java/com/abada/engine/core/AbadaEngine.java
++++ b/src/main/java/com/abada/engine/core/AbadaEngine.java
+@@ -110,6 +110,10 @@ public class AbadaEngine {
+             return false;
+         }
+ 
++        String processInstanceId = taskManager.getTask(taskId)
++                .map(TaskInstance::getProcessInstanceId)
++                .orElseThrow(() -> new IllegalStateException("Task has no associated process instance"));
++
+         // 1. Mark task as completed in memory
+         taskManager.completeTask(taskId);
+ 
+@@ -117,11 +121,6 @@ public class AbadaEngine {
+         taskManager.getTask(taskId)
+                 .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
+ 
+-        // 3. Get the associated process instance
+-        String processInstanceId = taskManager.getTask(taskId)
+-                .map(TaskInstance::getProcessInstanceId)
+-                .orElseThrow(() -> new IllegalStateException("Task has no associated process instance"));
+-
+         ProcessInstance instance = instances.get(processInstanceId);
+         
+         // Set variables
+@@ -139,6 +138,7 @@ public class AbadaEngine {
+ 
+         // 6. If next activity is a user task, create and persist it
+         nextTask.ifPresent(task -> {
++            instance.setCurrentActivityId(task.taskDefinitionKey()); // Update the current activity id
+             taskManager.createTask(
+                     task.taskDefinitionKey(),
+                     task.name(),
+diff --git a/src/main/java/com/abada/engine/core/ProcessInstance.java b/src/main/java/com/abada/engine/core/ProcessInstance.java
+index b08ed5c..f621fd0 100644
+--- a/src/main/java/com/abada/engine/core/ProcessInstance.java
++++ b/src/main/java/com/abada/engine/core/ProcessInstance.java
+@@ -82,6 +82,11 @@ public class ProcessInstance {
+                 ));
+             }
+ 
++            if (definition.isEndEvent(currentActivityId)) {
++                currentActivityId = null;
++                return Optional.empty();
++            }
++
+             if (definition.isGateway(currentActivityId)) {
+                 GatewayMeta gateway = definition.getGateway(currentActivityId);
+                 List<SequenceFlow> outgoing = definition.getOutgoingFlows(currentActivityId);
+diff --git a/src/main/java/com/abada/engine/core/TaskInstance.java b/src/main/java/com/abada/engine/core/TaskInstance.java
+index 327e1d3..ea5147e 100644
+--- a/src/main/java/com/abada/engine/core/TaskInstance.java
++++ b/src/main/java/com/abada/engine/core/TaskInstance.java
+@@ -89,4 +89,9 @@ public class TaskInstance {
+     public boolean isClaimed() {
+         return assignee != null && !assignee.isEmpty();
+     }
++
++    @Override
++    public String toString() {
++        return name;
++    }
+ }
+diff --git a/src/main/java/com/abada/engine/core/TaskManager.java b/src/main/java/com/abada/engine/core/TaskManager.java
+index eb2c285..4044a65 100644
+--- a/src/main/java/com/abada/engine/core/TaskManager.java
++++ b/src/main/java/com/abada/engine/core/TaskManager.java
+@@ -70,7 +70,7 @@ public class TaskManager {
+                 .filter(task -> !task.isCompleted())  // ✅ hide completed tasks
+                 .filter(task -> isUserEligible(task, user, groups))
+                 .toList();
+-        System.out.println("Visible tasks for user " + user + " in groups " + groups + ": " + result);
++        System.out.println("Visible tasks for user " + user + " in groups " + groups + ": " + result.toString());
+         return result;
+     }
+ 
+diff --git a/src/main/java/com/abada/engine/core/model/ParsedProcessDefinition.java b/src/main/java/com/abada/engine/core/model/ParsedProcessDefinition.java
+index 39d6146..30dd50d 100644
+--- a/src/main/java/com/abada/engine/core/model/ParsedProcessDefinition.java
++++ b/src/main/java/com/abada/engine/core/model/ParsedProcessDefinition.java
+@@ -12,6 +12,7 @@ public class ParsedProcessDefinition implements Serializable {
+     private final Map<String, TaskMeta> userTasks;
+     private final List<SequenceFlow> sequenceFlows;
+     private final Map<String, GatewayMeta> gateways;
++    private final Map<String, Object> endEvents; // Add this line
+     private final String rawXml;
+ 
+     private final Map<String, List<String>> flowGraph = new HashMap<>();
+@@ -20,6 +21,7 @@ public class ParsedProcessDefinition implements Serializable {
+                                    Map<String, TaskMeta> userTasks,
+                                    List<SequenceFlow> sequenceFlows,
+                                    Map<String, GatewayMeta> gateways,
++                                   Map<String, Object> endEvents, // Add this line
+                                    String rawXml) {
+         this.id = id;
+         this.name = name;
+@@ -27,6 +29,7 @@ public class ParsedProcessDefinition implements Serializable {
+         this.userTasks = Collections.unmodifiableMap(new HashMap<>(userTasks));
+         this.sequenceFlows = Collections.unmodifiableList(new ArrayList<>(sequenceFlows));
+         this.gateways = Collections.unmodifiableMap(new HashMap<>(gateways));
++        this.endEvents = Collections.unmodifiableMap(new HashMap<>(endEvents)); // Add this line
+         this.rawXml = rawXml;
+         buildFlowGraph();
+     }
+@@ -109,6 +112,10 @@ public class ParsedProcessDefinition implements Serializable {
+         return gateways.get(id);
+     }
+ 
++    public boolean isEndEvent(String id) {
++        return endEvents.containsKey(id);
++    }
++
+     public String getTaskName(String id) {
+         TaskMeta meta = userTasks.get(id);
+         return meta != null ? meta.getName() : null;
+diff --git a/src/main/java/com/abada/engine/parser/BpmnParser.java b/src/main/java/com/abada/engine/parser/BpmnParser.java
+index fd9e1f2..399055c 100644
+--- a/src/main/java/com/abada/engine/parser/BpmnParser.java
++++ b/src/main/java/com/abada/engine/parser/BpmnParser.java
+@@ -11,6 +11,7 @@ import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
+ import org.camunda.bpm.model.bpmn.instance.Process;
+ import org.camunda.bpm.model.bpmn.instance.StartEvent;
+ import org.camunda.bpm.model.bpmn.instance.UserTask;
++import org.camunda.bpm.model.bpmn.instance.EndEvent;
+ 
+ import java.io.ByteArrayOutputStream;
+ import java.io.InputStream;
+@@ -76,7 +77,12 @@ public class BpmnParser {
+                 gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, null));
+             }
+ 
+-            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, rawXml);
++            Map<String, Object> endEvents = new HashMap<>();
++            for (EndEvent endEvent : model.getModelElementsByType(EndEvent.class)) {
++                endEvents.put(endEvent.getId(), null);
++            }
++
++            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, endEvents, rawXml);
+ 
+         } catch (Exception e) {
+             throw new RuntimeException("Failed to parse BPMN", e);
+diff --git a/src/main/resources/bpmn/recipe-cook.bpmn b/src/main/resources/bpmn/recipe-cook.bpmn
+index 3cfb6cd..1d10fe5 100644
+--- a/src/main/resources/bpmn/recipe-cook.bpmn
++++ b/src/main/resources/bpmn/recipe-cook.bpmn
+@@ -6,9 +6,9 @@ xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+ xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+-id="Definitions_0im7viy targetNamespace="http://bpmn.io/schema/bpmn"
++id="Definitions_0im7viy" targetNamespace="http://bpmn.io/schema/bpmn"
+ exporter="Camunda Modeler" exporterVersion="5.35.0"
+-modeler:executionPlatform="Abada Engine"
++modeler:executionPlatform="Camunda Platform"
+ modeler:executionPlatformVersion="7.23.0">
+   <bpmn:process id="recipe-cook" name="recipe-cook" isExecutable="true" camunda:candidateStarterGroups="customers" camunda:versionTag="1.0.0">
+     <bpmn:startEvent id="StartEvent_1">
+@@ -23,7 +23,7 @@ modeler:executionPlatformVersion="7.23.0">
+     </bpmn:exclusiveGateway>
+     <bpmn:sequenceFlow id="Flow_2" sourceRef="choose-recipe" targetRef="gw_goodone" />
+     <bpmn:sequenceFlow id="Flow_4" name="1" sourceRef="gw_goodone" targetRef="cook-recipe">
+-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">{goodOne == 1}</bpmn:conditionExpression>
++      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${goodOne}</bpmn:conditionExpression>
+     </bpmn:sequenceFlow>
+     <bpmn:endEvent id="Event_1">
+       <bpmn:incoming>Flow_5</bpmn:incoming>
+@@ -34,12 +34,12 @@ modeler:executionPlatformVersion="7.23.0">
+       <bpmn:incoming>Flow_3</bpmn:incoming>
+       <bpmn:outgoing>Flow_2</bpmn:outgoing>
+     </bpmn:userTask>
+-    <bpmn:userTask id="cook-recipe" name="Cook Recipe" camunda:formKey="fk_cook_recipe" camunda:candidateGroups="cuistos">
++    <bpmn:userTask id="cook-recipe" name="Cook Recipe" camunda:formKey="fk_cook_recipe" camunda:assignee="bob" camunda:candidateGroups="cuistos">
+       <bpmn:incoming>Flow_4</bpmn:incoming>
+       <bpmn:outgoing>Flow_5</bpmn:outgoing>
+     </bpmn:userTask>
+     <bpmn:sequenceFlow id="Flow_3" name="0" sourceRef="gw_goodone" targetRef="choose-recipe">
+-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">{goodOne=false}</bpmn:conditionExpression>
++      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!goodOne}</bpmn:conditionExpression>
+     </bpmn:sequenceFlow>
+   </bpmn:process>
+   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+@@ -92,4 +92,4 @@ modeler:executionPlatformVersion="7.23.0">
+       </bpmndi:BPMNEdge>
+     </bpmndi:BPMNPlane>
+   </bpmndi:BPMNDiagram>
+-</bpmn:definitions>
++</bpmn:definitions>
+\ No newline at end of file
+diff --git a/src/test/java/com/abada/engine/api/EngineIntegrationTest.java b/src/test/java/com/abada/engine/api/EngineIntegrationTest.java
+index 01eef85..9de3721 100644
+--- a/src/test/java/com/abada/engine/api/EngineIntegrationTest.java
++++ b/src/test/java/com/abada/engine/api/EngineIntegrationTest.java
+@@ -93,7 +93,7 @@ public class EngineIntegrationTest {
+         // Set the variable `goodOne` to 1 to select the correct path in the gateway
+         HttpHeaders completeHeaders1 = new HttpHeaders();
+         completeHeaders1.setContentType(MediaType.APPLICATION_JSON);
+-        HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", 1), completeHeaders1);
++        HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", true), completeHeaders1);
+         restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId1, completeRequest1, String.class);
+ 
+         when(context.getUsername()).thenReturn("bob");
+diff --git a/src/test/java/com/abada/engine/core/ProcessDefinitionTest.java b/src/test/java/com/abada/engine/core/ProcessDefinitionTest.java
+index e5064cb..af8f94f 100644
+--- a/src/test/java/com/abada/engine/core/ProcessDefinitionTest.java
++++ b/src/test/java/com/abada/engine/core/ProcessDefinitionTest.java
+@@ -29,7 +29,7 @@ public class ProcessDefinitionTest {
+                 new SequenceFlow("f3", "taskB", "endEvent1", null, null, false)
+         );
+ 
+-        definition = new ParsedProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows, Collections.emptyMap(), "<bpmn>...</bpmn>");
++        definition = new ParsedProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows, Collections.emptyMap(), Collections.emptyMap(), "<bpmn>...</bpmn>");
+     }
+ 
+     private TaskMeta taskMeta(String name, String assignee, List<String> users, List<String> groups) {
+diff --git a/src/test/java/com/abada/engine/core/ProcessInstanceTest.java b/src/test/java/com/abada/engine/core/ProcessInstanceTest.java
+index 6deeab7..eb3c78d 100644
+--- a/src/test/java/com/abada/engine/core/ProcessInstanceTest.java
++++ b/src/test/java/com/abada/engine/core/ProcessInstanceTest.java
+@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Optional;
++import java.util.Collections;
++import java.util.Collections;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+@@ -31,6 +33,7 @@ public class ProcessInstanceTest {
+                 Map.of("taskB", taskB, "taskC", taskC),
+                 List.of(flow1, flow2, flow3, flow4),
+                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
++                Collections.emptyMap(),
+                 "<xml/>"
+         );
+ 
+diff --git a/src/test/java/com/abada/engine/persistence/AbadaEnginePersistenceReloadTest.java b/src/test/java/com/abada/engine/persistence/AbadaEnginePersistenceReloadTest.java
+index 39a935b..30afa95 100644
+--- a/src/test/java/com/abada/engine/persistence/AbadaEnginePersistenceReloadTest.java
++++ b/src/test/java/com/abada/engine/persistence/AbadaEnginePersistenceReloadTest.java
+@@ -80,7 +80,7 @@ public class AbadaEnginePersistenceReloadTest {
+         boolean claimed = abadaEngine.claim(taskIdAfter, "alice", List.of("customers"));
+         assertTrue(claimed, "Alice should be able to claim task");
+ 
+-        boolean completed = abadaEngine.complete(taskIdAfter, "alice", List.of("customers"), Map.of("goodOne", 1));
++        boolean completed = abadaEngine.complete(taskIdAfter, "alice", List.of("customers"), Map.of("goodOne", true));
+         assertTrue(completed, "Alice should be able to complete task");
+ 
+         // 7. Switch context to Bob in 'cuistos' group
+diff --git a/src/test/resources/bpmn/recipe-cook.bpmn b/src/test/resources/bpmn/recipe-cook.bpmn
+index a367347..9249e9d 100644
+--- a/src/test/resources/bpmn/recipe-cook.bpmn
++++ b/src/test/resources/bpmn/recipe-cook.bpmn
+@@ -12,8 +12,8 @@
+       <bpmn:outgoing>Flow_3</bpmn:outgoing>
+     </bpmn:exclusiveGateway>
+     <bpmn:sequenceFlow id="Flow_2" sourceRef="choose-recipe" targetRef="gw_goodone" />
+-    <bpmn:sequenceFlow id="Flow_4" name="1" sourceRef="gw_goodone" targetRef="cook-recipe">
+-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">{goodOne == 1}</bpmn:conditionExpression>
++    <bpmn:sequenceFlow id="Flow_4" name="+" sourceRef="gw_goodone" targetRef="cook-recipe">
++      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!goodOne }</bpmn:conditionExpression>
+     </bpmn:sequenceFlow>
+     <bpmn:endEvent id="Event_1">
+       <bpmn:incoming>Flow_5</bpmn:incoming>
+@@ -28,8 +28,8 @@
+       <bpmn:incoming>Flow_4</bpmn:incoming>
+       <bpmn:outgoing>Flow_5</bpmn:outgoing>
+     </bpmn:userTask>
+-    <bpmn:sequenceFlow id="Flow_3" name="0" sourceRef="gw_goodone" targetRef="choose-recipe">
+-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">{goodOne=false}</bpmn:conditionExpression>
++    <bpmn:sequenceFlow id="Flow_3" name="-" sourceRef="gw_goodone" targetRef="choose-recipe">
++      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${goodOne}</bpmn:conditionExpression>
+     </bpmn:sequenceFlow>
+   </bpmn:process>
+   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+@@ -77,7 +77,7 @@
+         <di:waypoint x="290" y="100" />
+         <di:waypoint x="290" y="160" />
+         <bpmndi:BPMNLabel>
+-          <dc:Bounds x="367" y="82" width="7" height="14" />
++          <dc:Bounds x="369" y="82" width="4" height="14" />
+         </bpmndi:BPMNLabel>
+       </bpmndi:BPMNEdge>
+     </bpmndi:BPMNPlane>

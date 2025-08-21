@@ -11,6 +11,7 @@ import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
 import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.StartEvent;
 import org.camunda.bpm.model.bpmn.instance.UserTask;
+import org.camunda.bpm.model.bpmn.instance.EndEvent;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -76,7 +77,12 @@ public class BpmnParser {
                 gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, null));
             }
 
-            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, rawXml);
+            Map<String, Object> endEvents = new HashMap<>();
+            for (EndEvent endEvent : model.getModelElementsByType(EndEvent.class)) {
+                endEvents.put(endEvent.getId(), null);
+            }
+
+            return new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, endEvents, rawXml);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse BPMN", e);

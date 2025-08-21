@@ -80,7 +80,7 @@ public class AbadaEnginePersistenceReloadTest {
         boolean claimed = abadaEngine.claim(taskIdAfter, "alice", List.of("customers"));
         assertTrue(claimed, "Alice should be able to claim task");
 
-        boolean completed = abadaEngine.complete(taskIdAfter, "alice", List.of("customers"), Map.of("goodOne", 1));
+        boolean completed = abadaEngine.completeTask(taskIdAfter, "alice", List.of("customers"), Map.of("goodOne", true));
         assertTrue(completed, "Alice should be able to complete task");
 
         // 7. Switch context to Bob in 'cuistos' group
@@ -95,7 +95,7 @@ public class AbadaEnginePersistenceReloadTest {
         boolean bobClaimed = abadaEngine.claim(secondTaskId, "bob", List.of("cuistos"));
         assertTrue(bobClaimed, "Bob should be able to claim the second task");
 
-        boolean bobCompleted = abadaEngine.complete(secondTaskId, "bob", List.of("cuistos"), Collections.emptyMap());
+        boolean bobCompleted = abadaEngine.completeTask(secondTaskId, "bob", List.of("cuistos"), Collections.emptyMap());
         assertTrue(bobCompleted, "Bob should be able to complete the second task");
 
         ProcessInstance reloadedInstance = abadaEngine.getProcessInstanceById(processInstanceId);

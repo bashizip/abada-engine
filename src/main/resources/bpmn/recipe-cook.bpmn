@@ -6,9 +6,9 @@ xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
 xmlns:modeler="http://camunda.org/schema/modeler/1.0"
-id="Definitions_0im7viy targetNamespace="http://bpmn.io/schema/bpmn"
+id="Definitions_0im7viy" targetNamespace="http://bpmn.io/schema/bpmn"
 exporter="Camunda Modeler" exporterVersion="5.35.0"
-modeler:executionPlatform="Abada Engine"
+modeler:executionPlatform="Camunda Platform"
 modeler:executionPlatformVersion="7.23.0">
   <bpmn:process id="recipe-cook" name="recipe-cook" isExecutable="true" camunda:candidateStarterGroups="customers" camunda:versionTag="1.0.0">
     <bpmn:startEvent id="StartEvent_1">
@@ -23,7 +23,7 @@ modeler:executionPlatformVersion="7.23.0">
     </bpmn:exclusiveGateway>
     <bpmn:sequenceFlow id="Flow_2" sourceRef="choose-recipe" targetRef="gw_goodone" />
     <bpmn:sequenceFlow id="Flow_4" name="1" sourceRef="gw_goodone" targetRef="cook-recipe">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">{goodOne == 1}</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${goodOne}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:endEvent id="Event_1">
       <bpmn:incoming>Flow_5</bpmn:incoming>
@@ -34,12 +34,12 @@ modeler:executionPlatformVersion="7.23.0">
       <bpmn:incoming>Flow_3</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:userTask id="cook-recipe" name="Cook Recipe" camunda:formKey="fk_cook_recipe" camunda:candidateGroups="cuistos">
+    <bpmn:userTask id="cook-recipe" name="Cook Recipe" camunda:formKey="fk_cook_recipe" camunda:assignee="bob" camunda:candidateGroups="cuistos">
       <bpmn:incoming>Flow_4</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:userTask>
     <bpmn:sequenceFlow id="Flow_3" name="0" sourceRef="gw_goodone" targetRef="choose-recipe">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">{goodOne=false}</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!goodOne}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">

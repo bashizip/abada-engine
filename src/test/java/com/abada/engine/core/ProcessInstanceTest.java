@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Collections;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,6 +33,7 @@ public class ProcessInstanceTest {
                 Map.of("taskB", taskB, "taskC", taskC),
                 List.of(flow1, flow2, flow3, flow4),
                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
+                Collections.emptyMap(),
                 "<xml/>"
         );
 

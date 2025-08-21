@@ -89,4 +89,9 @@ public class TaskInstance {
     public boolean isClaimed() {
         return assignee != null && !assignee.isEmpty();
     }
+
+    @Override
+    public String toString() {
+        return name;
+    }
 }

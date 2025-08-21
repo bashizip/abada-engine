@@ -104,41 +104,51 @@ public class AbadaEngine {
         return false;
     }
 
-    public boolean complete(String taskId, String user, List<String> groups, Map<String, Object> variables) {
+
+    public boolean completeTask(String taskId, String user, List<String> groups, Map<String, Object> variables) {
+        // TODO: replace System.out with logger (slf4j)
         System.out.println("Completing task " + taskId + " with variables: " + variables);
+
         if (!taskManager.canComplete(taskId, user, groups)) {
             return false;
         }
 
-        // 1. Mark task as completed in memory
-        taskManager.completeTask(taskId);
+        // Fetch the task BEFORE completing it so we can persist its final state
+        TaskInstance currentTask = taskManager.getTask(taskId)
+                .orElseThrow(() -> new IllegalStateException("Task not found: " + taskId));
 
-        // 2. Persist the updated task
-        taskManager.getTask(taskId)
-                .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
+        String processInstanceId = currentTask.getProcessInstanceId();
 
-        // 3. Get the associated process instance
-        String processInstanceId = taskManager.getTask(taskId)
-                .map(TaskInstance::getProcessInstanceId)
-                .orElseThrow(() -> new IllegalStateException("Task has no associated process instance"));
-
+        // Load process instance from in-memory map (or persistence if needed)
         ProcessInstance instance = instances.get(processInstanceId);
-        
-        // Set variables
-        if (variables != null) {
+        if (instance == null) {
+            throw new IllegalStateException("No process instance found for id=" + processInstanceId);
+        }
+
+        // Merge variables BEFORE advancing so gateways can see them
+        if (variables != null && !variables.isEmpty()) {
             variables.forEach(instance::setVariable);
         }
 
-        ParsedProcessDefinition def = instance.getDefinition();
+        // Mark task completed in memory (this may remove it from the manager)
+        taskManager.completeTask(taskId);
 
-        // 4. Advance process to next activity (could be another user task or end)
-        Optional<UserTaskPayload> nextTask = instance.advance();
+        // Persist the completed task state using the same object reference
+        // (assuming TaskManager mutated its status internally)
+        persistenceService.saveTask(convertToEntity(currentTask));
 
-        // 5. Persist updated process instance
+        // Persist the instance state (variables) prior to advancement for durability
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
-        // 6. If next activity is a user task, create and persist it
+        // Advance the process (will evaluate gateways using merged variables)
+        Optional<UserTaskPayload> nextTask = instance.advance();
+
+        // Persist the instance again after advancement to capture new pointer/state
+        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
+
+        // If the next activity is a user task, create and persist it
         nextTask.ifPresent(task -> {
+            instance.setCurrentActivityId(task.taskDefinitionKey());
             taskManager.createTask(
                     task.taskDefinitionKey(),
                     task.name(),
@@ -147,13 +157,13 @@ public class AbadaEngine {
                     task.candidateUsers(),
                     task.candidateGroups()
             );
-            System.out.println("New task created: " + taskManager.getAllTasks());
             taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), processInstanceId)
                     .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
         });
 
         return true;
     }
+    
 
     public void rehydrateProcessInstance(ProcessInstanceEntity entity) {
         ParsedProcessDefinition def = processDefinitions.get(entity.getProcessDefinitionId());

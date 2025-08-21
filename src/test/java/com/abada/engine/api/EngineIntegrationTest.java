@@ -93,7 +93,7 @@ public class EngineIntegrationTest {
         // Set the variable `goodOne` to 1 to select the correct path in the gateway
         HttpHeaders completeHeaders1 = new HttpHeaders();
         completeHeaders1.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", 1), completeHeaders1);
+        HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", true), completeHeaders1);
         restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId1, completeRequest1, String.class);
 
         when(context.getUsername()).thenReturn("bob");

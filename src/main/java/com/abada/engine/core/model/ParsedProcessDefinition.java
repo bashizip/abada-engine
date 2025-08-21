@@ -12,14 +12,19 @@ public class ParsedProcessDefinition implements Serializable {
     private final Map<String, TaskMeta> userTasks;
     private final List<SequenceFlow> sequenceFlows;
     private final Map<String, GatewayMeta> gateways;
+    private final Map<String, Object> endEvents; // Add this line
     private final String rawXml;
+    private final Map<String, List<SequenceFlow>> outgoingBySource = new HashMap<>();
 
     private final Map<String, List<String>> flowGraph = new HashMap<>();
+    public List<SequenceFlow> getOutgoing(String sourceId) { return outgoingBySource.getOrDefault(sourceId, List.of()); }
+
 
     public ParsedProcessDefinition(String id, String name, String startEventId,
                                    Map<String, TaskMeta> userTasks,
                                    List<SequenceFlow> sequenceFlows,
                                    Map<String, GatewayMeta> gateways,
+                                   Map<String, Object> endEvents, // Add this line
                                    String rawXml) {
         this.id = id;
         this.name = name;
@@ -27,6 +32,7 @@ public class ParsedProcessDefinition implements Serializable {
         this.userTasks = Collections.unmodifiableMap(new HashMap<>(userTasks));
         this.sequenceFlows = Collections.unmodifiableList(new ArrayList<>(sequenceFlows));
         this.gateways = Collections.unmodifiableMap(new HashMap<>(gateways));
+        this.endEvents = Collections.unmodifiableMap(new HashMap<>(endEvents)); // Add this line
         this.rawXml = rawXml;
         buildFlowGraph();
     }
@@ -105,8 +111,40 @@ public class ParsedProcessDefinition implements Serializable {
         return gateways.containsKey(id);
     }
 
+
+    // ==========================================================
+    // NEW: Typed gateway helpers (Exclusive + Inclusive)
+    // ==========================================================
+
+    /** Returns true if the node is an Exclusive Gateway. */
+    public boolean isExclusiveGateway(String activityId) {
+        GatewayMeta gw = gateways.get(activityId);
+        return gw != null && gw.type() == GatewayMeta.Type.EXCLUSIVE;
+    }
+
+    /** Returns true if the node is an Inclusive Gateway. */
+    public boolean isInclusiveGateway(String activityId) {
+        GatewayMeta gw = gateways.get(activityId);
+        return gw != null && gw.type() == GatewayMeta.Type.INCLUSIVE;
+    }
+
+    // Convenience: create/update API the parser can call when discovering gateways
+    public void putGateway(String id, GatewayMeta meta) {
+        gateways.put(id, meta);
+    }
+
+    // Convenience: outgoing registration used by the parser
+    public void addOutgoing(String sourceId, SequenceFlow flow) {
+        outgoingBySource.computeIfAbsent(sourceId, k -> new ArrayList<>()).add(flow);
+    }
+
+
     public GatewayMeta getGateway(String id) {
         return gateways.get(id);
+    }
+
+    public boolean isEndEvent(String id) {
+        return endEvents.containsKey(id);
     }
 
     public String getTaskName(String id) {

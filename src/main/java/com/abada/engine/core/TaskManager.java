@@ -70,7 +70,7 @@ public class TaskManager {
                 .filter(task -> !task.isCompleted())  // ✅ hide completed tasks
                 .filter(task -> isUserEligible(task, user, groups))
                 .toList();
-        System.out.println("Visible tasks for user " + user + " in groups " + groups + ": " + result);
+        System.out.println("Visible tasks for user " + user + " in groups " + groups + ": " + result.toString());
         return result;
     }
 

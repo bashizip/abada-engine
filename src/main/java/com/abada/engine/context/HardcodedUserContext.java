@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * A simple fixed user context for local development or testing.
- * Replace with a dynamic implementation in production.
+ * Replace it with a dynamic implementation in production.
  */
 @Component
 public class HardcodedUserContext implements UserContextProvider {

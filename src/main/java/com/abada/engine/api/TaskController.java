@@ -41,7 +41,7 @@ public class TaskController {
 
     @PostMapping("/complete")
     public ResponseEntity<String> complete(@RequestParam String taskId, @RequestBody(required = false) Map<String, Object> variables) {
-        boolean completed = engine.complete(taskId, context.getUsername(), context.getGroups(), variables);
+        boolean completed = engine.completeTask(taskId, context.getUsername(), context.getGroups(), variables);
         return completed ? ResponseEntity.ok("Completed") : ResponseEntity.badRequest().body("Cannot complete");
     }
 
