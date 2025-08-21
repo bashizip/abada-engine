@@ -24,10 +24,10 @@ public class AbadaEngine {
     private final Map<String, ParsedProcessDefinition> processDefinitions = new HashMap<>();
     private final Map<String, ProcessInstance> instances = new HashMap<>();
 
-    public AbadaEngine(PersistenceService persistenceService) {
+    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager) {
         this.persistenceService = persistenceService;
         this.parser = new BpmnParser();
-        this.taskManager = new TaskManager();
+        this.taskManager = taskManager;
     }
 
     public void deploy(InputStream bpmnXml) {
@@ -237,6 +237,10 @@ public class AbadaEngine {
     }
     public ProcessInstance getProcessInstanceById(String id) {
         return instances.get(id);
+    }
+
+    public TaskManager getTaskManager() {
+        return taskManager;
     }
 
     public void saveProcessDefinition(ParsedProcessDefinition definition) {

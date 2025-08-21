@@ -1,9 +1,9 @@
 package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
+import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.TaskInstance;
-import com.abada.engine.core.TaskManager;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ public class EngineIntegrationTest {
     private TestRestTemplate restTemplate;
 
     @Autowired
-    private TaskManager taskManager;
+    private AbadaEngine abadaEngine;
 
     @MockBean
     private UserContextProvider context;
@@ -43,7 +43,7 @@ public class EngineIntegrationTest {
 
     @BeforeEach
     void setup() throws IOException {
-        taskManager.clearTasks();
+        abadaEngine.getTaskManager().clearTasks();
         when(context.getUsername()).thenReturn("alice");
         when(context.getGroups()).thenReturn(List.of("customers"));
         instanceId = deployAndStartProcess();
