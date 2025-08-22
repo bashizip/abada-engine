@@ -1,94 +1,47 @@
-![logo](https://github.com/bashizip/abada-engine/blob/main/assets/logo_small.png)
+# Abada Engine
 
-# 🦄 Abada Engine
-
-**Abada Engine** is a lightweight, embeddable, and cloud-native BPMN 2.0 workflow engine built in modern Java. Designed for developers and teams seeking a streamlined, flexible process automation core — without the bloat, lock-in, or complexity of legacy platforms.
-
-> Inspired by the mythical African unicorn *Abada* — rare, agile, and powerful.
+Abada Engine is a lightweight, embeddable BPMN 2.0 workflow engine for Java. It focuses on a small, predictable core you can run in-process or expose over HTTP.
 
 ---
 
-## 🚀 What Makes It Different?
+## Overview
 
-- ✅ **Lightweight and modular** — no heavyweight runtimes
-- 🧠 **Developer-first** — clean Java API, simple embedding in any JVM-based application
-- 🌐 **REST-first architecture** — can also run fully standalone as a remote workflow service
-- 📦 **Container-ready** — easily deployed via Docker in modern CI/CD pipelines
-- ☁️ **Cloud-native mindset** — built for microservices, automation, and scale
-- ⚙️ **Standard BPMN 2.0 support** — including user tasks, service tasks, and gateways
-- 🔐 **Authentication agnostic** — pluggable security handled by your host app
-- 🔁 **Process persistence** — reliable state recovery after reboot
-- 🧪 **Battle-tested core** — strong test coverage and deterministic behavior
-- 📄 **BPMN 2.0 compatible** — fully interoperable with [bpmn.io](https://bpmn.io) and Camunda Modeler
+* **Language/Runtime:** Java 21, Spring Boot 3
+* **Persistence:** H2 by default (switchable)
+* **Parsing:** Camunda BPMN Model API (parsing only)
+* **Use modes:** library (embedded), standalone REST, or Docker
 
 ---
 
-## 💡 Usage Modes
+## Current status (0.6.x)
 
-**1. Embedded SDK**  
-Use it directly as a Java library inside your Spring Boot (or plain Java) application.
+* BPMN parsing
+* User Tasks and Service Tasks (stub)
+* **Exclusive Gateway** (XOR) routing with expression conditions and default flow
+* Process & task persistence
+* REST APIs for processes and tasks
+* Validation (schema + basic semantics)
 
-**2. Standalone Engine**  
-Run as a self-contained RESTful service. Ideal for frontend clients, no-code tools, or external systems that just need an HTTP interface.
-
-**3. Containerized**  
-Deploy with Docker for maximum portability and cloud-native integration.
-
----
-
-## 🛠 Tech Stack
-
-- Java 21
-- Spring Boot 3.4
-- H2 (default) — switchable to PostgreSQL or others
-- Maven
-- Camunda BPMN Model API (for parsing only)
+> Note: Inclusive/Parallel gateways and history are planned. See the roadmap below.
 
 ---
 
-## 🧪 Current Capabilities
+## Quick start
 
-| Feature                    | Status         |
-|---------------------------|----------------|
-| BPMN 2.0 Parsing           | ✅ Fully supported (Camunda-compatible) |
-| User Tasks                | ✅ Implemented |
-| Service Tasks             | ✅ Implemented |
-| Exclusive Gateways        | ✅ Implemented |
-| Conditional Gateways      | 🔄 In progress |
-| Process & Task Persistence| ✅ Implemented |
-| REST API                  | ✅ Available |
-| BPMN Validation           | ✅ Schema + semantic |
-| JWT Auth                  | ❌ Delegated to host app for the embedded mode|
-| Multi-tenancy             | 🚧 Planned |
-
----
-
-## 📦 Quick Start (Standalone)
-
-### 🐳 Run with Docker Compose
-
-To run **Abada Engine** using Docker Compose:
-
-1. Create a `docker-compose.yml` file:
+### Run with Docker Compose
 
 ```yaml
 version: '3.8'
-
 services:
   abada-engine:
     image: ghcr.io/bashizip/abada-engine:latest
     container_name: abada-engine
     ports:
       - "5601:5601"
-    volumes:
-      - .data:/app/data
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SERVER_PORT=5601
     restart: unless-stopped
-
-volumes:
-  abada-data:
 ```
 
 Then:
@@ -97,56 +50,86 @@ Then:
 docker compose up -d
 ```
 
-This will start the engine and expose the API at:
+API base: `http://localhost:5601/abada/api/v1`
 
-```
-http://localhost:5601/abada/api/v1
-```
+### Minimal API flow
 
-### Example Endpoints
+* **Deploy** a BPMN file
 
-- **Deploy a BPMN process**
   ```http
   POST /abada/api/v1/processes/deploy
   Content-Type: multipart/form-data
   Body: file=<your_bpmn_file>
   ```
+* **Start** a process instance
 
-- **Start a process instance**
   ```http
   POST /abada/api/v1/processes/start
   Content-Type: application/x-www-form-urlencoded
-  Body: processId=recipeProcess
+  Body: processId=recipe-cook
   ```
+* **List** visible tasks for the current user
 
-- **Get available tasks for the user**
   ```http
   GET /abada/api/v1/tasks
   ```
+* **Claim** a task
 
-- **Claim a task**
   ```http
-  POST /abada/api/v1/tasks/claim?taskId=choose-recipe
+  POST /abada/api/v1/tasks/claim?taskId=<runtimeTaskId>
   ```
+* **Complete** a task (with variables used by gateways)
 
-- **Complete a task**
   ```http
-  POST /abada/api/v1/tasks/complete?taskId=choose-recipe
+  POST /abada/api/v1/tasks/complete?taskId=<runtimeTaskId>
+  Content-Type: application/json
+  {
+    "goodOne": true
+  }
   ```
-
-
-## 🧠 Philosophy
-
-> Build your own engine — not your own prison.
-
-Abada Engine is built to be lightweight, hackable, and open. Whether you're building internal automation or selling workflow-driven platforms, Abada gives you full control — from task routing to UI integration.
 
 ---
 
-## 📜 License
+## Design highlights
 
-[MIT License](https://github.com/bashizip/abada-engine/blob/main/LICENCE)
+* Small, testable core (`ProcessInstance.advance(...)`) with clear token movement
+* Explicit variable merge *before* advancement so gateways see inputs
+* Condition evaluation supports Camunda‑style `${...}` and simple JS
+* Deterministic gateway selection: first matching condition, else default, else error
+
+More details: see `docs/exclusive-gateway.md`.
 
 ---
 
-## 🦄 Made with love by Patrick Bashizi
+## Roadmap
+
+**Near term (0.7.x)**
+
+* Inclusive Gateway (OR) semantics (fork/join bookkeeping)
+* Service Task execution SPI (replace stub)
+* Process instance history (audit trail)
+* Publish artifacts to Maven Central
+
+**Medium term (0.8.x)**
+
+* Lightweight web dashboard
+* Improved error handling and problem details in REST
+* Pluggable expression engine (MVEL/JEXL) behind an interface
+
+**Open issues / ideas**
+
+* Tests for branching behavior and docs for conditional routing
+* Process variables API improvements
+
+See the GitHub Issues tab for up‑to‑date items.
+
+---
+
+## Contributing
+
+* Issues and PRs are welcome.
+* Please include tests for engine behavior (advance, gateways, API) when possible.
+
+## License
+
+MIT
