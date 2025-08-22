@@ -4,7 +4,7 @@ import com.abada.engine.core.model.GatewayMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.SequenceFlow;
 import com.abada.engine.core.model.TaskMeta;
-import com.abada.engine.dto.UserTaskPayload;
+import com.abada.engine.dto.UserTaskPayloadDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +46,17 @@ public class ProcessInstance {
 
     public boolean isCompleted() { return currentActivityId == null; }
 
-    public Optional<UserTaskPayload> advance() {
+    /**
+     * Advance execution until the next external wait state (User Task) or End Event.
+     * Returns the next user task payload (to be created by TaskManager) if any.
+     */
+    public Optional<UserTaskPayloadDTO> advance() {
+    // Default behaviour: stop when we REACH a user task (used by engine.start)
+        return advance(false);
+    }
+
+
+    public Optional<UserTaskPayloadDTO> advance(boolean skipCurrentIfUserTask) {
         Map<String, Object> vars = this.variables;
         String pointer = this.currentActivityId;
 
@@ -65,12 +75,30 @@ public class ProcessInstance {
                 throw new IllegalStateException("advance() exceeded max hops; possible cycle without wait state. pi=" + id);
             }
 
-            // USER TASK → stop and let caller create a TaskInstance
+            // USER TASK
             if (definition.isUserTask(pointer)) {
+                if (skipCurrentIfUserTask) {
+                    // We are resuming *after* completing this user task → step over it
+                    var outgoing = definition.getOutgoing(pointer);
+                    if (outgoing == null || outgoing.isEmpty()) {
+                        // No outgoing from a user task → end
+                        this.currentActivityId = null;
+                        if (log.isDebugEnabled()) log.debug("pi={} user task {} has no outgoing; ending", id, pointer);
+                        return Optional.empty();
+                    }
+                    String next = outgoing.get(0).getTargetRef();
+                    if (log.isDebugEnabled()) log.debug("pi={} skip current user task {} -> {}", id, pointer, next);
+                    pointer = next;
+                    // Only skip once per call to avoid skipping subsequent user tasks unintentionally
+                    skipCurrentIfUserTask = false;
+                    continue;
+                }
+
+                // Stop at this user task and return its payload
                 this.currentActivityId = pointer;
                 TaskMeta ut = definition.getUserTask(pointer);
                 if (log.isDebugEnabled()) log.debug("pi={} reached user task {} ({})", id, ut.getId(), ut.getName());
-                return Optional.of(new UserTaskPayload(
+                return Optional.of(new UserTaskPayloadDTO(
                         ut.getId(),
                         ut.getName(),
                         ut.getAssignee(),
@@ -93,20 +121,15 @@ public class ProcessInstance {
                         .orElseThrow(() -> new IllegalStateException("Flow not found: " +
                                 chosenFlowId + " from gw=" + gw.id()));
 
-                if (log.isDebugEnabled()) log.debug("pi={} gateway {} -> flow {} -> {}", id, gw.id(), chosenFlowId, target);
+                if (log.isDebugEnabled())
+                    log.debug("pi={} gateway {} -> flow {} -> {}", id, gw.id(), chosenFlowId, target);
                 pointer = target;
                 continue;
             }
 
-            // TODO: INCLUSIVE GATEWAY semantics (prepare future support)
-            // if (definition.isInclusiveGateway(pointer)) {
-            //     // Placeholder: handle multiple true branches (fork) and join behavior
-            // }
-
             // END EVENT → finish
             if (definition.isEndEvent(pointer)) {
-                // mark completed by nulling the pointer so isCompleted() returns true
-                this.currentActivityId = null;
+                this.currentActivityId = null; // mark isCompleted so isCompleted() becomes true
                 if (log.isDebugEnabled()) log.debug("pi={} ended at {}", id, pointer);
                 return Optional.empty();
             }
@@ -121,9 +144,10 @@ public class ProcessInstance {
             }
 
             // Default behavior: follow the first outgoing sequence flow
-            pointer = outgoing.get(0).getTargetRef();
-            if (log.isDebugEnabled()) log.debug("pi={} pass-through {} -> {}", id, this.currentActivityId, pointer);
-            this.currentActivityId = pointer;
+            String next = outgoing.getFirst().getTargetRef();
+            if (log.isDebugEnabled()) log.debug("pi={} pass-through {} -> {}", id, pointer, next);
+            pointer = next;
         }
     }
+
 }

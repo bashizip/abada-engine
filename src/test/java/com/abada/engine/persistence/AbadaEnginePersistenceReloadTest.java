@@ -50,7 +50,7 @@ public class AbadaEnginePersistenceReloadTest {
     @Test
     void shouldRestoreEngineStateAfterMemoryWipe() throws Exception {
         // 1. Deploy and start
-        InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn");
+        InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
         abadaEngine.deploy(bpmnStream);
 
         ProcessInstance processInstance= abadaEngine.startProcess("recipe-cook");
@@ -99,7 +99,7 @@ public class AbadaEnginePersistenceReloadTest {
         assertTrue(bobCompleted, "Bob should be able to complete the second task");
 
         ProcessInstance reloadedInstance = abadaEngine.getProcessInstanceById(processInstance.getId());
-        assertTrue(reloadedInstance.isCompleted(), "Process should be completed after Bob's task");
+        assertTrue(reloadedInstance.isCompleted(), "Process should be isCompleted after Bob's task");
     }
 
     @AfterAll

@@ -3,6 +3,8 @@ package com.abada.engine.api;
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
+import com.abada.engine.dto.Mapper;
+import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +14,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("v1/processes")
@@ -54,10 +55,10 @@ public class ProcessController {
     }
 
     @GetMapping("/instance/{id}")
-    public ResponseEntity<ProcessInstance> getProcessInstanceById(@PathVariable String id) {
-        return Optional.ofNullable(engine.getProcessInstanceById(id))
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ProcessInstanceDTO> getProcessInstanceById(@PathVariable String id) {
+        ProcessInstance pi = engine.getProcessInstanceById(id);
+        if (pi == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(pi));
     }
 
     @GetMapping("/{id}")

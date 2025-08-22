@@ -16,10 +16,10 @@ public class BpmnParserTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        InputStream xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn");
+        InputStream xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
         CamundaSchemaValidator.validate(xmlStream);
         // Re-open stream for parsing
-        xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn");
+        xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
         parsed = new BpmnParser().parse(xmlStream);
     }
 

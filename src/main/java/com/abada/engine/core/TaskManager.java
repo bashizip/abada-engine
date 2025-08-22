@@ -69,7 +69,7 @@ public class TaskManager {
     public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups) {
         System.out.println("All tasks: " + tasks);
         List<TaskInstance> result = tasks.values().stream()
-                .filter(task -> !task.isCompleted())  // ✅ hide completed tasks
+                .filter(task -> !task.isCompleted())  // ✅ hide isCompleted tasks
                 .filter(task -> isUserEligible(task, user, groups))
                 .toList();
         System.out.println("Visible tasks for user " + user + " in groups " + groups + ": " + result.toString());

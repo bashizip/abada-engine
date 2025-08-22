@@ -2,8 +2,8 @@ package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
-import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,10 +54,10 @@ public class EngineIntegrationTest {
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
         ByteArrayResource file = new ByteArrayResource(
-                BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn").readAllBytes()) {
+                BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
             @Override
             public String getFilename() {
-                return "recipe-cook-test.bpmn";
+                return "recipe-cook.bpmn";
             }
         };
 
@@ -127,7 +127,8 @@ public class EngineIntegrationTest {
         assertNotNull(remainingTasks);
         assertEquals(0, remainingTasks.size());
 
-        ResponseEntity<ProcessInstance> instanceResponse = restTemplate.getForEntity("/v1/processes/instance/" + instanceId, ProcessInstance.class);
+        ResponseEntity<ProcessInstanceDTO> instanceResponse = restTemplate.getForEntity("/v1/processes/instance/" + instanceId, ProcessInstanceDTO.class);
+        assertNotNull(instanceResponse.getBody());
         assertTrue(instanceResponse.getBody().isCompleted());
     }
 }

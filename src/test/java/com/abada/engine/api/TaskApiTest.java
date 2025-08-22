@@ -44,10 +44,10 @@ class TaskApiTest {
     private void  deployAndStartProcess() throws Exception {
         // Deploy the process
         ByteArrayResource file = new ByteArrayResource(
-                BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn").readAllBytes()) {
+                BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
             @Override
             public String getFilename() {
-                return "recipe-cook-test.bpmn";
+                return "recipe-cook.bpmn";
             }
         };
 

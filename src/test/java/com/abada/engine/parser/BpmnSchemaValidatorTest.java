@@ -11,7 +11,7 @@ public class BpmnSchemaValidatorTest {
 
     @Test
     void testValidBpmnXmlPasses() {
-        InputStream xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook-test.bpmn");
+        InputStream xmlStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
         assertDoesNotThrow(() -> CamundaSchemaValidator.validate(xmlStream));
     }
 

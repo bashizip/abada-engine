@@ -8,11 +8,11 @@
     <bpmn:exclusiveGateway id="gw_goodone" name="Good One ?">
       <bpmn:extensionElements />
       <bpmn:incoming>Flow_2</bpmn:incoming>
-      <bpmn:outgoing>Flow_4</bpmn:outgoing>
-      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+      <bpmn:outgoing>to-cook-flow</bpmn:outgoing>
+      <bpmn:outgoing>back-choose-flow</bpmn:outgoing>
     </bpmn:exclusiveGateway>
     <bpmn:sequenceFlow id="Flow_2" sourceRef="choose-recipe" targetRef="gw_goodone" />
-    <bpmn:sequenceFlow id="Flow_4" name="+" sourceRef="gw_goodone" targetRef="cook-recipe">
+    <bpmn:sequenceFlow id="to-cook-flow" name="+" sourceRef="gw_goodone" targetRef="cook-recipe">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${goodOne }</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:endEvent id="Event_1">
@@ -21,14 +21,14 @@
     <bpmn:sequenceFlow id="Flow_5" sourceRef="cook-recipe" targetRef="Event_1" />
     <bpmn:userTask id="choose-recipe" name="Choose Recipe" camunda:formKey="fk_choose_recipe" camunda:candidateUsers="alice, black, jeannot" camunda:candidateGroups="customers">
       <bpmn:incoming>Flow_1</bpmn:incoming>
-      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:incoming>back-choose-flow</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
     </bpmn:userTask>
     <bpmn:userTask id="cook-recipe" name="Cook Recipe" camunda:formKey="fk_cook_recipe" camunda:candidateGroups="cuistos">
-      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:incoming>to-cook-flow</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:sequenceFlow id="Flow_3" name="-" sourceRef="gw_goodone" targetRef="choose-recipe">
+    <bpmn:sequenceFlow id="back-choose-flow" name="-" sourceRef="gw_goodone" targetRef="choose-recipe">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!goodOne}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
   </bpmn:process>
@@ -60,7 +60,7 @@
         <di:waypoint x="340" y="200" />
         <di:waypoint x="425" y="200" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1slfrmj_di" bpmnElement="Flow_4">
+      <bpmndi:BPMNEdge id="Flow_1slfrmj_di" bpmnElement="to-cook-flow">
         <di:waypoint x="475" y="200" />
         <di:waypoint x="590" y="200" />
         <bpmndi:BPMNLabel>
@@ -71,7 +71,7 @@
         <di:waypoint x="690" y="200" />
         <di:waypoint x="742" y="200" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_1ij4zyh_di" bpmnElement="Flow_3">
+      <bpmndi:BPMNEdge id="Flow_1ij4zyh_di" bpmnElement="back-choose-flow">
         <di:waypoint x="450" y="175" />
         <di:waypoint x="450" y="100" />
         <di:waypoint x="290" y="100" />

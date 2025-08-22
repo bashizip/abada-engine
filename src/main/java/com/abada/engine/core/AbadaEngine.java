@@ -2,7 +2,7 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.TaskInstance;
-import com.abada.engine.dto.UserTaskPayload;
+import com.abada.engine.dto.UserTaskPayloadDTO;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
@@ -60,7 +60,7 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         // 3. Move forward from start event to next node (should reach first userTask or end)
-        Optional<UserTaskPayload> userTask = instance.advance();
+        Optional<UserTaskPayloadDTO> userTask = instance.advance();
 
         // 4. Persist updated process state after advance
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
@@ -126,10 +126,10 @@ public class AbadaEngine {
             variables.forEach(instance::setVariable);
         }
 
-        // Mark task completed in memory (this may remove it from the manager)
+        // Mark task isCompleted in memory (this may remove it from the manager)
         taskManager.completeTask(taskId);
 
-        // Persist the completed task state using the same object reference
+        // Persist the isCompleted task state using the same object reference
         // (assuming TaskManager mutated its status internally)
         persistenceService.saveTask(convertToEntity(currentTask));
 
@@ -137,7 +137,7 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         // Advance the process (will evaluate gateways using merged variables)
-        Optional<UserTaskPayload> nextTask = instance.advance();
+        Optional<UserTaskPayloadDTO> nextTask = instance.advance(true);
 
         // Persist the instance again after advancement to capture new pointer/state
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
