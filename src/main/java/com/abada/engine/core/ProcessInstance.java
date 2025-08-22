@@ -4,7 +4,7 @@ import com.abada.engine.core.model.GatewayMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.SequenceFlow;
 import com.abada.engine.core.model.TaskMeta;
-import com.abada.engine.dto.UserTaskPayloadDTO;
+import com.abada.engine.dto.UserTaskPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,13 +50,13 @@ public class ProcessInstance {
      * Advance execution until the next external wait state (User Task) or End Event.
      * Returns the next user task payload (to be created by TaskManager) if any.
      */
-    public Optional<UserTaskPayloadDTO> advance() {
+    public Optional<UserTaskPayload> advance() {
     // Default behaviour: stop when we REACH a user task (used by engine.start)
         return advance(false);
     }
 
 
-    public Optional<UserTaskPayloadDTO> advance(boolean skipCurrentIfUserTask) {
+    public Optional<UserTaskPayload> advance(boolean skipCurrentIfUserTask) {
         Map<String, Object> vars = this.variables;
         String pointer = this.currentActivityId;
 
@@ -98,7 +98,7 @@ public class ProcessInstance {
                 this.currentActivityId = pointer;
                 TaskMeta ut = definition.getUserTask(pointer);
                 if (log.isDebugEnabled()) log.debug("pi={} reached user task {} ({})", id, ut.getId(), ut.getName());
-                return Optional.of(new UserTaskPayloadDTO(
+                return Optional.of(new UserTaskPayload(
                         ut.getId(),
                         ut.getName(),
                         ut.getAssignee(),

@@ -2,7 +2,7 @@ package com.abada.engine.dto;
 
 import java.util.List;
 
-public record UserTaskPayloadDTO(
+public record UserTaskPayload(
         String taskDefinitionKey,
         String name,
         String assignee,
