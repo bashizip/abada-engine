@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.TaskInstance;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -78,7 +79,7 @@ public class TaskManagerTest {
         taskManager.completeTask(task.getId());
         assertThat(task.isCompleted()).isTrue();
 
-        // Once completed, it should no longer be visible
+        // Once isCompleted, it should no longer be visible
         List<TaskInstance> postCompleteVisible = taskManager.getVisibleTasksForUser("user3", List.of("group3"));
         assertThat(postCompleteVisible).isEmpty();
     }

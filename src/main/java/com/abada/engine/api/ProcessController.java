@@ -2,6 +2,9 @@ package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
+import com.abada.engine.core.ProcessInstance;
+import com.abada.engine.dto.Mapper;
+import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -46,12 +49,17 @@ public class ProcessController {
 
     @PostMapping("/start")
     public ResponseEntity<String> start(@RequestParam("processId") String processId) {
-        String instanceId = engine.startProcess(processId);
+        ProcessInstance instanceId = engine.startProcess(processId);
 
-        return ResponseEntity.ok("Started instance: " + instanceId);
+        return ResponseEntity.ok("Started instance: " + instanceId.getId());
     }
 
-
+    @GetMapping("/instance/{id}")
+    public ResponseEntity<ProcessInstanceDTO> getProcessInstanceById(@PathVariable String id) {
+        ProcessInstance pi = engine.getProcessInstanceById(id);
+        if (pi == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(pi));
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, String>> getProcessById(@PathVariable String id) {

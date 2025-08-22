@@ -1,7 +1,9 @@
 package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
-import com.abada.engine.core.TaskInstance;
+import com.abada.engine.core.AbadaEngine;
+import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +19,9 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -29,17 +33,23 @@ public class EngineIntegrationTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
+    @Autowired
+    private AbadaEngine abadaEngine;
+
     @MockBean
     private UserContextProvider context;
 
+    private String instanceId;
+
     @BeforeEach
     void setup() throws IOException {
+        abadaEngine.getTaskManager().clearTasks();
         when(context.getUsername()).thenReturn("alice");
         when(context.getGroups()).thenReturn(List.of("customers"));
-        deployAndStartProcess();
+        instanceId = deployAndStartProcess();
     }
 
-    private void deployAndStartProcess() throws IOException {
+    private String deployAndStartProcess() throws IOException {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
@@ -61,15 +71,12 @@ public class EngineIntegrationTest {
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
-        restTemplate.postForEntity("/v1/processes/start", startRequest, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity("/v1/processes/start", startRequest, String.class);
+        return response.getBody().replace("Started instance: ", "");
     }
 
     @Test
     void shouldCompleteAllTasksAndFinishProcess() {
-        ResponseEntity<String> rawResponse1 = restTemplate.getForEntity("/v1/tasks", String.class);
-        System.out.println("Raw JSON for Alice: " + rawResponse1.getBody());
-        assertEquals(HttpStatus.OK, rawResponse1.getStatusCode());
-
         ResponseEntity<List<TaskInstance>> taskResponse1 = restTemplate.exchange(
                 "/v1/tasks",
                 HttpMethod.GET,
@@ -82,14 +89,15 @@ public class EngineIntegrationTest {
 
         String taskId1 = tasksForAlice.get(0).getId();
         restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId1, null, String.class);
-        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId1, null, String.class);
+
+        // Set the variable `goodOne` to 1 to select the correct path in the gateway
+        HttpHeaders completeHeaders1 = new HttpHeaders();
+        completeHeaders1.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", true), completeHeaders1);
+        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId1, completeRequest1, String.class);
 
         when(context.getUsername()).thenReturn("bob");
         when(context.getGroups()).thenReturn(List.of("cuistos"));
-
-        ResponseEntity<String> rawResponse2 = restTemplate.getForEntity("/v1/tasks", String.class);
-        System.out.println("Raw JSON for Bob: " + rawResponse2.getBody());
-        assertEquals(HttpStatus.OK, rawResponse2.getStatusCode());
 
         ResponseEntity<List<TaskInstance>> taskResponse2 = restTemplate.exchange(
                 "/v1/tasks",
@@ -103,10 +111,11 @@ public class EngineIntegrationTest {
 
         String taskId2 = tasksForBob.get(0).getId();
         restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId2, null, String.class);
-        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId2, null, String.class);
 
-        ResponseEntity<String> rawFinal = restTemplate.getForEntity("/v1/tasks", String.class);
-        System.out.println("Raw JSON for final task check: " + rawFinal.getBody());
+        HttpHeaders completeHeaders2 = new HttpHeaders();
+        completeHeaders2.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> completeRequest2 = new HttpEntity<>(Collections.emptyMap(), completeHeaders2);
+        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId2, completeRequest2, String.class);
 
         ResponseEntity<List<TaskInstance>> finalTasks = restTemplate.exchange(
                 "/v1/tasks",
@@ -117,5 +126,9 @@ public class EngineIntegrationTest {
         List<TaskInstance> remainingTasks = finalTasks.getBody();
         assertNotNull(remainingTasks);
         assertEquals(0, remainingTasks.size());
+
+        ResponseEntity<ProcessInstanceDTO> instanceResponse = restTemplate.getForEntity("/v1/processes/instance/" + instanceId, ProcessInstanceDTO.class);
+        assertNotNull(instanceResponse.getBody());
+        assertTrue(instanceResponse.getBody().isCompleted());
     }
 }

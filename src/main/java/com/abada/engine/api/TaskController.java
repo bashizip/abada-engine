@@ -3,11 +3,12 @@ package com.abada.engine.api;
 
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
-import com.abada.engine.core.TaskInstance;
+import com.abada.engine.core.model.TaskInstance;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("v1/tasks")
@@ -23,10 +24,10 @@ public class TaskController {
 
     // return all visible tasks for a user
     @GetMapping
-    public ResponseEntity<List<TaskInstance>> tasks() {
+    public ResponseEntity<List<TaskInstance>> getTasks() {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
-        List<TaskInstance> visible = engine.getVisibleTasks(user, groups);
+        List<TaskInstance> visible = engine.getTaskManager().getVisibleTasksForUser(user, groups);
         ResponseEntity<List<TaskInstance>> res= ResponseEntity.ok(visible);
         System.out.printf(res.toString());
         return res;
@@ -39,8 +40,8 @@ public class TaskController {
     }
 
     @PostMapping("/complete")
-    public ResponseEntity<String> complete(@RequestParam String taskId) {
-        boolean completed = engine.complete(taskId, context.getUsername(), context.getGroups());
+    public ResponseEntity<String> complete(@RequestParam String taskId, @RequestBody(required = false) Map<String, Object> variables) {
+        boolean completed = engine.completeTask(taskId, context.getUsername(), context.getGroups(), variables);
         return completed ? ResponseEntity.ok("Completed") : ResponseEntity.badRequest().body("Cannot complete");
     }
 

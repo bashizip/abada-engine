@@ -1,7 +1,11 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.TaskInstance;
+import org.springframework.stereotype.Component;
+
 import java.util.*;
 
+@Component
 public class TaskManager {
 
     private final Map<String, TaskInstance> tasks = new HashMap<>();
@@ -9,6 +13,7 @@ public class TaskManager {
     public void createTask(String taskDefinitionKey, String name, String processInstanceId,
                            String assignee, List<String> candidateUsers, List<String> candidateGroups) {
 
+        System.out.println("Creating task: " + name);
         TaskInstance task = new TaskInstance();
         task.setId(UUID.randomUUID().toString());
         task.setTaskDefinitionKey(taskDefinitionKey);
@@ -62,10 +67,13 @@ public class TaskManager {
 
 
     public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups) {
-        return tasks.values().stream()
-                .filter(task -> !task.isCompleted())  // ✅ hide completed tasks
+        System.out.println("All tasks: " + tasks);
+        List<TaskInstance> result = tasks.values().stream()
+                .filter(task -> !task.isCompleted())  // ✅ hide isCompleted tasks
                 .filter(task -> isUserEligible(task, user, groups))
                 .toList();
+        System.out.println("Visible tasks for user " + user + " in groups " + groups + ": " + result.toString());
+        return result;
     }
 
     public Optional<TaskInstance> getTask(String taskId) {
@@ -80,6 +88,11 @@ public class TaskManager {
     }
 
     private boolean isUserEligible(TaskInstance task, String user, List<String> groups) {
+        System.out.println("Checking eligibility for task: " + task.getName());
+        System.out.println("Task candidate users: " + task.getCandidateUsers());
+        System.out.println("Task candidate groups: " + task.getCandidateGroups());
+        System.out.println("User: " + user);
+        System.out.println("User groups: " + groups);
         if (task.getAssignee() != null) {
             return task.getAssignee().equals(user); // direct assignee match
         }

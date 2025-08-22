@@ -43,7 +43,7 @@ public class TaskEntity {
     public enum Status {
         CREATED,     // Task created, not yet assigned or claimed
         ASSIGNED,    // Task has been claimed by a user
-        COMPLETED,   // Task completed successfully
+        COMPLETED,   // Task isCompleted successfully
         CANCELLED    // Task was cancelled (optional for admin control)
     }
 

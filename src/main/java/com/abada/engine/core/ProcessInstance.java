@@ -1,18 +1,24 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.GatewayMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
+import com.abada.engine.core.model.SequenceFlow;
+import com.abada.engine.core.model.TaskMeta;
 import com.abada.engine.dto.UserTaskPayload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class ProcessInstance {
 
     private final String id;
     private final ParsedProcessDefinition definition;
     private String currentActivityId;
+    private final Map<String, Object> variables = new HashMap<>();
 
-    // Standard constructor used when starting a new process
+    private static final Logger log = LoggerFactory.getLogger(ProcessInstance.class);
+
     public ProcessInstance(ParsedProcessDefinition definition) {
         this.id = UUID.randomUUID().toString();
         this.definition = definition;
@@ -21,57 +27,127 @@ public class ProcessInstance {
 
     public ProcessInstance(String id, ParsedProcessDefinition definition, String currentActivityId) {
         this.id = id;
-        // IMPORTANT: during reload, we need to reparse the BPMN definition
         this.definition = definition;
         this.currentActivityId = currentActivityId;
-        // (Status is managed by currentActivityId already, no need to store it here explicitly)
     }
 
-    public String getId() {
-        return id;
-    }
+    public String getId() { return id; }
+    public ParsedProcessDefinition getDefinition() { return definition; }
+    public String getCurrentActivityId() { return currentActivityId; }
+    public void setCurrentActivityId(String currentActivityId) { this.currentActivityId = currentActivityId; }
 
-    public ParsedProcessDefinition getDefinition() {
-        return definition;
-    }
-
-    public String getCurrentActivityId() {
-        return currentActivityId;
-    }
-
-    public void setCurrentActivityId(String currentActivityId) {
-        this.currentActivityId = currentActivityId;
-    }
+    public void setVariable(String key, Object value) { variables.put(key, value); }
+    public Object getVariable(String key) { return variables.get(key); }
+    public Map<String, Object> getVariables() { return Collections.unmodifiableMap(variables); }
 
     public boolean isWaitingForUserTask() {
         return currentActivityId != null && definition.isUserTask(currentActivityId);
     }
 
-    public boolean isCompleted() {
-        return currentActivityId == null;
+    public boolean isCompleted() { return currentActivityId == null; }
+
+    /**
+     * Advance execution until the next external wait state (User Task) or End Event.
+     * Returns the next user task payload (to be created by TaskManager) if any.
+     */
+    public Optional<UserTaskPayload> advance() {
+    // Default behaviour: stop when we REACH a user task (used by engine.start)
+        return advance(false);
     }
 
-    public Optional<UserTaskPayload> advance() {
-        String next = definition.getNextActivity(currentActivityId);
-        currentActivityId = next;
 
-        if (next == null) {
-            return Optional.empty(); // End of process
+    public Optional<UserTaskPayload> advance(boolean skipCurrentIfUserTask) {
+        Map<String, Object> vars = this.variables;
+        String pointer = this.currentActivityId;
+
+        // Initialize pointer from StartEvent if not yet set
+        if (pointer == null || pointer.isBlank()) {
+            pointer = definition.getStartEventId();
+            if (log.isDebugEnabled()) log.debug("pi={} start at {}", id, pointer);
         }
 
-        if (definition.isUserTask(next)) {
-            return Optional.of(new UserTaskPayload(
-                    next,
-                    definition.getTaskName(next),
-                    definition.getTaskAssignee(next),
-                    definition.getCandidateUsers(next),
-                    definition.getCandidateGroups(next)
-            ));
-        }
+        GatewaySelector selector = new GatewaySelector();
+        int hops = 0;
+        final int MAX_HOPS = 2048; // guard against malformed cycles
 
-        // In the future: skip service tasks, gateways, etc.
-        // For now, assume only userTasks and endEvents exist
-        return advance(); // recursively skip non-user tasks if needed
+        while (true) {
+            if (++hops > MAX_HOPS) {
+                throw new IllegalStateException("advance() exceeded max hops; possible cycle without wait state. pi=" + id);
+            }
+
+            // USER TASK
+            if (definition.isUserTask(pointer)) {
+                if (skipCurrentIfUserTask) {
+                    // We are resuming *after* completing this user task → step over it
+                    var outgoing = definition.getOutgoing(pointer);
+                    if (outgoing == null || outgoing.isEmpty()) {
+                        // No outgoing from a user task → end
+                        this.currentActivityId = null;
+                        if (log.isDebugEnabled()) log.debug("pi={} user task {} has no outgoing; ending", id, pointer);
+                        return Optional.empty();
+                    }
+                    String next = outgoing.get(0).getTargetRef();
+                    if (log.isDebugEnabled()) log.debug("pi={} skip current user task {} -> {}", id, pointer, next);
+                    pointer = next;
+                    // Only skip once per call to avoid skipping subsequent user tasks unintentionally
+                    skipCurrentIfUserTask = false;
+                    continue;
+                }
+
+                // Stop at this user task and return its payload
+                this.currentActivityId = pointer;
+                TaskMeta ut = definition.getUserTask(pointer);
+                if (log.isDebugEnabled()) log.debug("pi={} reached user task {} ({})", id, ut.getId(), ut.getName());
+                return Optional.of(new UserTaskPayload(
+                        ut.getId(),
+                        ut.getName(),
+                        ut.getAssignee(),
+                        ut.getCandidateUsers(),
+                        ut.getCandidateGroups()
+                ));
+            }
+
+            // EXCLUSIVE GATEWAY → evaluate conditions using current variables
+            if (definition.isExclusiveGateway(pointer)) {
+                GatewayMeta gw = definition.getGateways().get(pointer);
+                List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
+                String chosenFlowId = selector.chooseOutgoing(gw, outgoing, vars);
+
+                // resolve target node id for the chosen flow
+                String target = outgoing.stream()
+                        .filter(f -> Objects.equals(f.getId(), chosenFlowId))
+                        .map(SequenceFlow::getTargetRef)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException("Flow not found: " +
+                                chosenFlowId + " from gw=" + gw.id()));
+
+                if (log.isDebugEnabled())
+                    log.debug("pi={} gateway {} -> flow {} -> {}", id, gw.id(), chosenFlowId, target);
+                pointer = target;
+                continue;
+            }
+
+            // END EVENT → finish
+            if (definition.isEndEvent(pointer)) {
+                this.currentActivityId = null; // mark isCompleted so isCompleted() becomes true
+                if (log.isDebugEnabled()) log.debug("pi={} ended at {}", id, pointer);
+                return Optional.empty();
+            }
+
+            // FALLTHROUGH NODES (start, service/script tasks, pass-through elements)
+            List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
+            if (outgoing == null || outgoing.isEmpty()) {
+                // No outgoing: treat as terminal
+                this.currentActivityId = null;
+                if (log.isDebugEnabled()) log.debug("pi={} no outgoing from {}; treating as end", id, pointer);
+                return Optional.empty();
+            }
+
+            // Default behavior: follow the first outgoing sequence flow
+            String next = outgoing.getFirst().getTargetRef();
+            if (log.isDebugEnabled()) log.debug("pi={} pass-through {} -> {}", id, pointer, next);
+            pointer = next;
+        }
     }
 
 }

@@ -21,5 +21,4 @@ server:
 
 logging:
   level:
-    org.springframework.web: DEBUG
-    org.springframework.security: DEBUG
+    root: DEBUG

@@ -1,4 +1,4 @@
-package com.abada.engine.core;
+package com.abada.engine.core.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -88,5 +88,10 @@ public class TaskInstance {
 
     public boolean isClaimed() {
         return assignee != null && !assignee.isEmpty();
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 }
