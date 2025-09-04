@@ -11,8 +11,15 @@ import java.util.Map;
 @RequestMapping("/v1/info")
 public class InfoController {
 
-    @Value("${app.version}")
+    @Value("${spring.application.version}")
     private String appVersion;
+
+    @Value("${spring.application.name}")
+    private String appName;
+
+    @Value("${spring.profiles.active}")
+    private String profile;
+
 
     public InfoController() {
 
@@ -21,9 +28,11 @@ public class InfoController {
     @GetMapping
     public Map<String, Object> info() {
         return Map.of(
+                "name", appName,
                 "status", "UP",
                 "engineVersion", appVersion,
-                "bpmnSupport", "The core engine features implemented"
+                   "profile", profile,
+                "bpmnSupport", "Core engine features implemented."
         );
     }
 }

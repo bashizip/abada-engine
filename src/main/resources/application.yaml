@@ -1,13 +1,26 @@
 spring:
   application:
     name: abada-engine
+    version: 0.8.2-alpha
+
+  datasource:
+    url: jdbc:h2:file:./data/abada-dev-db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ${DB_PASSWORD:abada123}
+  jpa:
+    hibernate:
+      ddl-auto: update
+      show-sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
 
 server:
   servlet:
     context-path: /abada/api
-
-app:
-  version: 0.8.2-alpha
 
 # Observability Configuration
 management:
