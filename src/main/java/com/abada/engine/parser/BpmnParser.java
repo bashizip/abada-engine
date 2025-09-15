@@ -6,12 +6,7 @@ import com.abada.engine.core.model.SequenceFlow;
 import com.abada.engine.core.model.TaskMeta;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
-import org.camunda.bpm.model.bpmn.instance.BaseElement;
-import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
-import org.camunda.bpm.model.bpmn.instance.Process;
-import org.camunda.bpm.model.bpmn.instance.StartEvent;
-import org.camunda.bpm.model.bpmn.instance.UserTask;
-import org.camunda.bpm.model.bpmn.instance.EndEvent;
+import org.camunda.bpm.model.bpmn.instance.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -75,7 +70,10 @@ public class BpmnParser {
 
             Map<String, GatewayMeta> gateways = new HashMap<>();
             for (ExclusiveGateway gateway : model.getModelElementsByType(ExclusiveGateway.class)) {
-                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, null));
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, gateway.getDefault() != null ? gateway.getDefault().getId() : null));
+            }
+            for (InclusiveGateway gateway : model.getModelElementsByType(InclusiveGateway.class)) {
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.INCLUSIVE, gateway.getDefault() != null ? gateway.getDefault().getId() : null));
             }
 
             Map<String, Object> endEvents = new HashMap<>();

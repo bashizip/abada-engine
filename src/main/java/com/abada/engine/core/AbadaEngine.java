@@ -46,6 +46,10 @@ public class AbadaEngine {
         return Optional.ofNullable(persistenceService.findProcessDefinitionById(id));
     }
 
+    public ParsedProcessDefinition getParsedProcessDefinition(String processDefinitionId) {
+        return processDefinitions.get(processDefinitionId);
+    }
+
     public ProcessInstance startProcess(String processDefinitionId) {
         ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
         if (definition == null) {
@@ -60,13 +64,13 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         // 3. Move forward from start event to next node (should reach first userTask or end)
-        Optional<UserTaskPayload> userTask = instance.advance();
+        List<UserTaskPayload> userTasks = instance.advance();
 
         // 4. Persist updated process state after advance
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         // 5. If the next node is a user task, create and persist the corresponding TaskInstance
-        userTask.ifPresent(task -> {
+        for (UserTaskPayload task : userTasks) {
             taskManager.createTask(
                     task.taskDefinitionKey(),
                     task.name(),
@@ -78,7 +82,7 @@ public class AbadaEngine {
             // Persist the task into database
             taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), instance.getId())
                     .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
-        });
+        }
 
         Map<String, TaskInstance>  allTasks =  taskManager.getAllTasks();
 
@@ -137,14 +141,13 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         // Advance the process (will evaluate gateways using merged variables)
-        Optional<UserTaskPayload> nextTask = instance.advance(true);
+        List<UserTaskPayload> nextTasks = instance.advance(currentTask.getTaskDefinitionKey());
 
         // Persist the instance again after advancement to capture new pointer/state
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         // If the next activity is a user task, create and persist it
-        nextTask.ifPresent(task -> {
-            instance.setCurrentActivityId(task.taskDefinitionKey());
+        for (UserTaskPayload task : nextTasks) {
             taskManager.createTask(
                     task.taskDefinitionKey(),
                     task.name(),
@@ -155,7 +158,7 @@ public class AbadaEngine {
             );
             taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), processInstanceId)
                     .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
-        });
+        }
 
         return true;
     }
@@ -170,7 +173,7 @@ public class AbadaEngine {
         ProcessInstance instance = new ProcessInstance(
                 entity.getId(),
                 def,
-                entity.getCurrentActivityId()
+                List.of(entity.getCurrentActivityId()) // Wrap in a list
         );
         instances.put(instance.getId(), instance);
     }
@@ -196,14 +199,15 @@ public class AbadaEngine {
     }
 
 
-
-
     private ProcessInstanceEntity convertToEntity(ProcessInstance instance) {
         ProcessInstanceEntity entity = new ProcessInstanceEntity();
         entity.setId(instance.getId());
         entity.setProcessDefinitionId(instance.getDefinition().getId());
-        entity.setCurrentActivityId(instance.getCurrentActivityId());
 
+        // Persist the first active token (simplification for now)
+        if (instance.getActiveTokens() != null && !instance.getActiveTokens().isEmpty()) {
+            entity.setCurrentActivityId(instance.getActiveTokens().get(0));
+        }
 
         if (instance.isCompleted()) {
             entity.setStatus(ProcessInstanceEntity.Status.COMPLETED);

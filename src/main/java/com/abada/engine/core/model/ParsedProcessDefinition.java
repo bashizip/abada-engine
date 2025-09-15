@@ -15,9 +15,11 @@ public class ParsedProcessDefinition implements Serializable {
     private final Map<String, Object> endEvents; // Add this line
     private final String rawXml;
     private final Map<String, List<SequenceFlow>> outgoingBySource = new HashMap<>();
+    private final Map<String, List<SequenceFlow>> incomingByTarget = new HashMap<>();
 
     private final Map<String, List<String>> flowGraph = new HashMap<>();
     public List<SequenceFlow> getOutgoing(String sourceId) { return outgoingBySource.getOrDefault(sourceId, List.of()); }
+    public List<SequenceFlow> getIncoming(String targetId) { return incomingByTarget.getOrDefault(targetId, List.of()); }
 
 
     public ParsedProcessDefinition(String id, String name, String startEventId,
@@ -39,9 +41,40 @@ public class ParsedProcessDefinition implements Serializable {
 
     private void buildFlowGraph() {
         for (SequenceFlow flow : sequenceFlows) {
-            flowGraph.computeIfAbsent(flow.getSourceRef(), k -> new ArrayList<>())
-                    .add(flow.getTargetRef());
+            flowGraph.computeIfAbsent(flow.getSourceRef(), k -> new ArrayList<>()).add(flow.getTargetRef());
+            incomingByTarget.computeIfAbsent(flow.getTargetRef(), k -> new ArrayList<>()).add(flow);
         }
+    }
+
+    public String findJoinGateway(String forkGatewayId) {
+        Queue<String> queue = new LinkedList<>();
+        Set<String> visited = new HashSet<>();
+
+        // Start traversal from all outgoing paths of the fork gateway
+        for (SequenceFlow flow : getOutgoing(forkGatewayId)) {
+            queue.add(flow.getTargetRef());
+            visited.add(flow.getTargetRef());
+        }
+
+        while (!queue.isEmpty()) {
+            String currentId = queue.poll();
+
+            // If we find an inclusive gateway with more than one incoming path, it's our join gateway
+            if (isInclusiveGateway(currentId) && getIncoming(currentId).size() > 1) {
+                return currentId;
+            }
+
+            // Continue traversal
+            for (SequenceFlow outgoingFlow : getOutgoing(currentId)) {
+                String nextId = outgoingFlow.getTargetRef();
+                if (!visited.contains(nextId)) {
+                    queue.add(nextId);
+                    visited.add(nextId);
+                }
+            }
+        }
+
+        return null; // No join gateway found
     }
 
     public String getId() {

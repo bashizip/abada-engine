@@ -6,6 +6,7 @@ import com.abada.engine.util.ConditionEvaluator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,12 +20,12 @@ public final class GatewaySelector {
     private static final Logger log = LoggerFactory.getLogger(GatewaySelector.class);
 
     /**
-     * Decide which outgoing flow to take.
+     * Decide which outgoing flow to take for an EXCLUSIVE gateway.
      *
      * @param gw        Gateway metadata (must provide getId() and getDefaultFlowId()).
      * @param outgoing  All outgoing sequences flow for this gateway, in model order.
      * @param vars      Process instance variables available to condition evaluation.
-     * @return          The id of the choetDefaultFlowIdsen SequenceFlow.
+     * @return          The id of the chosen SequenceFlow.
      */
     public String chooseOutgoing(GatewayMeta gw, List<SequenceFlow> outgoing, Map<String, Object> vars) {
         Objects.requireNonNull(gw, "gw");
@@ -60,14 +61,58 @@ public final class GatewaySelector {
         }
         return chosen;
     }
-}
 
-/*
- * Example usage from the engine advance loop (pseudocode):
- *
- *   GatewaySelector selector = new GatewaySelector();
- *   GatewayMeta gw = def.getGateways().get(currentGatewayId);
- *   List<SequenceFlow> outgoing = def.getOutgoing(currentGatewayId); // or equivalent API
- *   String nextFlowId = selector.chooseOutgoing(gw, outgoing, instance.getVariables());
- *   follow(nextFlowId);
- */
+    /**
+     * Decide which outgoing flows to take for an INCLUSIVE gateway.
+     *
+     * @param gw        Gateway metadata.
+     * @param outgoing  All outgoing sequence flows for this gateway.
+     * @param vars      Process instance variables for condition evaluation.
+     * @return          A list of chosen SequenceFlow IDs.
+     */
+    public List<String> chooseInclusive(GatewayMeta gw, List<SequenceFlow> outgoing, Map<String, Object> vars) {
+        Objects.requireNonNull(gw, "gw");
+        Objects.requireNonNull(outgoing, "outgoing");
+
+        String defaultFlowId = gw.defaultFlowId();
+        List<String> chosenFlows = new ArrayList<>();
+
+        if (log.isDebugEnabled()) {
+            log.debug("Evaluating inclusive gateway id={} with {} outgoing flows; vars={}", gw.id(), outgoing.size(), vars);
+        }
+
+        // Evaluate all conditional flows
+        for (SequenceFlow f : outgoing) {
+            // Skip the default flow for now, it's handled separately
+            if (Objects.equals(f.getId(), defaultFlowId)) {
+                continue;
+            }
+
+            String cond = f.getConditionExpression();
+            if (cond != null && !cond.isBlank()) {
+                boolean ok = ConditionEvaluator.evaluate(cond, vars);
+                if (log.isDebugEnabled()) {
+                    log.debug("  flow id={} cond='{}' -> {}", f.getId(), cond, ok);
+                }
+                if (ok) {
+                    chosenFlows.add(f.getId());
+                }
+            }
+        }
+
+        // If no conditional flows were taken, take the default flow
+        if (chosenFlows.isEmpty()) {
+            if (defaultFlowId != null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("  no conditions matched; taking default flow {}", defaultFlowId);
+                }
+                chosenFlows.add(defaultFlowId);
+            } else {
+                // If there's no default flow, it's an error as per the spec
+                throw new IllegalStateException("No matching condition and no default flow for inclusive gateway " + gw.id());
+            }
+        }
+
+        return chosenFlows;
+    }
+}
