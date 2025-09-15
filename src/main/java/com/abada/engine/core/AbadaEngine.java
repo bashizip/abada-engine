@@ -8,8 +8,12 @@ import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
@@ -22,13 +26,15 @@ public class AbadaEngine {
     private final PersistenceService persistenceService;
     private final BpmnParser parser;
     private final TaskManager taskManager;
+    private final ObjectMapper om;
     private final Map<String, ParsedProcessDefinition> processDefinitions = new HashMap<>();
     private final Map<String, ProcessInstance> instances = new HashMap<>();
 
-    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager) {
+    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, ObjectMapper om) {
         this.persistenceService = persistenceService;
         this.parser = new BpmnParser();
         this.taskManager = taskManager;
+        this.om = om;
     }
 
     public void deploy(InputStream bpmnXml) {
@@ -175,6 +181,7 @@ public class AbadaEngine {
                 def,
                 List.of(entity.getCurrentActivityId()) // Wrap in a list
         );
+        instance.putAllVariables(readMap(entity.getVariablesJson()));
         instances.put(instance.getId(), instance);
     }
 
@@ -215,6 +222,7 @@ public class AbadaEngine {
             entity.setStatus(ProcessInstanceEntity.Status.RUNNING);
         }
 
+        entity.setVariablesJson(writeMap(instance.getVariables()));
         return entity;
     }
 
@@ -259,6 +267,16 @@ public class AbadaEngine {
         entity.setName(definition.getName());
         entity.setBpmnXml(definition.getRawXml());
         persistenceService.saveProcessDefinition(entity);
+    }
+
+    private Map<String,Object> readMap(String json) {
+        if (json == null || json.isBlank()) return new HashMap<>();
+        try { return om.readValue(json, new TypeReference<>() {}); }
+        catch (IOException ex) { throw new IllegalStateException("Bad variables_json", ex); }
+    }
+    private String writeMap(Map<String,Object> m) {
+        try { return om.writeValueAsString(m == null ? Map.of() : m); }
+        catch (JsonProcessingException ex) { throw new IllegalStateException("Serialize variables failed", ex); }
     }
 
 }

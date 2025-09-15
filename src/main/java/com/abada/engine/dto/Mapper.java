@@ -6,9 +6,10 @@ public class Mapper {
 
   public   static class  ProcessInstanceMapper {
         public static ProcessInstanceDTO toDto(ProcessInstance pi) {
+            String currentToken = (pi.getActiveTokens() != null && !pi.getActiveTokens().isEmpty()) ? pi.getActiveTokens().get(0) : null;
             return new ProcessInstanceDTO(
                     pi.getId(),
-                    pi.getCurrentActivityId(),
+                    currentToken,
                     pi.getVariables(),
                     pi.isWaitingForUserTask(),
                     pi.isCompleted()
