@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler">
   <bpmn:process id="OrderFulfillmentProcess" name="Order Fulfillment Process" isExecutable="true">
     <bpmn:startEvent id="StartEvent_1" name="Order Received">
       <bpmn:outgoing>Flow_Start_SetDetails</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:userTask id="Task_SetDetails" name="Set Order Details">
+    <bpmn:userTask id="Task_SetDetails" name="Set Order Details" camunda:candidateUsers="test-user">
       <bpmn:incoming>Flow_Start_SetDetails</bpmn:incoming>
       <bpmn:outgoing>Flow_SetDetails_Gateway</bpmn:outgoing>
     </bpmn:userTask>
@@ -38,15 +38,15 @@
     <bpmn:sequenceFlow id="Flow_Digital_Join" sourceRef="Activity_Digital" targetRef="Gateway_2" />
     <bpmn:sequenceFlow id="Flow_Discount_Join" sourceRef="Activity_Discount" targetRef="Gateway_2" />
     <bpmn:sequenceFlow id="Flow_Gateway_End" sourceRef="Gateway_2" targetRef="EndEvent_1" />
-    <bpmn:userTask id="Activity_Physical" name="Process Physical Goods">
+    <bpmn:userTask id="Activity_Physical" name="Process Physical Goods" camunda:candidateUsers="test-user">
       <bpmn:incoming>Flow_Physical</bpmn:incoming>
       <bpmn:outgoing>Flow_Physical_Join</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:userTask id="Activity_Discount" name="Apply Discount">
+    <bpmn:userTask id="Activity_Discount" name="Apply Discount" camunda:candidateUsers="test-user">
       <bpmn:incoming>Flow_Discount</bpmn:incoming>
       <bpmn:outgoing>Flow_Discount_Join</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:userTask id="Activity_Digital" name="Process Digital Goods">
+    <bpmn:userTask id="Activity_Digital" name="Process Digital Goods" camunda:candidateUsers="test-user">
       <bpmn:incoming>Flow_Digital</bpmn:incoming>
       <bpmn:outgoing>Flow_Digital_Join</bpmn:outgoing>
     </bpmn:userTask>

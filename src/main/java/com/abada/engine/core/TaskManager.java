@@ -4,6 +4,7 @@ import com.abada.engine.core.model.TaskInstance;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class TaskManager {
@@ -87,6 +88,12 @@ public class TaskManager {
                 .findFirst();
     }
 
+    public List<TaskInstance> getTasksForProcessInstance(String processInstanceId) {
+        return tasks.values().stream()
+                .filter(t -> t.getProcessInstanceId().equals(processInstanceId) && !t.isCompleted())
+                .collect(Collectors.toList());
+    }
+
     private boolean isUserEligible(TaskInstance task, String user, List<String> groups) {
         System.out.println("Checking eligibility for task: " + task.getName());
         System.out.println("Task candidate users: " + task.getCandidateUsers());
@@ -110,5 +117,3 @@ public class TaskManager {
     }
 
 }
-
-

@@ -40,22 +40,26 @@ public class BpmnParser {
             }
 
             Map<String, TaskMeta> userTasks = new HashMap<>();
-            for (UserTask task : model.getModelElementsByType(UserTask.class)) {
+            for (Task task : model.getModelElementsByType(Task.class)) {
                 TaskMeta meta = new TaskMeta();
                 meta.setId(task.getId());
                 meta.setName(task.getName());
-                meta.setAssignee(task.getCamundaAssignee());
 
-                String candidates = task.getCamundaCandidateUsers();
-                if (candidates != null && !candidates.isBlank()) {
-                    meta.setCandidateUsers(Arrays.asList(candidates.split("\s*,\s*")));
+                // If it's a UserTask, get Camunda extension properties
+                if (task instanceof UserTask) {
+                    UserTask userTask = (UserTask) task;
+                    meta.setAssignee(userTask.getCamundaAssignee());
+
+                    String candidates = userTask.getCamundaCandidateUsers();
+                    if (candidates != null && !candidates.isBlank()) {
+                        meta.setCandidateUsers(Arrays.asList(candidates.split("\\s*,\\s*")));
+                    }
+
+                    String groups = userTask.getCamundaCandidateGroups();
+                    if (groups != null && !groups.isBlank()) {
+                        meta.setCandidateGroups( Arrays.asList(groups.split("\\s*,\\s*")));
+                    }
                 }
-
-                String groups = task.getCamundaCandidateGroups();
-                if (groups != null && !groups.isBlank()) {
-                    meta.setCandidateGroups( Arrays.asList(groups.split("\s*,\s*")));
-                }
-
                 userTasks.put(task.getId(), meta);
             }
 
