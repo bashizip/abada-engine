@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ProcessInstance {
 
@@ -23,8 +24,8 @@ public class ProcessInstance {
     // Key: Gateway ID, Value: Number of expected tokens
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
 
-    // Tracks how many tokens have arrived at a joining gateway
-    // Key: Gateway ID, Value: Set of arrived token (source activity) IDs
+    // Tracks which tokens have arrived at a joining gateway
+    // Key: Gateway ID, Value: Set of incoming source activity IDs
     private final Map<String, Set<String>> joinArrivedTokens = new HashMap<>();
 
 
@@ -70,29 +71,32 @@ public class ProcessInstance {
 
     public boolean isCompleted() { return activeTokens.isEmpty(); }
 
-    /**
-     * Advance execution until the next external wait state (User Task) or End Event.
-     * Returns the next user task payload (to be created by TaskManager) if any.
-     */
     public List<UserTaskPayload> advance() {
-        // Default behaviour: stop when we REACH a user task (used by engine.start)
         return advance(null);
     }
 
 
     public List<UserTaskPayload> advance(String completedUserTask) {
         List<UserTaskPayload> newUserTasks = new ArrayList<>();
-        Queue<String> queue = new LinkedList<>(activeTokens);
-        activeTokens.clear(); // Clear current tokens, they will be advanced
+        Queue<String> queue = new LinkedList<>();
+
+        if (completedUserTask != null) {
+            // When a task is completed, only its path is advanced.
+            // Other active tokens are parallel paths that are still waiting.
+            activeTokens.remove(completedUserTask);
+            queue.add(completedUserTask);
+        } else {
+            // This case is for the initial process start.
+            queue.addAll(activeTokens);
+            activeTokens.clear();
+        }
 
         Set<String> processedInThisRun = new HashSet<>();
 
-        if (completedUserTask != null) {
-            queue.add(completedUserTask);
-        }
-
         while (!queue.isEmpty()) {
             String current = queue.poll();
+            String previousPointer = null; // Track the node before the current one
+
             if (processedInThisRun.contains(current)) {
                 continue;
             }
@@ -111,19 +115,14 @@ public class ProcessInstance {
                 // USER TASK
                 if (definition.isUserTask(pointer)) {
                     if (Objects.equals(pointer, completedUserTask)) {
-                        // This task was just completed, so we move on
                         var outgoing = definition.getOutgoing(pointer);
-                        if (outgoing.isEmpty()) {
-                            current = null; // End of path
-                        } else {
-                            current = outgoing.get(0).getTargetRef();
-                        }
+                        current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
+                        previousPointer = pointer;
                     } else {
-                        // This is a new wait state
                         activeTokens.add(pointer);
                         TaskMeta ut = definition.getUserTask(pointer);
                         newUserTasks.add(new UserTaskPayload(ut.getId(), ut.getName(), ut.getAssignee(), ut.getCandidateUsers(), ut.getCandidateGroups()));
-                        current = null; // Stop this path
+                        current = null;
                     }
                 }
                 // EXCLUSIVE GATEWAY
@@ -132,11 +131,25 @@ public class ProcessInstance {
                     GatewayMeta gw = definition.getGateways().get(pointer);
                     List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
                     String chosenFlowId = selector.chooseOutgoing(gw, outgoing, variables);
+                    previousPointer = pointer;
                     current = outgoing.stream()
                             .filter(f -> Objects.equals(f.getId(), chosenFlowId))
                             .map(SequenceFlow::getTargetRef)
                             .findFirst()
                             .orElseThrow(() -> new IllegalStateException("Flow not found: " + chosenFlowId));
+                }
+                // PARALLEL GATEWAY (FORK)
+                else if (definition.isParallelGateway(pointer) && definition.getIncoming(pointer).size() == 1) {
+                    List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
+                    for (SequenceFlow flow : outgoing) {
+                        queue.add(flow.getTargetRef());
+                    }
+                    String joinGatewayId = definition.findJoinGateway(pointer, GatewayMeta.Type.PARALLEL);
+                    if (joinGatewayId != null) {
+                        joinExpectedTokens.put(joinGatewayId, definition.getIncoming(joinGatewayId).size());
+                        joinArrivedTokens.put(joinGatewayId, new HashSet<>());
+                    }
+                    current = null;
                 }
                 // INCLUSIVE GATEWAY (FORK)
                 else if (definition.isInclusiveGateway(pointer) && definition.getIncoming(pointer).size() == 1) {
@@ -145,54 +158,40 @@ public class ProcessInstance {
                     List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
                     List<String> chosenFlowIds = selector.chooseInclusive(gw, outgoing, variables);
 
-                    // For each chosen path, add the target to the queue for processing
                     for (String flowId : chosenFlowIds) {
-                        String target = outgoing.stream()
-                                .filter(f -> Objects.equals(f.getId(), flowId))
-                                .map(SequenceFlow::getTargetRef)
-                                .findFirst()
-                                .orElseThrow(() -> new IllegalStateException("Flow not found: " + flowId));
-                        queue.add(target);
+                        queue.add(outgoing.stream().filter(f -> f.getId().equals(flowId)).findFirst().orElseThrow().getTargetRef());
                     }
-
-                    // Set up expectation for the corresponding join gateway
-                    String joinGatewayId = definition.findJoinGateway(pointer);
+                    String joinGatewayId = definition.findJoinGateway(pointer, GatewayMeta.Type.INCLUSIVE);
                     if (joinGatewayId != null) {
                         joinExpectedTokens.put(joinGatewayId, chosenFlowIds.size());
                         joinArrivedTokens.put(joinGatewayId, new HashSet<>());
                     }
-
-                    current = null; // Stop this path, new paths are in the queue
+                    current = null;
                 }
-                // INCLUSIVE GATEWAY (JOIN)
-                else if (definition.isInclusiveGateway(pointer) && definition.getIncoming(pointer).size() > 1) {
-                    int expected = joinExpectedTokens.getOrDefault(pointer, 0);
+                // JOINING GATEWAY (PARALLEL OR INCLUSIVE)
+                else if ((definition.isParallelGateway(pointer) || definition.isInclusiveGateway(pointer)) && definition.getIncoming(pointer).size() > 1) {
+                    int expected = joinExpectedTokens.getOrDefault(pointer, definition.getIncoming(pointer).size());
                     Set<String> arrived = joinArrivedTokens.computeIfAbsent(pointer, k -> new HashSet<>());
-                    arrived.add(current); // Assuming 'current' is the ID of the activity leading to the join
+                    arrived.add(previousPointer);
 
                     if (arrived.size() >= expected) {
-                        // All paths have arrived, we can proceed
                         joinArrivedTokens.remove(pointer);
                         joinExpectedTokens.remove(pointer);
+                        previousPointer = pointer;
                         current = definition.getOutgoing(pointer).get(0).getTargetRef();
                     } else {
-                        // Not all paths have arrived, wait
                         current = null;
                     }
                 }
                 // END EVENT
                 else if (definition.isEndEvent(pointer)) {
-                    current = null; // End of this path
+                    current = null;
                 }
                 // OTHER (Start, ServiceTask, etc.)
                 else {
                     List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
-                    if (outgoing.isEmpty()) {
-                        current = null; // End of this path
-                    } else {
-                        // Follow the first (and only) path
-                        current = outgoing.get(0).getTargetRef();
-                    }
+                    previousPointer = pointer;
+                    current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
                 }
             }
         }
