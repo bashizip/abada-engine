@@ -46,7 +46,7 @@ public class ParsedProcessDefinition implements Serializable {
         }
     }
 
-    public String findJoinGateway(String forkGatewayId) {
+    public String findJoinGateway(String forkGatewayId, GatewayMeta.Type forkGatewayType) {
         Queue<String> queue = new LinkedList<>();
         Set<String> visited = new HashSet<>();
 
@@ -58,9 +58,10 @@ public class ParsedProcessDefinition implements Serializable {
 
         while (!queue.isEmpty()) {
             String currentId = queue.poll();
+            GatewayMeta currentGw = gateways.get(currentId);
 
-            // If we find an inclusive gateway with more than one incoming path, it's our join gateway
-            if (isInclusiveGateway(currentId) && getIncoming(currentId).size() > 1) {
+            // If we find a gateway of the same type with more than one incoming path, it's our join gateway
+            if (currentGw != null && currentGw.type() == forkGatewayType && getIncoming(currentId).size() > 1) {
                 return currentId;
             }
 
@@ -146,7 +147,7 @@ public class ParsedProcessDefinition implements Serializable {
 
 
     // ==========================================================
-    // NEW: Typed gateway helpers (Exclusive + Inclusive)
+    // Typed gateway helpers (Exclusive, Inclusive, Parallel)
     // ==========================================================
 
     /** Returns true if the node is an Exclusive Gateway. */
@@ -159,6 +160,12 @@ public class ParsedProcessDefinition implements Serializable {
     public boolean isInclusiveGateway(String activityId) {
         GatewayMeta gw = gateways.get(activityId);
         return gw != null && gw.type() == GatewayMeta.Type.INCLUSIVE;
+    }
+
+    /** Returns true if the node is a Parallel Gateway. */
+    public boolean isParallelGateway(String activityId) {
+        GatewayMeta gw = gateways.get(activityId);
+        return gw != null && gw.type() == GatewayMeta.Type.PARALLEL;
     }
 
     // Convenience: create/update API the parser can call when discovering gateways

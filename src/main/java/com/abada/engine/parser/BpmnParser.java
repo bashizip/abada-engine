@@ -80,6 +80,9 @@ public class BpmnParser {
             for (InclusiveGateway gateway : model.getModelElementsByType(InclusiveGateway.class)) {
                 gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.INCLUSIVE, gateway.getDefault() != null ? gateway.getDefault().getId() : null));
             }
+            for (ParallelGateway gateway : model.getModelElementsByType(ParallelGateway.class)) {
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.PARALLEL, null));
+            }
 
             Map<String, Object> endEvents = new HashMap<>();
             for (EndEvent endEvent : model.getModelElementsByType(EndEvent.class)) {
