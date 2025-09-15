@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler">
+  <bpmn:process id="OrderFulfillmentProcess" name="Order Fulfillment Process" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Order Received">
+      <bpmn:outgoing>Flow_Start_SetDetails</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_SetDetails" name="Set Order Details" camunda:candidateUsers="test-user">
+      <bpmn:incoming>Flow_Start_SetDetails</bpmn:incoming>
+      <bpmn:outgoing>Flow_SetDetails_Gateway</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:inclusiveGateway id="Gateway_1" name="Check Order Details">
+      <bpmn:incoming>Flow_SetDetails_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Physical</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Digital</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Discount</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+    <bpmn:userTask id="Activity_Physical" name="Process Physical Goods" camunda:candidateUsers="test-user">
+      <bpmn:incoming>Flow_Physical</bpmn:incoming>
+      <bpmn:outgoing>Flow_Physical_Join</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Activity_Digital" name="Process Digital Goods" camunda:candidateUsers="test-user">
+      <bpmn:incoming>Flow_Digital</bpmn:incoming>
+      <bpmn:outgoing>Flow_Digital_Join</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Activity_Discount" name="Apply Discount" camunda:candidateUsers="test-user">
+      <bpmn:incoming>Flow_Discount</bpmn:incoming>
+      <bpmn:outgoing>Flow_Discount_Join</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:inclusiveGateway id="Gateway_2" name="Join Order Processing">
+      <bpmn:incoming>Flow_Physical_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Digital_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Discount_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_End</bpmn:outgoing>
+    </bpmn:inclusiveGateway>
+    <bpmn:endEvent id="EndEvent_1" name="Order Completed">
+      <bpmn:incoming>Flow_Gateway_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start_SetDetails" sourceRef="StartEvent_1" targetRef="Task_SetDetails" />
+    <bpmn:sequenceFlow id="Flow_SetDetails_Gateway" sourceRef="Task_SetDetails" targetRef="Gateway_1" />
+    <bpmn:sequenceFlow id="Flow_Physical" name="Physical Goods" sourceRef="Gateway_1" targetRef="Activity_Physical">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${order.hasPhysicalItems}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Digital" name="Digital Goods" sourceRef="Gateway_1" targetRef="Activity_Digital">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${order.hasDigitalItems}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Discount" name="Has Discount" sourceRef="Gateway_1" targetRef="Activity_Discount">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${order.hasDiscountCode}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Physical_Join" sourceRef="Activity_Physical" targetRef="Gateway_2" />
+    <bpmn:sequenceFlow id="Flow_Digital_Join" sourceRef="Activity_Digital" targetRef="Gateway_2" />
+    <bpmn:sequenceFlow id="Flow_Discount_Join" sourceRef="Activity_Discount" targetRef="Gateway_2" />
+    <bpmn:sequenceFlow id="Flow_Gateway_End" sourceRef="Gateway_2" targetRef="EndEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="OrderFulfillmentProcess">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="252" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="134" y="295" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SetDetails_di" bpmnElement="Task_SetDetails">
+        <dc:Bounds x="250" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1" isMarkerVisible="true">
+        <dc:Bounds x="405" y="245" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="394" y="208" width="73" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Physical_di" bpmnElement="Activity_Physical">
+        <dc:Bounds x="520" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Digital_di" bpmnElement="Activity_Digital">
+        <dc:Bounds x="520" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_Discount_di" bpmnElement="Activity_Discount">
+        <dc:Bounds x="520" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_2_di" bpmnElement="Gateway_2" isMarkerVisible="true">
+        <dc:Bounds x="685" y="245" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="667" y="215" width="85" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="792" y="252" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="774" y="295" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_SetDetails_di" bpmnElement="Flow_Start_SetDetails">
+        <di:waypoint x="188" y="270" />
+        <di:waypoint x="250" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SetDetails_Gateway_di" bpmnElement="Flow_SetDetails_Gateway">
+        <di:waypoint x="350" y="270" />
+        <di:waypoint x="405" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Physical_di" bpmnElement="Flow_Physical">
+        <di:waypoint x="430" y="245" />
+        <di:waypoint x="430" y="120" />
+        <di:waypoint x="520" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="435" y="153" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Digital_di" bpmnElement="Flow_Digital">
+        <di:waypoint x="430" y="295" />
+        <di:waypoint x="430" y="380" />
+        <di:waypoint x="520" y="380" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="438" y="323" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Discount_di" bpmnElement="Flow_Discount">
+        <di:waypoint x="455" y="270" />
+        <di:waypoint x="520" y="270" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="465" y="252" width="66" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Physical_Join_di" bpmnElement="Flow_Physical_Join">
+        <di:waypoint x="620" y="120" />
+        <di:waypoint x="710" y="120" />
+        <di:waypoint x="710" y="245" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Digital_Join_di" bpmnElement="Flow_Digital_Join">
+        <di:waypoint x="620" y="380" />
+        <di:waypoint x="710" y="380" />
+        <di:waypoint x="710" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Discount_Join_di" bpmnElement="Flow_Discount_Join">
+        <di:waypoint x="620" y="270" />
+        <di:waypoint x="685" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_End_di" bpmnElement="Flow_Gateway_End">
+        <di:waypoint x="735" y="270" />
+        <di:waypoint x="792" y="270" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,8 +35,12 @@ public class ProcessInstanceAdvanceTest {
     @DisplayName("advance(): follows conditional branch when expression is true")
     void advance_follows_true_branch() throws Exception {
         // user tasks
-        TaskMeta taskB = new TaskMeta("taskB", "Task B", null, List.of(), List.of(), null, null, null, null, null);
-        TaskMeta taskC = new TaskMeta("taskC", "Task C", null, List.of(), List.of(), null, null, null, null, null);
+        TaskMeta taskB = new TaskMeta();
+        taskB.setId("taskB");
+        taskB.setName("Task B");
+        TaskMeta taskC = new TaskMeta();
+        taskC.setId("taskC");
+        taskC.setName("Task C");
 
         // flows
         SequenceFlow f1 = new SequenceFlow("flow1", "start", "gateway1", null, null, false);
@@ -59,13 +62,13 @@ public class ProcessInstanceAdvanceTest {
 
         // runtime
         ProcessInstance pi = new ProcessInstance(def);
-        pi.setCurrentActivityId("start");
         pi.setVariable("x", 10); // true for x > 5
 
-        Optional<UserTaskPayload> out = pi.advance();
-        assertTrue(out.isPresent(), "Expected to stop at a user task");
-        assertEquals("taskB", out.get().taskDefinitionKey());
-        assertEquals("Task B", out.get().name());
+        List<UserTaskPayload> out = pi.advance();
+        assertFalse(out.isEmpty(), "Expected to stop at a user task");
+        assertEquals(1, out.size());
+        assertEquals("taskB", out.get(0).taskDefinitionKey());
+        assertEquals("Task B", out.get(0).name());
     }
 
     // ---------------------------------------------------------------------
@@ -74,8 +77,12 @@ public class ProcessInstanceAdvanceTest {
     @Test
     @DisplayName("advance(): takes default flow when no condition matches")
     void advance_takes_default_when_false() throws Exception {
-        TaskMeta taskB = new TaskMeta("taskB", "Task B", null, List.of(), List.of(), null, null, null, null, null);
-        TaskMeta taskC = new TaskMeta("taskC", "Task C", null, List.of(), List.of(), null, null, null, null, null);
+        TaskMeta taskB = new TaskMeta();
+        taskB.setId("taskB");
+        taskB.setName("Task B");
+        TaskMeta taskC = new TaskMeta();
+        taskC.setId("taskC");
+        taskC.setName("Task C");
 
         SequenceFlow f1 = new SequenceFlow("flow1", "start", "gateway1", null, null, false);
         SequenceFlow f2 = new SequenceFlow("flow2", "gateway1", "taskB", null, "x > 5", false);
@@ -94,13 +101,13 @@ public class ProcessInstanceAdvanceTest {
         registerOutgoing(def, f1, f2, f3);
 
         ProcessInstance pi = new ProcessInstance(def);
-        pi.setCurrentActivityId("start");
         pi.setVariable("x", 3); // false for x > 5
 
-        Optional<UserTaskPayload> out = pi.advance();
-        assertTrue(out.isPresent(), "Expected to stop at a user task");
-        assertEquals("taskC", out.get().taskDefinitionKey());
-        assertEquals("Task C", out.get().name());
+        List<UserTaskPayload> out = pi.advance();
+        assertFalse(out.isEmpty(), "Expected to stop at a user task");
+        assertEquals(1, out.size());
+        assertEquals("taskC", out.get(0).taskDefinitionKey());
+        assertEquals("Task C", out.get(0).name());
     }
 
     // ---------------------------------------------------------------------
@@ -109,7 +116,9 @@ public class ProcessInstanceAdvanceTest {
     @Test
     @DisplayName("advance(): stops at the first encountered user task")
     void advance_stops_on_first_user_task() throws Exception {
-        TaskMeta taskA = new TaskMeta("taskA", "Task A", null, List.of(), List.of(), null, null, null, null, null);
+        TaskMeta taskA = new TaskMeta();
+        taskA.setId("taskA");
+        taskA.setName("Task A");
         SequenceFlow f1 = new SequenceFlow("flow1", "start", "taskA", null, null, false);
 
         ParsedProcessDefinition def = new ParsedProcessDefinition(
@@ -125,13 +134,13 @@ public class ProcessInstanceAdvanceTest {
         registerOutgoing(def, f1);
 
         ProcessInstance pi = new ProcessInstance(def);
-        pi.setCurrentActivityId("start");
 
-        Optional<UserTaskPayload> out = pi.advance();
-        assertTrue(out.isPresent(), "Expected to stop at a user task");
-        assertEquals("taskA", out.get().taskDefinitionKey());
-        assertEquals("Task A", out.get().name());
-        assertEquals("taskA", pi.getCurrentActivityId(), "Pointer should be set to the user task id");
+        List<UserTaskPayload> out = pi.advance();
+        assertFalse(out.isEmpty(), "Expected to stop at a user task");
+        assertEquals(1, out.size());
+        assertEquals("taskA", out.get(0).taskDefinitionKey());
+        assertEquals("Task A", out.get(0).name());
+        assertEquals(List.of("taskA"), pi.getActiveTokens(), "Pointer should be set to the user task id");
     }
 
     // ---------------------------------------------------------------------

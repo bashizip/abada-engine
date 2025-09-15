@@ -1,6 +1,7 @@
 package com.abada.engine.core;
 
 import com.abada.engine.core.model.TaskInstance;
+import org.camunda.bpm.model.bpmn.instance.Process;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

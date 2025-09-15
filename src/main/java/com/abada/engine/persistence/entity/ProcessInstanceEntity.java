@@ -16,6 +16,10 @@ public class ProcessInstanceEntity {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @Lob
+    @Column(name = "variables_json", nullable = false)
+    private String variablesJson; // Jackson-serialized Map
+
     public enum Status {
         RUNNING,
         COMPLETED,
@@ -32,6 +36,15 @@ public class ProcessInstanceEntity {
         this.processDefinitionId = processDefinitionId;
         this.currentActivityId = currentActivityId;
         this.status = status;
+    }
+
+
+    public String getVariablesJson() {
+        return variablesJson;
+    }
+
+    public void setVariablesJson(String variablesJson) {
+        this.variablesJson = variablesJson;
     }
 
     // Getters and Setters
@@ -62,6 +75,7 @@ public class ProcessInstanceEntity {
     public Status getStatus() {
         return status;
     }
+
 
     public void setStatus(Status status) {
         this.status = status;

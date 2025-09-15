@@ -6,12 +6,8 @@ import com.abada.engine.core.model.SequenceFlow;
 import com.abada.engine.core.model.TaskMeta;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
-import org.camunda.bpm.model.bpmn.instance.BaseElement;
-import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
+import org.camunda.bpm.model.bpmn.instance.*;
 import org.camunda.bpm.model.bpmn.instance.Process;
-import org.camunda.bpm.model.bpmn.instance.StartEvent;
-import org.camunda.bpm.model.bpmn.instance.UserTask;
-import org.camunda.bpm.model.bpmn.instance.EndEvent;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -44,22 +40,26 @@ public class BpmnParser {
             }
 
             Map<String, TaskMeta> userTasks = new HashMap<>();
-            for (UserTask task : model.getModelElementsByType(UserTask.class)) {
+            for (Task task : model.getModelElementsByType(Task.class)) {
                 TaskMeta meta = new TaskMeta();
                 meta.setId(task.getId());
                 meta.setName(task.getName());
-                meta.setAssignee(task.getCamundaAssignee());
 
-                String candidates = task.getCamundaCandidateUsers();
-                if (candidates != null && !candidates.isBlank()) {
-                    meta.setCandidateUsers(Arrays.asList(candidates.split("\s*,\s*")));
+                // If it's a UserTask, get Camunda extension properties
+                if (task instanceof UserTask) {
+                    UserTask userTask = (UserTask) task;
+                    meta.setAssignee(userTask.getCamundaAssignee());
+
+                    String candidates = userTask.getCamundaCandidateUsers();
+                    if (candidates != null && !candidates.isBlank()) {
+                        meta.setCandidateUsers(Arrays.asList(candidates.split("\\s*,\\s*")));
+                    }
+
+                    String groups = userTask.getCamundaCandidateGroups();
+                    if (groups != null && !groups.isBlank()) {
+                        meta.setCandidateGroups( Arrays.asList(groups.split("\\s*,\\s*")));
+                    }
                 }
-
-                String groups = task.getCamundaCandidateGroups();
-                if (groups != null && !groups.isBlank()) {
-                    meta.setCandidateGroups( Arrays.asList(groups.split("\s*,\s*")));
-                }
-
                 userTasks.put(task.getId(), meta);
             }
 
@@ -75,7 +75,10 @@ public class BpmnParser {
 
             Map<String, GatewayMeta> gateways = new HashMap<>();
             for (ExclusiveGateway gateway : model.getModelElementsByType(ExclusiveGateway.class)) {
-                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, null));
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, gateway.getDefault() != null ? gateway.getDefault().getId() : null));
+            }
+            for (InclusiveGateway gateway : model.getModelElementsByType(InclusiveGateway.class)) {
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.INCLUSIVE, gateway.getDefault() != null ? gateway.getDefault().getId() : null));
             }
 
             Map<String, Object> endEvents = new HashMap<>();
