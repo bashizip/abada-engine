@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_SignalTest" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Gemini">
+  <bpmn:signal id="Signal_Go" name="SignalGo" />
+  <bpmn:process id="SignalEventProcess" name="Signal Event Test Process" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Start">
+      <bpmn:outgoing>Flow_to_InitialTask</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="InitialTask" name="Initial Task" camunda:candidateUsers="test-user">
+      <bpmn:incoming>Flow_to_InitialTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_Signal</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:intermediateCatchEvent id="CatchEvent_Signal" name="Wait for Go Signal">
+      <bpmn:incoming>Flow_to_Signal</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_FinalTask</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SignalEventDefinition_1" signalRef="Signal_Go" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="FinalTask" name="Final Task" camunda:candidateUsers="test-user">
+      <bpmn:incoming>Flow_to_FinalTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_End</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndEvent_1" name="End">
+      <bpmn:incoming>Flow_to_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_to_InitialTask" sourceRef="StartEvent_1" targetRef="InitialTask" />
+    <bpmn:sequenceFlow id="Flow_to_Signal" sourceRef="InitialTask" targetRef="CatchEvent_Signal" />
+    <bpmn:sequenceFlow id="Flow_to_FinalTask" sourceRef="CatchEvent_Signal" targetRef="FinalTask" />
+    <bpmn:sequenceFlow id="Flow_to_End" sourceRef="FinalTask" targetRef="EndEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SignalEventProcess">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="InitialTask_di" bpmnElement="InitialTask">
+        <dc:Bounds x="240" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CatchEvent_Signal_di" bpmnElement="CatchEvent_Signal">
+        <dc:Bounds x="402" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="FinalTask_di" bpmnElement="FinalTask">
+        <dc:Bounds x="500" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="662" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_to_InitialTask_di" bpmnElement="Flow_to_InitialTask">
+        <di:waypoint x="188" y="270" /><di:waypoint x="240" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_to_Signal_di" bpmnElement="Flow_to_Signal">
+        <di:waypoint x="340" y="270" /><di:waypoint x="402" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_to_FinalTask_di" bpmnElement="Flow_to_FinalTask">
+        <di:waypoint x="438" y="270" /><di:waypoint x="500" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_to_End_di" bpmnElement="Flow_to_End">
+        <di:waypoint x="600" y="270" /><di:waypoint x="662" y="270" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

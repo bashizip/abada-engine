@@ -1,9 +1,7 @@
 package com.abada.engine.parser;
 
-import com.abada.engine.core.model.GatewayMeta;
-import com.abada.engine.core.model.ParsedProcessDefinition;
+import com.abada.engine.core.model.*;
 import com.abada.engine.core.model.SequenceFlow;
-import com.abada.engine.core.model.TaskMeta;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.*;
@@ -45,7 +43,6 @@ public class BpmnParser {
                 meta.setId(task.getId());
                 meta.setName(task.getName());
 
-                // If it's a UserTask, get Camunda extension properties
                 if (task instanceof UserTask) {
                     UserTask userTask = (UserTask) task;
                     meta.setAssignee(userTask.getCamundaAssignee());
@@ -84,12 +81,35 @@ public class BpmnParser {
                 gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.PARALLEL, null));
             }
 
+            Map<String, EventMeta> events = new HashMap<>();
+            for (IntermediateCatchEvent event : model.getModelElementsByType(IntermediateCatchEvent.class)) {
+                if (!event.getEventDefinitions().isEmpty()) {
+                    EventDefinition eventDefinition = event.getEventDefinitions().iterator().next();
+
+                    if (eventDefinition instanceof MessageEventDefinition) {
+                        MessageEventDefinition messageEventDef = (MessageEventDefinition) eventDefinition;
+                        String messageName = messageEventDef.getMessage().getName();
+                        events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.MESSAGE, messageName));
+                    } else if (eventDefinition instanceof TimerEventDefinition) {
+                        TimerEventDefinition timerEventDef = (TimerEventDefinition) eventDefinition;
+                        if (timerEventDef.getTimeDuration() != null) {
+                            String duration = timerEventDef.getTimeDuration().getTextContent();
+                            events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.TIMER, duration));
+                        }
+                    } else if (eventDefinition instanceof SignalEventDefinition) {
+                        SignalEventDefinition signalEventDef = (SignalEventDefinition) eventDefinition;
+                        String signalName = signalEventDef.getSignal().getName();
+                        events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.SIGNAL, signalName));
+                    }
+                }
+            }
+
             Map<String, Object> endEvents = new HashMap<>();
             for (EndEvent endEvent : model.getModelElementsByType(EndEvent.class)) {
                 endEvents.put(endEvent.getId(), null);
             }
 
-            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, endEvents, rawXml);
+            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, events, endEvents, rawXml);
             for (SequenceFlow flow : flows) {
                 definition.addOutgoing(flow.getSourceRef(), flow);
             }
