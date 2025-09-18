@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.dto.UserTaskPayload;
@@ -14,10 +15,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 @Component
@@ -29,21 +34,26 @@ public class AbadaEngine {
     private final BpmnParser parser;
     private final TaskManager taskManager;
     private final EventManager eventManager;
+    private final JobScheduler jobScheduler;
     private final ObjectMapper om;
     private final Map<String, ParsedProcessDefinition> processDefinitions = new HashMap<>();
     private final Map<String, ProcessInstance> instances = new HashMap<>();
 
-    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, EventManager eventManager, ObjectMapper om) {
+    @Autowired
+    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, EventManager eventManager, @Lazy JobScheduler jobScheduler, ObjectMapper om) {
         this.persistenceService = persistenceService;
         this.parser = new BpmnParser();
         this.taskManager = taskManager;
         this.eventManager = eventManager;
+        this.jobScheduler = jobScheduler;
         this.om = om;
     }
 
     @PostConstruct
     public void setup() {
+        // Resolve circular dependencies by setting the engine instance on the managers
         eventManager.setAbadaEngine(this);
+        jobScheduler.setAbadaEngine(this);
     }
 
     public void deploy(InputStream bpmnXml) {
@@ -86,8 +96,8 @@ public class AbadaEngine {
             createAndPersistTask(task, instance.getId());
         }
 
-        // After advancing, check if the instance is waiting for any events
         eventManager.registerWaitStates(instance);
+        scheduleWaitingTimerEvents(instance);
 
         return instance;
     }
@@ -136,6 +146,7 @@ public class AbadaEngine {
         }
 
         eventManager.registerWaitStates(instance);
+        scheduleWaitingTimerEvents(instance);
 
         return true;
     }
@@ -160,6 +171,7 @@ public class AbadaEngine {
         }
 
         eventManager.registerWaitStates(instance);
+        scheduleWaitingTimerEvents(instance);
     }
 
 
@@ -209,6 +221,24 @@ public class AbadaEngine {
         );
         taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), processInstanceId)
                 .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
+    }
+
+    private void scheduleWaitingTimerEvents(ProcessInstance instance) {
+        ParsedProcessDefinition definition = instance.getDefinition();
+        for (String tokenId : instance.getActiveTokens()) {
+            if (definition.isCatchEvent(tokenId)) {
+                EventMeta eventMeta = definition.getEvents().get(tokenId);
+                if (eventMeta != null && eventMeta.type() == EventMeta.EventType.TIMER) {
+                    try {
+                        Duration duration = Duration.parse(eventMeta.definitionRef());
+                        Instant executionTime = Instant.now().plus(duration);
+                        jobScheduler.scheduleJob(instance.getId(), tokenId, executionTime);
+                    } catch (Exception e) {
+                        log.error("Failed to parse timer duration '{}' for event {}", eventMeta.definitionRef(), tokenId, e);
+                    }
+                }
+            }
+        }
     }
 
 

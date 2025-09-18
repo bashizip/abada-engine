@@ -90,8 +90,14 @@ public class BpmnParser {
                         MessageEventDefinition messageEventDef = (MessageEventDefinition) eventDefinition;
                         String messageName = messageEventDef.getMessage().getName();
                         events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.MESSAGE, messageName));
+                    } else if (eventDefinition instanceof TimerEventDefinition) {
+                        TimerEventDefinition timerEventDef = (TimerEventDefinition) eventDefinition;
+                        if (timerEventDef.getTimeDuration() != null) {
+                            String duration = timerEventDef.getTimeDuration().getTextContent();
+                            events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.TIMER, duration));
+                        }
+                        // TODO: Add support for timeDate and timeCycle
                     }
-                    // TODO: Add parsers for other event types (Timer, Signal, etc.) here
                 }
             }
 
