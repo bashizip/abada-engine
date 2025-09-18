@@ -1,15 +1,11 @@
 package com.abada.engine.core;
 
-import com.abada.engine.core.model.GatewayMeta;
-import com.abada.engine.core.model.ParsedProcessDefinition;
-import com.abada.engine.core.model.SequenceFlow;
-import com.abada.engine.core.model.TaskMeta;
+import com.abada.engine.core.model.*;
 import com.abada.engine.dto.UserTaskPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ProcessInstance {
 
@@ -21,11 +17,9 @@ public class ProcessInstance {
     private final List<String> activeTokens = new ArrayList<>();
 
     // Tracks how many tokens are expected at a joining gateway
-    // Key: Gateway ID, Value: Number of expected tokens
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
 
     // Tracks which tokens have arrived at a joining gateway
-    // Key: Gateway ID, Value: Set of incoming source activity IDs
     private final Map<String, Set<String>> joinArrivedTokens = new HashMap<>();
 
 
@@ -34,7 +28,6 @@ public class ProcessInstance {
     public ProcessInstance(ParsedProcessDefinition definition) {
         this.id = UUID.randomUUID().toString();
         this.definition = definition;
-        // Start with a single token at the start event
         this.activeTokens.add(definition.getStartEventId());
     }
 
@@ -76,17 +69,14 @@ public class ProcessInstance {
     }
 
 
-    public List<UserTaskPayload> advance(String completedUserTask) {
+    public List<UserTaskPayload> advance(String resumedNodeId) {
         List<UserTaskPayload> newUserTasks = new ArrayList<>();
         Queue<String> queue = new LinkedList<>();
 
-        if (completedUserTask != null) {
-            // When a task is completed, only its path is advanced.
-            // Other active tokens are parallel paths that are still waiting.
-            activeTokens.remove(completedUserTask);
-            queue.add(completedUserTask);
+        if (resumedNodeId != null) {
+            activeTokens.remove(resumedNodeId);
+            queue.add(resumedNodeId);
         } else {
-            // This case is for the initial process start.
             queue.addAll(activeTokens);
             activeTokens.clear();
         }
@@ -95,7 +85,7 @@ public class ProcessInstance {
 
         while (!queue.isEmpty()) {
             String current = queue.poll();
-            String previousPointer = null; // Track the node before the current one
+            String previousPointer = null;
 
             if (processedInThisRun.contains(current)) {
                 continue;
@@ -112,16 +102,20 @@ public class ProcessInstance {
                 String pointer = current;
                 processedInThisRun.add(pointer);
 
-                // USER TASK
-                if (definition.isUserTask(pointer)) {
-                    if (Objects.equals(pointer, completedUserTask)) {
+                // WAIT STATES (User Task, Catch Event)
+                if (definition.isUserTask(pointer) || definition.isCatchEvent(pointer)) {
+                    if (Objects.equals(pointer, resumedNodeId)) {
+                        // This node was just completed or triggered, so advance from it.
                         var outgoing = definition.getOutgoing(pointer);
                         current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
                         previousPointer = pointer;
                     } else {
+                        // Arrived at a new wait state. Add to active tokens and stop this path.
                         activeTokens.add(pointer);
-                        TaskMeta ut = definition.getUserTask(pointer);
-                        newUserTasks.add(new UserTaskPayload(ut.getId(), ut.getName(), ut.getAssignee(), ut.getCandidateUsers(), ut.getCandidateGroups()));
+                        if (definition.isUserTask(pointer)) {
+                            TaskMeta ut = definition.getUserTask(pointer);
+                            newUserTasks.add(new UserTaskPayload(ut.getId(), ut.getName(), ut.getAssignee(), ut.getCandidateUsers(), ut.getCandidateGroups()));
+                        }
                         current = null;
                     }
                 }

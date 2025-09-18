@@ -12,7 +12,8 @@ public class ParsedProcessDefinition implements Serializable {
     private final Map<String, TaskMeta> userTasks;
     private final List<SequenceFlow> sequenceFlows;
     private final Map<String, GatewayMeta> gateways;
-    private final Map<String, Object> endEvents; // Add this line
+    private final Map<String, EventMeta> events;
+    private final Map<String, Object> endEvents;
     private final String rawXml;
     private final Map<String, List<SequenceFlow>> outgoingBySource = new HashMap<>();
     private final Map<String, List<SequenceFlow>> incomingByTarget = new HashMap<>();
@@ -26,7 +27,8 @@ public class ParsedProcessDefinition implements Serializable {
                                    Map<String, TaskMeta> userTasks,
                                    List<SequenceFlow> sequenceFlows,
                                    Map<String, GatewayMeta> gateways,
-                                   Map<String, Object> endEvents, // Add this line
+                                   Map<String, EventMeta> events,
+                                   Map<String, Object> endEvents,
                                    String rawXml) {
         this.id = id;
         this.name = name;
@@ -34,7 +36,8 @@ public class ParsedProcessDefinition implements Serializable {
         this.userTasks = Collections.unmodifiableMap(new HashMap<>(userTasks));
         this.sequenceFlows = Collections.unmodifiableList(new ArrayList<>(sequenceFlows));
         this.gateways = Collections.unmodifiableMap(new HashMap<>(gateways));
-        this.endEvents = Collections.unmodifiableMap(new HashMap<>(endEvents)); // Add this line
+        this.events = Collections.unmodifiableMap(new HashMap<>(events));
+        this.endEvents = Collections.unmodifiableMap(new HashMap<>(endEvents));
         this.rawXml = rawXml;
         buildFlowGraph();
     }
@@ -102,6 +105,10 @@ public class ParsedProcessDefinition implements Serializable {
         return gateways;
     }
 
+    public Map<String, EventMeta> getEvents() {
+        return events;
+    }
+
     public String getRawXml() {
         return rawXml;
     }
@@ -143,6 +150,10 @@ public class ParsedProcessDefinition implements Serializable {
 
     public boolean isGateway(String id) {
         return gateways.containsKey(id);
+    }
+
+    public boolean isCatchEvent(String id) {
+        return events.containsKey(id);
     }
 
 
