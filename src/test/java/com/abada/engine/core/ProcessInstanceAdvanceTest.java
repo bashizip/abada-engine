@@ -50,6 +50,7 @@ public class ProcessInstanceAdvanceTest {
                 "Test Process",
                 "start",
                 Map.of("taskB", taskB, "taskC", taskC),
+                Collections.emptyMap(), // serviceTasks
                 List.of(f1, f2, f3),
                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
                 Collections.emptyMap(), // events
@@ -91,6 +92,7 @@ public class ProcessInstanceAdvanceTest {
                 "Test Process",
                 "start",
                 Map.of("taskB", taskB, "taskC", taskC),
+                Collections.emptyMap(), // serviceTasks
                 List.of(f1, f2, f3),
                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
                 Collections.emptyMap(), // events
@@ -125,6 +127,7 @@ public class ProcessInstanceAdvanceTest {
                 "Test Process",
                 "start",
                 Map.of("taskA", taskA),
+                Collections.emptyMap(), // serviceTasks
                 List.of(f1),
                 Collections.emptyMap(), // gateways
                 Collections.emptyMap(), // events
