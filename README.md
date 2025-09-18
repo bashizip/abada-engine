@@ -13,16 +13,21 @@ Abada Engine is a lightweight, embeddable BPMN 2.0 workflow engine for Java. It 
 
 ---
 
-## Current status (0.6.x)
+## Current status (0.7.0-alpha)
 
 * BPMN parsing
 * User Tasks and Service Tasks (stub)
-* **Exclusive Gateway** (XOR) routing with expression conditions and default flow
+* **Gateways**:
+    * Exclusive Gateway (XOR)
+    * Parallel Gateway (AND) for forking and joining
+    * Inclusive Gateway (OR) for conditional forking and joining
+* **Events**:
+    * Message Catch Event (point-to-point correlation)
+    * Timer Catch Event (persistent, scheduled delays)
+    * Signal Catch Event (broadcast to multiple instances)
 * Process & task persistence
 * REST APIs for processes and tasks
 * Validation (schema + basic semantics)
-
-> Note: Inclusive/Parallel gateways and history are planned. See the roadmap below.
 
 ---
 
@@ -103,14 +108,14 @@ More details: see `docs/exclusive-gateway.md`.
 
 ## Roadmap
 
-**Near term (0.7.x)**
+**Near term (0.8.x)**
 
-* Inclusive Gateway (OR) semantics (fork/join bookkeeping)
 * Service Task execution SPI (replace stub)
 * Process instance history (audit trail)
+* Conditional Event support
 * Publish artifacts to Maven Central
 
-**Medium term (0.8.x)**
+**Medium term**
 
 * Lightweight web dashboard
 * Improved error handling and problem details in REST
@@ -118,8 +123,8 @@ More details: see `docs/exclusive-gateway.md`.
 
 **Open issues / ideas**
 
-* Tests for branching behavior and docs for conditional routing
 * Process variables API improvements
+* Full support for BPMN event sub-processes
 
 See the GitHub Issues tab for up‑to‑date items.
 
