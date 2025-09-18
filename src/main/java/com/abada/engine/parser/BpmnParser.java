@@ -59,8 +59,12 @@ public class BpmnParser {
             Map<String, ServiceTaskMeta> serviceTasks = new HashMap<>();
             for (ServiceTask serviceTask : model.getModelElementsByType(ServiceTask.class)) {
                 String className = serviceTask.getCamundaClass();
+                String topicName = serviceTask.getCamundaTopic();
+
                 if (className != null && !className.isBlank()) {
-                    serviceTasks.put(serviceTask.getId(), new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), className));
+                    serviceTasks.put(serviceTask.getId(), new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), className, null));
+                } else if (topicName != null && !topicName.isBlank()) {
+                    serviceTasks.put(serviceTask.getId(), new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), null, topicName));
                 }
             }
 

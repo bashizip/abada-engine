@@ -7,7 +7,8 @@ import java.io.Serializable;
  *
  * @param id The ID of the service task node.
  * @param name The name of the service task.
- * @param className The fully qualified class name of the JavaDelegate implementation.
+ * @param className The fully qualified class name of the JavaDelegate (for embedded tasks).
+ * @param topicName The topic name for external tasks.
  */
-public record ServiceTaskMeta(String id, String name, String className) implements Serializable {
+public record ServiceTaskMeta(String id, String name, String className, String topicName) implements Serializable {
 }

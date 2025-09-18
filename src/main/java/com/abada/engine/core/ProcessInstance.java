@@ -119,7 +119,12 @@ public class ProcessInstance {
                         } catch (Exception e) {
                             throw new RuntimeException("Error executing JavaDelegate " + serviceTaskMeta.className(), e);
                         }
+                    } else if (serviceTaskMeta != null && serviceTaskMeta.topicName() != null) {
+                        // This is an external task. Treat as a wait state.
+                        activeTokens.add(pointer);
+                        current = null;
                     } else {
+                        // No implementation defined, treat as pass-through
                         previousPointer = pointer;
                         List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
                         current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
