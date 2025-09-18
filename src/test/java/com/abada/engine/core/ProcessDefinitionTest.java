@@ -29,10 +29,21 @@ public class ProcessDefinitionTest {
                 new SequenceFlow("f3", "taskB", "endEvent1", null, null, false)
         );
 
-        definition = new ParsedProcessDefinition("demoProc", "Demo Process", "startEvent1", tasks, flows, Collections.emptyMap(), Collections.emptyMap(), "<bpmn>...</bpmn>");
+        definition = new ParsedProcessDefinition(
+                "demoProc",
+                "Demo Process",
+                "startEvent1",
+                tasks,
+                flows,
+                Collections.emptyMap(), // gateways
+                Collections.emptyMap(), // events
+                Collections.emptyMap(), // endEvents
+                "<bpmn>...</bpmn>"
+        );
     }
 
     private TaskMeta taskMeta(String name, String assignee, List<String> users, List<String> groups) {
+        
         TaskMeta meta = new TaskMeta();
         meta.setName(name);
         meta.setAssignee(assignee);

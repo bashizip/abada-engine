@@ -1,17 +1,14 @@
 package com.abada.engine.core;
 
-import com.abada.engine.core.model.GatewayMeta;
-import com.abada.engine.core.model.ParsedProcessDefinition;
-import com.abada.engine.core.model.SequenceFlow;
-import com.abada.engine.core.model.TaskMeta;
+import com.abada.engine.core.model.*;
 import com.abada.engine.dto.UserTaskPayload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -55,7 +52,8 @@ public class ProcessInstanceAdvanceTest {
                 Map.of("taskB", taskB, "taskC", taskC),
                 List.of(f1, f2, f3),
                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
-                Collections.emptyMap(),
+                Collections.emptyMap(), // events
+                Collections.emptyMap(), // endEvents
                 "<xml/>"
         );
         registerOutgoing(def, f1, f2, f3);
@@ -95,7 +93,8 @@ public class ProcessInstanceAdvanceTest {
                 Map.of("taskB", taskB, "taskC", taskC),
                 List.of(f1, f2, f3),
                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
-                Collections.emptyMap(),
+                Collections.emptyMap(), // events
+                Collections.emptyMap(), // endEvents
                 "<xml/>"
         );
         registerOutgoing(def, f1, f2, f3);
@@ -127,8 +126,9 @@ public class ProcessInstanceAdvanceTest {
                 "start",
                 Map.of("taskA", taskA),
                 List.of(f1),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
+                Collections.emptyMap(), // gateways
+                Collections.emptyMap(), // events
+                Collections.emptyMap(), // endEvents
                 "<xml/>"
         );
         registerOutgoing(def, f1);

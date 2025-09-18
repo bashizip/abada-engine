@@ -1,6 +1,7 @@
 package com.abada.engine.parser;
 
 import com.abada.engine.core.model.*;
+import com.abada.engine.core.model.SequenceFlow;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.*;
