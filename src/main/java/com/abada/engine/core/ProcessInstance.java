@@ -2,6 +2,8 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.*;
 import com.abada.engine.dto.UserTaskPayload;
+import com.abada.engine.spi.DelegateExecution;
+import com.abada.engine.spi.JavaDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,15 +15,9 @@ public class ProcessInstance {
     private ParsedProcessDefinition definition;
     private final Map<String, Object> variables = new HashMap<>();
 
-    // List of active execution pointers (activity IDs)
     private final List<String> activeTokens = new ArrayList<>();
-
-    // Tracks how many tokens are expected at a joining gateway
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
-
-    // Tracks which tokens have arrived at a joining gateway
     private final Map<String, Set<String>> joinArrivedTokens = new HashMap<>();
-
 
     private static final Logger log = LoggerFactory.getLogger(ProcessInstance.class);
 
@@ -38,7 +34,6 @@ public class ProcessInstance {
     }
 
     public ProcessInstance() {
-
     }
 
     public String getId() { return id; }
@@ -52,14 +47,12 @@ public class ProcessInstance {
     public void setVariable(String key, Object value) { variables.put(key, value); }
     public Object getVariable(String key) { return variables.get(key); }
     public Map<String, Object> getVariables() { return Collections.unmodifiableMap(variables); }
-    public void putVariable(String key, Object value) { variables.put(key, value); }
     public void putAllVariables(Map<String,Object> newVars) {
         if (newVars != null) variables.putAll(newVars);
     }
 
     public boolean isWaitingForUserTask() {
-        return !activeTokens.isEmpty() && activeTokens.stream()
-                .anyMatch(t -> definition.isUserTask(t));
+        return !activeTokens.isEmpty() && activeTokens.stream().anyMatch(t -> definition.isUserTask(t));
     }
 
     public boolean isCompleted() { return activeTokens.isEmpty(); }
@@ -67,7 +60,6 @@ public class ProcessInstance {
     public List<UserTaskPayload> advance() {
         return advance(null);
     }
-
 
     public List<UserTaskPayload> advance(String resumedNodeId) {
         List<UserTaskPayload> newUserTasks = new ArrayList<>();
@@ -102,8 +94,12 @@ public class ProcessInstance {
                 String pointer = current;
                 processedInThisRun.add(pointer);
 
-                // WAIT STATES (User Task, Catch Event)
-                if (definition.isUserTask(pointer) || definition.isCatchEvent(pointer)) {
+                ServiceTaskMeta serviceTaskMeta = definition.getServiceTask(pointer);
+                boolean isExternalServiceTask = serviceTaskMeta != null && serviceTaskMeta.topicName() != null;
+                boolean isEmbeddedServiceTask = serviceTaskMeta != null && serviceTaskMeta.className() != null;
+
+                // Is it a wait state? (User Task, Catch Event, or External Service Task)
+                if (definition.isUserTask(pointer) || definition.isCatchEvent(pointer) || isExternalServiceTask) {
                     if (Objects.equals(pointer, resumedNodeId)) {
                         // This node was just completed or triggered, so advance from it.
                         var outgoing = definition.getOutgoing(pointer);
@@ -118,9 +114,19 @@ public class ProcessInstance {
                         }
                         current = null;
                     }
-                }
-                // EXCLUSIVE GATEWAY
-                else if (definition.isExclusiveGateway(pointer)) {
+                } 
+                // Is it an embedded, synchronous service task?
+                else if (isEmbeddedServiceTask) {
+                    try {
+                        JavaDelegate delegate = (JavaDelegate) Class.forName(serviceTaskMeta.className()).getConstructor().newInstance();
+                        delegate.execute(new DelegateExecutionImpl());
+                        previousPointer = pointer;
+                        List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
+                        current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
+                    } catch (Exception e) {
+                        throw new RuntimeException("Error executing JavaDelegate " + serviceTaskMeta.className(), e);
+                    }
+                } else if (definition.isExclusiveGateway(pointer)) {
                     GatewaySelector selector = new GatewaySelector();
                     GatewayMeta gw = definition.getGateways().get(pointer);
                     List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
@@ -131,9 +137,7 @@ public class ProcessInstance {
                             .map(SequenceFlow::getTargetRef)
                             .findFirst()
                             .orElseThrow(() -> new IllegalStateException("Flow not found: " + chosenFlowId));
-                }
-                // PARALLEL GATEWAY (FORK)
-                else if (definition.isParallelGateway(pointer) && definition.getIncoming(pointer).size() == 1) {
+                } else if (definition.isParallelGateway(pointer) && definition.getIncoming(pointer).size() == 1) {
                     List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
                     for (SequenceFlow flow : outgoing) {
                         queue.add(flow.getTargetRef());
@@ -144,9 +148,7 @@ public class ProcessInstance {
                         joinArrivedTokens.put(joinGatewayId, new HashSet<>());
                     }
                     current = null;
-                }
-                // INCLUSIVE GATEWAY (FORK)
-                else if (definition.isInclusiveGateway(pointer) && definition.getIncoming(pointer).size() == 1) {
+                } else if (definition.isInclusiveGateway(pointer) && definition.getIncoming(pointer).size() == 1) {
                     GatewaySelector selector = new GatewaySelector();
                     GatewayMeta gw = definition.getGateways().get(pointer);
                     List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
@@ -161,9 +163,7 @@ public class ProcessInstance {
                         joinArrivedTokens.put(joinGatewayId, new HashSet<>());
                     }
                     current = null;
-                }
-                // JOINING GATEWAY (PARALLEL OR INCLUSIVE)
-                else if ((definition.isParallelGateway(pointer) || definition.isInclusiveGateway(pointer)) && definition.getIncoming(pointer).size() > 1) {
+                } else if ((definition.isParallelGateway(pointer) || definition.isInclusiveGateway(pointer)) && definition.getIncoming(pointer).size() > 1) {
                     int expected = joinExpectedTokens.getOrDefault(pointer, definition.getIncoming(pointer).size());
                     Set<String> arrived = joinArrivedTokens.computeIfAbsent(pointer, k -> new HashSet<>());
                     arrived.add(previousPointer);
@@ -176,13 +176,9 @@ public class ProcessInstance {
                     } else {
                         current = null;
                     }
-                }
-                // END EVENT
-                else if (definition.isEndEvent(pointer)) {
+                } else if (definition.isEndEvent(pointer)) {
                     current = null;
-                }
-                // OTHER (Start, ServiceTask, etc.)
-                else {
+                } else {
                     List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
                     previousPointer = pointer;
                     current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
@@ -190,5 +186,27 @@ public class ProcessInstance {
             }
         }
         return newUserTasks;
+    }
+
+    private class DelegateExecutionImpl implements DelegateExecution {
+        @Override
+        public String getProcessInstanceId() {
+            return ProcessInstance.this.id;
+        }
+
+        @Override
+        public Map<String, Object> getVariables() {
+            return Collections.unmodifiableMap(ProcessInstance.this.variables);
+        }
+
+        @Override
+        public Object getVariable(String name) {
+            return ProcessInstance.this.variables.get(name);
+        }
+
+        @Override
+        public void setVariable(String name, Object value) {
+            ProcessInstance.this.variables.put(name, value);
+        }
     }
 }

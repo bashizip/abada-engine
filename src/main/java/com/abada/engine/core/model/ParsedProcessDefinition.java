@@ -10,6 +10,7 @@ public class ParsedProcessDefinition implements Serializable {
     private final String name;
     private final String startEventId;
     private final Map<String, TaskMeta> userTasks;
+    private final Map<String, ServiceTaskMeta> serviceTasks;
     private final List<SequenceFlow> sequenceFlows;
     private final Map<String, GatewayMeta> gateways;
     private final Map<String, EventMeta> events;
@@ -25,6 +26,7 @@ public class ParsedProcessDefinition implements Serializable {
 
     public ParsedProcessDefinition(String id, String name, String startEventId,
                                    Map<String, TaskMeta> userTasks,
+                                   Map<String, ServiceTaskMeta> serviceTasks,
                                    List<SequenceFlow> sequenceFlows,
                                    Map<String, GatewayMeta> gateways,
                                    Map<String, EventMeta> events,
@@ -34,6 +36,7 @@ public class ParsedProcessDefinition implements Serializable {
         this.name = name;
         this.startEventId = startEventId;
         this.userTasks = Collections.unmodifiableMap(new HashMap<>(userTasks));
+        this.serviceTasks = Collections.unmodifiableMap(new HashMap<>(serviceTasks));
         this.sequenceFlows = Collections.unmodifiableList(new ArrayList<>(sequenceFlows));
         this.gateways = Collections.unmodifiableMap(new HashMap<>(gateways));
         this.events = Collections.unmodifiableMap(new HashMap<>(events));
@@ -49,11 +52,14 @@ public class ParsedProcessDefinition implements Serializable {
         }
     }
 
+    public void addOutgoing(String sourceId, SequenceFlow flow) {
+        outgoingBySource.computeIfAbsent(sourceId, k -> new ArrayList<>()).add(flow);
+    }
+
     public String findJoinGateway(String forkGatewayId, GatewayMeta.Type forkGatewayType) {
         Queue<String> queue = new LinkedList<>();
         Set<String> visited = new HashSet<>();
 
-        // Start traversal from all outgoing paths of the fork gateway
         for (SequenceFlow flow : getOutgoing(forkGatewayId)) {
             queue.add(flow.getTargetRef());
             visited.add(flow.getTargetRef());
@@ -63,12 +69,10 @@ public class ParsedProcessDefinition implements Serializable {
             String currentId = queue.poll();
             GatewayMeta currentGw = gateways.get(currentId);
 
-            // If we find a gateway of the same type with more than one incoming path, it's our join gateway
             if (currentGw != null && currentGw.type() == forkGatewayType && getIncoming(currentId).size() > 1) {
                 return currentId;
             }
 
-            // Continue traversal
             for (SequenceFlow outgoingFlow : getOutgoing(currentId)) {
                 String nextId = outgoingFlow.getTargetRef();
                 if (!visited.contains(nextId)) {
@@ -97,6 +101,10 @@ public class ParsedProcessDefinition implements Serializable {
         return userTasks;
     }
 
+    public Map<String, ServiceTaskMeta> getServiceTasks() {
+        return serviceTasks;
+    }
+
     public List<SequenceFlow> getSequenceFlows() {
         return sequenceFlows;
     }
@@ -115,6 +123,10 @@ public class ParsedProcessDefinition implements Serializable {
 
     public TaskMeta getUserTask(String taskId) {
         return userTasks.get(taskId);
+    }
+
+    public ServiceTaskMeta getServiceTask(String taskId) {
+        return serviceTasks.get(taskId);
     }
 
     public List<String> getNextActivities(String fromId) {
@@ -139,6 +151,7 @@ public class ParsedProcessDefinition implements Serializable {
     public Set<String> getAllActivityIds() {
         Set<String> ids = new HashSet<>();
         ids.addAll(userTasks.keySet());
+        ids.addAll(serviceTasks.keySet());
         ids.addAll(flowGraph.keySet());
         flowGraph.values().forEach(ids::addAll);
         return ids;
@@ -146,6 +159,10 @@ public class ParsedProcessDefinition implements Serializable {
 
     public boolean isUserTask(String id) {
         return userTasks.containsKey(id);
+    }
+
+    public boolean isServiceTask(String id) {
+        return serviceTasks.containsKey(id);
     }
 
     public boolean isGateway(String id) {
@@ -156,46 +173,23 @@ public class ParsedProcessDefinition implements Serializable {
         return events.containsKey(id);
     }
 
+    public boolean isEndEvent(String id) {
+        return endEvents.containsKey(id);
+    }
 
-    // ==========================================================
-    // Typed gateway helpers (Exclusive, Inclusive, Parallel)
-    // ==========================================================
-
-    /** Returns true if the node is an Exclusive Gateway. */
     public boolean isExclusiveGateway(String activityId) {
         GatewayMeta gw = gateways.get(activityId);
         return gw != null && gw.type() == GatewayMeta.Type.EXCLUSIVE;
     }
 
-    /** Returns true if the node is an Inclusive Gateway. */
     public boolean isInclusiveGateway(String activityId) {
         GatewayMeta gw = gateways.get(activityId);
         return gw != null && gw.type() == GatewayMeta.Type.INCLUSIVE;
     }
 
-    /** Returns true if the node is a Parallel Gateway. */
     public boolean isParallelGateway(String activityId) {
         GatewayMeta gw = gateways.get(activityId);
         return gw != null && gw.type() == GatewayMeta.Type.PARALLEL;
-    }
-
-    // Convenience: create/update API the parser can call when discovering gateways
-    public void putGateway(String id, GatewayMeta meta) {
-        gateways.put(id, meta);
-    }
-
-    // Convenience: outgoing registration used by the parser
-    public void addOutgoing(String sourceId, SequenceFlow flow) {
-        outgoingBySource.computeIfAbsent(sourceId, k -> new ArrayList<>()).add(flow);
-    }
-
-
-    public GatewayMeta getGateway(String id) {
-        return gateways.get(id);
-    }
-
-    public boolean isEndEvent(String id) {
-        return endEvents.containsKey(id);
     }
 
     public String getTaskName(String id) {

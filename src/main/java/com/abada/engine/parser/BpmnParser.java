@@ -38,26 +38,34 @@ public class BpmnParser {
             }
 
             Map<String, TaskMeta> userTasks = new HashMap<>();
-            for (Task task : model.getModelElementsByType(Task.class)) {
+            for (UserTask userTask : model.getModelElementsByType(UserTask.class)) {
                 TaskMeta meta = new TaskMeta();
-                meta.setId(task.getId());
-                meta.setName(task.getName());
+                meta.setId(userTask.getId());
+                meta.setName(userTask.getName());
+                meta.setAssignee(userTask.getCamundaAssignee());
 
-                if (task instanceof UserTask) {
-                    UserTask userTask = (UserTask) task;
-                    meta.setAssignee(userTask.getCamundaAssignee());
-
-                    String candidates = userTask.getCamundaCandidateUsers();
-                    if (candidates != null && !candidates.isBlank()) {
-                        meta.setCandidateUsers(Arrays.asList(candidates.split("\\s*,\\s*")));
-                    }
-
-                    String groups = userTask.getCamundaCandidateGroups();
-                    if (groups != null && !groups.isBlank()) {
-                        meta.setCandidateGroups( Arrays.asList(groups.split("\\s*,\\s*")));
-                    }
+                String candidates = userTask.getCamundaCandidateUsers();
+                if (candidates != null && !candidates.isBlank()) {
+                    meta.setCandidateUsers(Arrays.asList(candidates.split("\\s*,\\s*")));
                 }
-                userTasks.put(task.getId(), meta);
+
+                String groups = userTask.getCamundaCandidateGroups();
+                if (groups != null && !groups.isBlank()) {
+                    meta.setCandidateGroups( Arrays.asList(groups.split("\\s*,\\s*")));
+                }
+                userTasks.put(userTask.getId(), meta);
+            }
+
+            Map<String, ServiceTaskMeta> serviceTasks = new HashMap<>();
+            for (ServiceTask serviceTask : model.getModelElementsByType(ServiceTask.class)) {
+                String className = serviceTask.getCamundaClass();
+                String topicName = serviceTask.getCamundaTopic();
+
+                if (className != null && !className.isBlank()) {
+                    serviceTasks.put(serviceTask.getId(), new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), className, null));
+                } else if (topicName != null && !topicName.isBlank()) {
+                    serviceTasks.put(serviceTask.getId(), new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), null, topicName));
+                }
             }
 
             List<SequenceFlow> flows = new ArrayList<>();
@@ -109,7 +117,7 @@ public class BpmnParser {
                 endEvents.put(endEvent.getId(), null);
             }
 
-            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, startEventId, userTasks, flows, gateways, events, endEvents, rawXml);
+            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, startEventId, userTasks, serviceTasks, flows, gateways, events, endEvents, rawXml);
             for (SequenceFlow flow : flows) {
                 definition.addOutgoing(flow.getSourceRef(), flow);
             }

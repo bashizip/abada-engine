@@ -2,13 +2,16 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
+import com.abada.engine.core.model.ServiceTaskMeta;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
+import com.abada.engine.persistence.entity.ExternalTaskEntity;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
+import com.abada.engine.persistence.repository.ExternalTaskRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,23 +38,24 @@ public class AbadaEngine {
     private final TaskManager taskManager;
     private final EventManager eventManager;
     private final JobScheduler jobScheduler;
+    private final ExternalTaskRepository externalTaskRepository;
     private final ObjectMapper om;
     private final Map<String, ParsedProcessDefinition> processDefinitions = new HashMap<>();
     private final Map<String, ProcessInstance> instances = new HashMap<>();
 
     @Autowired
-    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, EventManager eventManager, @Lazy JobScheduler jobScheduler, ObjectMapper om) {
+    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, EventManager eventManager, @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om) {
         this.persistenceService = persistenceService;
         this.parser = new BpmnParser();
         this.taskManager = taskManager;
         this.eventManager = eventManager;
         this.jobScheduler = jobScheduler;
+        this.externalTaskRepository = externalTaskRepository;
         this.om = om;
     }
 
     @PostConstruct
     public void setup() {
-        // Resolve circular dependencies by setting the engine instance on the managers
         eventManager.setAbadaEngine(this);
         jobScheduler.setAbadaEngine(this);
     }
@@ -98,6 +102,7 @@ public class AbadaEngine {
 
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
+        createExternalTaskJobs(instance);
 
         return instance;
     }
@@ -147,6 +152,7 @@ public class AbadaEngine {
 
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
+        createExternalTaskJobs(instance);
 
         return true;
     }
@@ -172,6 +178,7 @@ public class AbadaEngine {
 
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
+        createExternalTaskJobs(instance);
     }
 
 
@@ -236,6 +243,20 @@ public class AbadaEngine {
                     } catch (Exception e) {
                         log.error("Failed to parse timer duration '{}' for event {}", eventMeta.definitionRef(), tokenId, e);
                     }
+                }
+            }
+        }
+    }
+
+    private void createExternalTaskJobs(ProcessInstance instance) {
+        ParsedProcessDefinition definition = instance.getDefinition();
+        for (String tokenId : instance.getActiveTokens()) {
+            if (definition.isServiceTask(tokenId)) {
+                ServiceTaskMeta serviceTaskMeta = definition.getServiceTask(tokenId);
+                if (serviceTaskMeta != null && serviceTaskMeta.topicName() != null) {
+                    ExternalTaskEntity externalTask = new ExternalTaskEntity(instance.getId(), serviceTaskMeta.topicName());
+                    externalTaskRepository.save(externalTask);
+                    log.info("Created external task {} for topic {}", externalTask.getId(), serviceTaskMeta.topicName());
                 }
             }
         }

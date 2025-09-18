@@ -34,6 +34,7 @@ public class ProcessDefinitionTest {
                 "Demo Process",
                 "startEvent1",
                 tasks,
+                Collections.emptyMap(), // serviceTasks
                 flows,
                 Collections.emptyMap(), // gateways
                 Collections.emptyMap(), // events
