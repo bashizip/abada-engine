@@ -94,12 +94,19 @@ public class ProcessInstance {
                 String pointer = current;
                 processedInThisRun.add(pointer);
 
-                if (definition.isUserTask(pointer) || definition.isCatchEvent(pointer)) {
+                ServiceTaskMeta serviceTaskMeta = definition.getServiceTask(pointer);
+                boolean isExternalServiceTask = serviceTaskMeta != null && serviceTaskMeta.topicName() != null;
+                boolean isEmbeddedServiceTask = serviceTaskMeta != null && serviceTaskMeta.className() != null;
+
+                // Is it a wait state? (User Task, Catch Event, or External Service Task)
+                if (definition.isUserTask(pointer) || definition.isCatchEvent(pointer) || isExternalServiceTask) {
                     if (Objects.equals(pointer, resumedNodeId)) {
+                        // This node was just completed or triggered, so advance from it.
                         var outgoing = definition.getOutgoing(pointer);
                         current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
                         previousPointer = pointer;
                     } else {
+                        // Arrived at a new wait state. Add to active tokens and stop this path.
                         activeTokens.add(pointer);
                         if (definition.isUserTask(pointer)) {
                             TaskMeta ut = definition.getUserTask(pointer);
@@ -107,27 +114,17 @@ public class ProcessInstance {
                         }
                         current = null;
                     }
-                } else if (definition.isServiceTask(pointer)) {
-                    ServiceTaskMeta serviceTaskMeta = definition.getServiceTask(pointer);
-                    if (serviceTaskMeta != null && serviceTaskMeta.className() != null) {
-                        try {
-                            JavaDelegate delegate = (JavaDelegate) Class.forName(serviceTaskMeta.className()).getConstructor().newInstance();
-                            delegate.execute(new DelegateExecutionImpl());
-                            previousPointer = pointer;
-                            List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
-                            current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
-                        } catch (Exception e) {
-                            throw new RuntimeException("Error executing JavaDelegate " + serviceTaskMeta.className(), e);
-                        }
-                    } else if (serviceTaskMeta != null && serviceTaskMeta.topicName() != null) {
-                        // This is an external task. Treat as a wait state.
-                        activeTokens.add(pointer);
-                        current = null;
-                    } else {
-                        // No implementation defined, treat as pass-through
+                } 
+                // Is it an embedded, synchronous service task?
+                else if (isEmbeddedServiceTask) {
+                    try {
+                        JavaDelegate delegate = (JavaDelegate) Class.forName(serviceTaskMeta.className()).getConstructor().newInstance();
+                        delegate.execute(new DelegateExecutionImpl());
                         previousPointer = pointer;
                         List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
                         current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
+                    } catch (Exception e) {
+                        throw new RuntimeException("Error executing JavaDelegate " + serviceTaskMeta.className(), e);
                     }
                 } else if (definition.isExclusiveGateway(pointer)) {
                     GatewaySelector selector = new GatewaySelector();
