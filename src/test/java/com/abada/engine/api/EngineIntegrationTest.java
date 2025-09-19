@@ -43,7 +43,7 @@ public class EngineIntegrationTest {
 
     @BeforeEach
     void setup() throws IOException {
-        abadaEngine.getTaskManager().clearTasks();
+        abadaEngine.clearMemory();
         when(context.getUsername()).thenReturn("alice");
         when(context.getGroups()).thenReturn(List.of("customers"));
         instanceId = deployAndStartProcess();
@@ -90,7 +90,6 @@ public class EngineIntegrationTest {
         String taskId1 = tasksForAlice.get(0).getId();
         restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId1, null, String.class);
 
-        // Set the variable `goodOne` to 1 to select the correct path in the gateway
         HttpHeaders completeHeaders1 = new HttpHeaders();
         completeHeaders1.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", true), completeHeaders1);

@@ -1,5 +1,6 @@
 package com.abada.engine.core.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.ArrayList;
@@ -86,6 +87,7 @@ public class TaskInstance {
 
     // Helper methods
 
+    @JsonIgnore
     public boolean isClaimed() {
         return assignee != null && !assignee.isEmpty();
     }

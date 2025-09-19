@@ -51,7 +51,7 @@ public class EventControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/events/messages should correlate a message and resume a process")
+    @DisplayName("POST /v1/events/messages should correlate a message and resume a process")
     void shouldCorrelateMessageViaApi() throws Exception {
         // 1. Deploy the message event process
         try (InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("message-event-test.bpmn")) {
@@ -68,7 +68,7 @@ public class EventControllerTest {
 
         // 4. Send the message via the REST API
         MessageEventRequest request = new MessageEventRequest("OrderPaid", correlationKey, Map.of("paymentStatus", "CONFIRMED"));
-        ResponseEntity<Void> response = restTemplate.postForEntity("/api/v1/events/messages", request, Void.class);
+        ResponseEntity<Void> response = restTemplate.postForEntity("/v1/events/messages", request, Void.class);
 
         // 5. Assert the API call was successful and the process moved on
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
@@ -78,7 +78,7 @@ public class EventControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/events/signals should broadcast a signal and resume all waiting processes")
+    @DisplayName("POST /v1/events/signals should broadcast a signal and resume all waiting processes")
     void shouldBroadcastSignalViaApi() throws Exception {
         // 1. Deploy the signal event process
         try (InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("signal-event-test.bpmn")) {
@@ -97,7 +97,7 @@ public class EventControllerTest {
 
         // 4. Send the signal via the REST API
         SignalEventRequest request = new SignalEventRequest("SignalGo", Map.of("signalData", "BroadcastInfo"));
-        ResponseEntity<Void> response = restTemplate.postForEntity("/api/v1/events/signals", request, Void.class);
+        ResponseEntity<Void> response = restTemplate.postForEntity("/v1/events/signals", request, Void.class);
 
         // 5. Assert the API call was successful and both processes moved on
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());

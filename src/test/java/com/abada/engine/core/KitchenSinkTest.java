@@ -98,12 +98,12 @@ public class KitchenSinkTest {
         // 6. Simulate an external worker fetching and completing the job via the API
         FetchAndLockRequest fetchRequest = new FetchAndLockRequest("worker-kitchen-sink", List.of("kitchen-sink-topic"), 10000L);
         ResponseEntity<List<LockedExternalTask>> lockResponse = restTemplate.exchange(
-                "/api/v1/external-tasks/fetch-and-lock", HttpMethod.POST, new org.springframework.http.HttpEntity<>(fetchRequest), new ParameterizedTypeReference<>() {}
+                "/v1/external-tasks/fetch-and-lock", HttpMethod.POST, new org.springframework.http.HttpEntity<>(fetchRequest), new ParameterizedTypeReference<>() {}
         );
         assertEquals(HttpStatus.OK, lockResponse.getStatusCode());
         LockedExternalTask lockedTask = lockResponse.getBody().get(0);
 
-        restTemplate.postForEntity("/api/v1/external-tasks/{id}/complete", Map.of("externalTaskDone", true), Void.class, lockedTask.id());
+        restTemplate.postForEntity("/v1/external-tasks/{id}/complete", Map.of("externalTaskDone", true), Void.class, lockedTask.id());
 
         // 7. Assert that the process is now complete
         ProcessInstance finalPi = abadaEngine.getProcessInstanceById(pi.getId());

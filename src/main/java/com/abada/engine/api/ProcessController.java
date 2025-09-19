@@ -14,9 +14,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("v1/processes")
+@RequestMapping("/v1/processes")
 public class ProcessController {
 
     private final AbadaEngine engine;
@@ -53,6 +54,17 @@ public class ProcessController {
 
         return ResponseEntity.ok("Started instance: " + instanceId.getId());
     }
+
+
+    @GetMapping("/instances")
+    public ResponseEntity<List<ProcessInstanceDTO>> getAllProcessInstances() {
+        List<ProcessInstanceDTO> instances = engine.getAllProcessInstances().stream()
+                .map(Mapper.ProcessInstanceMapper::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(instances);
+    }
+
+
 
     @GetMapping("/instance/{id}")
     public ResponseEntity<ProcessInstanceDTO> getProcessInstanceById(@PathVariable String id) {

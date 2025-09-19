@@ -77,9 +77,9 @@ In this mode, the engine runs as a standalone service, and the business logic ex
 2.  **Update the `BpmnParser`**: Enhance the service task parsing logic to also look for and store the `camunda:topic` attribute.
 3.  **Update `ProcessInstance.advance()`**: When a service task with a `topic` is encountered, the engine will create a new `ExternalTaskEntity`, save it to the database, and then pause the execution path.
 4.  **Create a New `ExternalTaskController`**: This new REST controller will expose endpoints for external workers:
-    *   `POST /api/v1/external-tasks/fetch-and-lock`: For workers to request jobs.
-    *   `POST /api/v1/external-tasks/{taskId}/complete`: For workers to complete a job and resume a process.
-    *   `POST /api/v1/external-tasks/{taskId}/failure`: For workers to report business errors.
+    *   `POST /v1/external-tasks/fetch-and-lock`: For workers to request jobs.
+    *   `POST /v1/external-tasks/{taskId}/complete`: For workers to complete a job and resume a process.
+    *   `POST /v1/external-tasks/{taskId}/failure`: For workers to report business errors.
 
 ---
 

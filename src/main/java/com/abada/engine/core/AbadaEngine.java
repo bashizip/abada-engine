@@ -308,9 +308,15 @@ public class AbadaEngine {
     public void clearMemory() {
         instances.clear();
         taskManager.clearTasks();
+        processDefinitions.clear(); // Ensure definitions are cleared between tests
     }
+
     public ProcessInstance getProcessInstanceById(String id) {
         return instances.get(id);
+    }
+
+    public Collection<ProcessInstance> getAllProcessInstances() {
+        return instances.values();
     }
 
     public TaskManager getTaskManager() {
