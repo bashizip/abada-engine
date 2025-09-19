@@ -315,6 +315,10 @@ public class AbadaEngine {
         return instances.get(id);
     }
 
+    public Collection<ProcessInstance> getAllProcessInstances() {
+        return instances.values();
+    }
+
     public TaskManager getTaskManager() {
         return taskManager;
     }
