@@ -1,5 +1,6 @@
 package com.abada.engine.api;
 
+import com.abada.engine.AbadaEngineApplication;
 import com.abada.engine.context.UserContextProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -21,8 +23,9 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = AbadaEngineApplication.class)
 @ActiveProfiles("test")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class TaskApiTest {
 
     @LocalServerPort
@@ -35,7 +38,7 @@ class TaskApiTest {
     private UserContextProvider context;
 
     private String baseUrl() {
-        return "http://localhost:" + port + "/abada/api/v1/tasks";
+        return "http://localhost:" + port + "/api/v1/tasks";
     }
 
     private static HttpHeaders jsonHeaders() {
@@ -64,7 +67,7 @@ class TaskApiTest {
         deployBody.add("file", file);
         HttpEntity<MultiValueMap<String, Object>> deployRequest = new HttpEntity<>(deployBody, deployHeaders);
         ResponseEntity<String> deployResp = restTemplate.postForEntity(
-                "http://localhost:" + port + "/abada/api/v1/processes/deploy",
+                "http://localhost:" + port + "/api/v1/processes/deploy",
                 deployRequest,
                 String.class);
         assertThat(deployResp.getStatusCode()).isIn(HttpStatus.OK, HttpStatus.CREATED);
@@ -72,7 +75,7 @@ class TaskApiTest {
         // Start the process (use the id inside the BPMN)
         HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", formHeaders());
         ResponseEntity<String> startResp = restTemplate.postForEntity(
-                "http://localhost:" + port + "/abada/api/v1/processes/start",
+                "http://localhost:" + port + "/api/v1/processes/start",
                 startRequest,
                 String.class);
         assertThat(startResp.getStatusCode()).isEqualTo(HttpStatus.OK);

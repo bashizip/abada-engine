@@ -62,7 +62,7 @@ class ProcessApiTest {
 
     @Test
     void shouldStartProcess() {
-        String processId = "recipe-cook"; // Replace with actual process ID if known
+        String processId = "recipe-cook";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 

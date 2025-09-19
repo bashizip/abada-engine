@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("v1/processes")
+@RequestMapping("/api/v1/processes")
 public class ProcessController {
 
     private final AbadaEngine engine;
