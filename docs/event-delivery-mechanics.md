@@ -23,7 +23,7 @@ Below are several common patterns, each with its own use cases and trade-offs.
 
 This is the most direct, web-friendly approach and is already implemented in the `EventController`.
 
--   **How it Works**: An external system makes a synchronous HTTP `POST` request to a dedicated endpoint (e.g., `/api/v1/events/messages`). The request body contains the message payload in JSON format.
+-   **How it Works**: An external system makes a synchronous HTTP `POST` request to a dedicated endpoint (e.g., `/v1/events/messages`). The request body contains the message payload in JSON format.
 -   **Best for**: 
     -   Simple web-based integrations.
     -   Administrative UIs or dashboards that need to manually trigger a process.

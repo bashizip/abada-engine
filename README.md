@@ -62,31 +62,31 @@ API base: `http://localhost:5601/abada/api/v1`
 * **Deploy** a BPMN file
 
   ```http
-  POST /abada/api/v1/processes/deploy
+  POST /abada/v1/processes/deploy
   Content-Type: multipart/form-data
   Body: file=<your_bpmn_file>
   ```
 * **Start** a process instance
 
   ```http
-  POST /abada/api/v1/processes/start
+  POST /abada/v1/processes/start
   Content-Type: application/x-www-form-urlencoded
   Body: processId=recipe-cook
   ```
 * **List** visible tasks for the current user
 
   ```http
-  GET /abada/api/v1/tasks
+  GET /abada/v1/tasks
   ```
 * **Claim** a task
 
   ```http
-  POST /abada/api/v1/tasks/claim?taskId=<runtimeTaskId>
+  POST /abada/v1/tasks/claim?taskId=<runtimeTaskId>
   ```
 * **Complete** a task (with variables used by gateways)
 
   ```http
-  POST /abada/api/v1/tasks/complete?taskId=<runtimeTaskId>
+  POST /abada/v1/tasks/complete?taskId=<runtimeTaskId>
   Content-Type: application/json
   {
     "goodOne": true

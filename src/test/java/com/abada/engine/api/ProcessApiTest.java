@@ -1,6 +1,7 @@
 package com.abada.engine.api;
 
 import com.abada.engine.util.BpmnTestUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
+import java.io.IOException;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,8 +32,9 @@ class ProcessApiTest {
         return "http://localhost:" + port + "/abada/api/v1/processes";
     }
 
-    @Test
-    void shouldDeployProcess() throws Exception {
+    @BeforeEach
+    void setup() throws IOException {
+        // Deploy the process before each test to ensure it exists
         ByteArrayResource file = new ByteArrayResource(
                 BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
             @Override
@@ -47,10 +50,16 @@ class ProcessApiTest {
         body.add("file", file);
 
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(baseUrl() + "/deploy", requestEntity, String.class);
+        restTemplate.postForEntity(baseUrl() + "/deploy", requestEntity, String.class);
+    }
 
+    @Test
+    void shouldDeployProcess() throws Exception {
+        // This test is now implicitly covered by the @BeforeEach setup,
+        // but we can add an explicit assertion for clarity.
+        ResponseEntity<String> response = restTemplate.getForEntity(baseUrl(), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Deployed");
+        assertThat(response.getBody()).contains("recipe-cook");
     }
 
     @Test
@@ -82,7 +91,7 @@ class ProcessApiTest {
 
     @Test
     void shouldReturnProcessDetailsById() {
-        String processId = "recipe-cook"; // Replace with actual process ID if known
+        String processId = "recipe-cook";
         ResponseEntity<Map> response = restTemplate.getForEntity(baseUrl() + "/" + processId, Map.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).containsKeys("id", "name", "bpmnXml");

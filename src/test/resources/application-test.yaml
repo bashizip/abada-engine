@@ -18,6 +18,8 @@ spring:
 
 server:
   port: 5601
+  servlet:
+    context-path: /abada/api
 
 logging:
   level:

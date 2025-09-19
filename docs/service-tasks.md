@@ -83,7 +83,7 @@ A worker is a simple, long-running service that executes the following loop:
 
 **1. Fetch and Lock Jobs**
 
-The worker makes a `POST` request to the Abada Engine's `/api/v1/external-tasks/fetch-and-lock` endpoint.
+The worker makes a `POST` request to the Abada Engine's `/v1/external-tasks/fetch-and-lock` endpoint.
 
 **Request Body:**
 ```json
@@ -114,10 +114,10 @@ Using the `variables` from the response, the worker performs its business logic 
 
 **3. Complete the Job**
 
-After the logic is complete, the worker sends a `POST` request to the `/api/v1/external-tasks/{id}/complete` endpoint, using the unique `id` it received from the lock response.
+After the logic is complete, the worker sends a `POST` request to the `/v1/external-tasks/{id}/complete` endpoint, using the unique `id` it received from the lock response.
 
 **Request URL:**
-`/api/v1/external-tasks/a1b2c3d4-e5f6-7890-1234-567890abcdef/complete`
+`/v1/external-tasks/a1b2c3d4-e5f6-7890-1234-567890abcdef/complete`
 
 **Request Body (with new variables):**
 ```json

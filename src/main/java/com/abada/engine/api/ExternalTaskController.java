@@ -21,7 +21,7 @@ import java.util.Optional;
  * enabling the "External Task Worker" pattern.
  */
 @RestController
-@RequestMapping("/api/v1/external-tasks")
+@RequestMapping("/v1/external-tasks")
 public class ExternalTaskController {
 
     private final ExternalTaskRepository externalTaskRepository;

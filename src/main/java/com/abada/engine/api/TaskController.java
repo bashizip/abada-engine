@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/v1/tasks")
+@RequestMapping("/v1/tasks")
 public class TaskController {
 
     private final AbadaEngine engine;

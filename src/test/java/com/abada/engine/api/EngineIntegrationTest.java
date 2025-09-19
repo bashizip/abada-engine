@@ -65,20 +65,20 @@ public class EngineIntegrationTest {
         body.add("file", file);
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
-        restTemplate.postForEntity("/api/v1/processes/deploy", request, String.class);
+        restTemplate.postForEntity("/v1/processes/deploy", request, String.class);
 
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
-        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/processes/start", startRequest, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity("/v1/processes/start", startRequest, String.class);
         return response.getBody().replace("Started instance: ", "");
     }
 
     @Test
     void shouldCompleteAllTasksAndFinishProcess() {
         ResponseEntity<List<TaskInstance>> taskResponse1 = restTemplate.exchange(
-                "/api/v1/tasks",
+                "/v1/tasks",
                 HttpMethod.GET,
                 null,
                 new ParameterizedTypeReference<>() {}
@@ -88,18 +88,18 @@ public class EngineIntegrationTest {
         assertFalse(tasksForAlice.isEmpty());
 
         String taskId1 = tasksForAlice.get(0).getId();
-        restTemplate.postForEntity("/api/v1/tasks/claim?taskId=" + taskId1, null, String.class);
+        restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId1, null, String.class);
 
         HttpHeaders completeHeaders1 = new HttpHeaders();
         completeHeaders1.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", true), completeHeaders1);
-        restTemplate.postForEntity("/api/v1/tasks/complete?taskId=" + taskId1, completeRequest1, String.class);
+        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId1, completeRequest1, String.class);
 
         when(context.getUsername()).thenReturn("bob");
         when(context.getGroups()).thenReturn(List.of("cuistos"));
 
         ResponseEntity<List<TaskInstance>> taskResponse2 = restTemplate.exchange(
-                "/api/v1/tasks",
+                "/v1/tasks",
                 HttpMethod.GET,
                 null,
                 new ParameterizedTypeReference<>() {}
@@ -109,15 +109,15 @@ public class EngineIntegrationTest {
         assertFalse(tasksForBob.isEmpty());
 
         String taskId2 = tasksForBob.get(0).getId();
-        restTemplate.postForEntity("/api/v1/tasks/claim?taskId=" + taskId2, null, String.class);
+        restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId2, null, String.class);
 
         HttpHeaders completeHeaders2 = new HttpHeaders();
         completeHeaders2.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> completeRequest2 = new HttpEntity<>(Collections.emptyMap(), completeHeaders2);
-        restTemplate.postForEntity("/api/v1/tasks/complete?taskId=" + taskId2, completeRequest2, String.class);
+        restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId2, completeRequest2, String.class);
 
         ResponseEntity<List<TaskInstance>> finalTasks = restTemplate.exchange(
-                "/api/v1/tasks",
+                "/v1/tasks",
                 HttpMethod.GET,
                 null,
                 new ParameterizedTypeReference<>() {}
@@ -126,7 +126,7 @@ public class EngineIntegrationTest {
         assertNotNull(remainingTasks);
         assertEquals(0, remainingTasks.size());
 
-        ResponseEntity<ProcessInstanceDTO> instanceResponse = restTemplate.getForEntity("/api/v1/processes/instance/" + instanceId, ProcessInstanceDTO.class);
+        ResponseEntity<ProcessInstanceDTO> instanceResponse = restTemplate.getForEntity("/v1/processes/instance/" + instanceId, ProcessInstanceDTO.class);
         assertNotNull(instanceResponse.getBody());
         assertTrue(instanceResponse.getBody().isCompleted());
     }

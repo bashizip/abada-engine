@@ -69,7 +69,7 @@ public class ExternalTaskTest {
         // 3. Simulate a worker fetching and locking the task
         FetchAndLockRequest fetchRequest = new FetchAndLockRequest("worker-1", List.of("test-topic"), 10000L);
         ResponseEntity<List<LockedExternalTask>> lockResponse = restTemplate.exchange(
-                "/api/v1/external-tasks/fetch-and-lock",
+                "/v1/external-tasks/fetch-and-lock",
                 HttpMethod.POST,
                 new org.springframework.http.HttpEntity<>(fetchRequest),
                 new ParameterizedTypeReference<>() {}
@@ -84,7 +84,7 @@ public class ExternalTaskTest {
 
         // 4. Simulate the worker completing the task
         Map<String, Object> outputVariables = Map.of("externalTaskResult", "SUCCESS");
-        restTemplate.postForEntity("/api/v1/external-tasks/{id}/complete", outputVariables, Void.class, lockedTask.id());
+        restTemplate.postForEntity("/v1/external-tasks/{id}/complete", outputVariables, Void.class, lockedTask.id());
 
         // 5. Assert that the process has resumed and moved to the final user task
         ProcessInstance resumedPi = abadaEngine.getProcessInstanceById(pi.getId());

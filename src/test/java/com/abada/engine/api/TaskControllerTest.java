@@ -3,8 +3,6 @@ package com.abada.engine.api;
 import com.abada.engine.AbadaEngineApplication;
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
-import com.abada.engine.core.ProcessInstance;
-import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.dto.TaskDetailsDto;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,20 +12,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.*;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = AbadaEngineApplication.class)
 @ActiveProfiles("test")
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class TaskControllerTest {
 
     @Autowired
@@ -42,38 +39,52 @@ public class TaskControllerTest {
     @BeforeEach
     void setUp() throws Exception {
         abadaEngine.clearMemory();
-        when(context.getUsername()).thenReturn("test-user");
-        when(context.getGroups()).thenReturn(List.of("test-group"));
-
-        // Deploy a process that starts with a user task
-        try (InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("service-task-test.bpmn")) {
+        // Deploy the process once for all tests in this class
+        try (InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn")) {
             abadaEngine.deploy(bpmnStream);
         }
     }
 
     @Test
-    @DisplayName("GET /api/v1/tasks/{id} should return task details and process variables")
-    void shouldReturnTaskDetailsById() {
-        // 1. Start a process instance
-        ProcessInstance pi = abadaEngine.startProcess("ServiceTaskTestProcess");
-        pi.setVariable("initialVar", "testValue");
+    @DisplayName("Should allow a user to list, view, claim, and complete their tasks")
+    void shouldExecuteFullTaskLifecycleViaApi() {
+        // --- Step 1: Start process and set user to Alice ---
+        when(context.getUsername()).thenReturn("alice");
+        when(context.getGroups()).thenReturn(List.of("customers"));
+        abadaEngine.startProcess("recipe-cook");
 
-        // The process should be waiting at the first user task
-        List<TaskInstance> tasks = abadaEngine.getTaskManager().getTasksForProcessInstance(pi.getId());
-        assertFalse(tasks.isEmpty());
-        String taskId = tasks.get(0).getId();
+        // --- Step 2: Alice lists her tasks ---
+        ResponseEntity<List<TaskDetailsDto>> listResponse = restTemplate.exchange(
+                "/v1/tasks", HttpMethod.GET, null, new ParameterizedTypeReference<>() {}
+        );
+        assertThat(listResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(listResponse.getBody()).isNotNull().hasSize(1);
+        String taskId = listResponse.getBody().get(0).id();
 
-        // 2. Call the new endpoint
-        ResponseEntity<TaskDetailsDto> response = restTemplate.getForEntity("/api/v1/tasks/{id}", TaskDetailsDto.class, taskId);
+        // --- Step 3: Alice gets details for her task ---
+        ResponseEntity<TaskDetailsDto> detailsResponse = restTemplate.getForEntity("/v1/tasks/{id}", TaskDetailsDto.class, taskId);
+        assertThat(detailsResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(detailsResponse.getBody()).isNotNull();
+        assertThat(detailsResponse.getBody().id()).isEqualTo(taskId);
+        assertThat(detailsResponse.getBody().name()).isEqualTo("Choose Recipe");
 
-        // 3. Assert the response
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        TaskDetailsDto body = response.getBody();
-        assertNotNull(body);
+        // --- Step 4: Alice claims and completes the task ---
+        ResponseEntity<String> claimResponse = restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId, null, String.class);
+        assertThat(claimResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        assertEquals(taskId, body.id());
-        assertEquals("UserTask_1", body.taskDefinitionKey());
-        assertNotNull(body.variables());
-        assertEquals("testValue", body.variables().get("initialVar"));
+        HttpEntity<Map<String, Object>> completeRequest = new HttpEntity<>(Map.of("goodOne", true));
+        ResponseEntity<String> completeResponse = restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId, completeRequest, String.class);
+        assertThat(completeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // --- Step 5: Switch user to Bob and verify the next task is visible ---
+        when(context.getUsername()).thenReturn("bob");
+        when(context.getGroups()).thenReturn(List.of("cuistos"));
+
+        ResponseEntity<List<TaskDetailsDto>> bobListResponse = restTemplate.exchange(
+                "/v1/tasks", HttpMethod.GET, null, new ParameterizedTypeReference<>() {}
+        );
+        assertThat(bobListResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(bobListResponse.getBody()).isNotNull().hasSize(1);
+        assertThat(bobListResponse.getBody().get(0).name()).isEqualTo("Cook Recipe");
     }
 }

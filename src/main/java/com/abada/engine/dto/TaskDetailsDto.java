@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * Represents the detailed view of a single user task, including its associated process variables.
- * This is the payload returned by the `GET /api/v1/tasks/{id}` endpoint.
+ * This is the payload returned by the `GET /v1/tasks/{id}` endpoint.
  */
 public record TaskDetailsDto(
         String id,
