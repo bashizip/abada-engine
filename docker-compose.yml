@@ -9,6 +9,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SERVER_PORT=5601
+      - DB_PASSWORD=abada123
     restart: unless-stopped
 
 volumes:
