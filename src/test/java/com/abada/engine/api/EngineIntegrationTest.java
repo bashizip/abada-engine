@@ -1,6 +1,5 @@
 package com.abada.engine.api;
 
-import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.dto.ProcessInstanceDTO;
@@ -9,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -24,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -36,16 +33,19 @@ public class EngineIntegrationTest {
     @Autowired
     private AbadaEngine abadaEngine;
 
-    @MockBean
-    private UserContextProvider context;
+    private HttpHeaders httpHeaders;
+
 
     private String instanceId;
 
     @BeforeEach
     void setup() throws IOException {
         abadaEngine.clearMemory();
-        when(context.getUsername()).thenReturn("alice");
-        when(context.getGroups()).thenReturn(List.of("customers"));
+
+        httpHeaders = new HttpHeaders();
+        httpHeaders.set("X-User", "alice");
+        httpHeaders.set("X-Groups", "customers");
+
         instanceId = deployAndStartProcess();
     }
 
@@ -95,8 +95,8 @@ public class EngineIntegrationTest {
         HttpEntity<Map<String, Object>> completeRequest1 = new HttpEntity<>(Map.of("goodOne", true), completeHeaders1);
         restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId1, completeRequest1, String.class);
 
-        when(context.getUsername()).thenReturn("bob");
-        when(context.getGroups()).thenReturn(List.of("cuistos"));
+        httpHeaders.set("X-User", "bob");
+        httpHeaders.set("X-Groups", "cuistos");
 
         ResponseEntity<List<TaskInstance>> taskResponse2 = restTemplate.exchange(
                 "/v1/tasks",
@@ -111,9 +111,9 @@ public class EngineIntegrationTest {
         String taskId2 = tasksForBob.get(0).getId();
         restTemplate.postForEntity("/v1/tasks/claim?taskId=" + taskId2, null, String.class);
 
-        HttpHeaders completeHeaders2 = new HttpHeaders();
-        completeHeaders2.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, Object>> completeRequest2 = new HttpEntity<>(Collections.emptyMap(), completeHeaders2);
+
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> completeRequest2 = new HttpEntity<>(Collections.emptyMap(), httpHeaders);
         restTemplate.postForEntity("/v1/tasks/complete?taskId=" + taskId2, completeRequest2, String.class);
 
         ResponseEntity<List<TaskInstance>> finalTasks = restTemplate.exchange(

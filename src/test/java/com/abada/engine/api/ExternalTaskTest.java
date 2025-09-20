@@ -1,7 +1,6 @@
 package com.abada.engine.api;
 
 import com.abada.engine.AbadaEngineApplication;
-import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.dto.FetchAndLockRequest;
@@ -13,9 +12,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,8 +24,8 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = AbadaEngineApplication.class)
 @ActiveProfiles("test")
@@ -41,15 +40,16 @@ public class ExternalTaskTest {
     @Autowired
     private ExternalTaskRepository externalTaskRepository;
 
-    @MockBean
-    private UserContextProvider context;
+    private HttpHeaders httpHeaders;
 
     @BeforeEach
     void setUp() throws Exception {
         abadaEngine.clearMemory();
         externalTaskRepository.deleteAll();
-        when(context.getUsername()).thenReturn("test-user");
-        when(context.getGroups()).thenReturn(List.of("test-group"));
+
+        httpHeaders = new HttpHeaders();
+        httpHeaders.set("X-User", "test-user");
+        httpHeaders.set("X-Groups", "test-group");
 
         try (InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("external-task-test.bpmn")) {
             abadaEngine.deploy(bpmnStream);
@@ -71,7 +71,7 @@ public class ExternalTaskTest {
         ResponseEntity<List<LockedExternalTask>> lockResponse = restTemplate.exchange(
                 "/v1/external-tasks/fetch-and-lock",
                 HttpMethod.POST,
-                new org.springframework.http.HttpEntity<>(fetchRequest),
+                new org.springframework.http.HttpEntity<>(fetchRequest, httpHeaders),
                 new ParameterizedTypeReference<>() {}
         );
 
