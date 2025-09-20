@@ -13,7 +13,7 @@ It only needs two identity facts at runtime:
 * `groups` (roles the user belongs to)
 
 These values are used to evaluate BPMN attributes:
-
+s
 * `assignee="alice"`
 * `candidateUsers="bob, charlie"`
 * `candidateGroups="finance, hr"`
@@ -25,43 +25,18 @@ Authentication and group management are delegated to **Keycloak**, and security 
 ## ⚙️ Architecture
 
 ```mermaid
+
+---
+config:
+  layout: elk
+---
 flowchart TB
-    %% Clusters
-    subgraph DBs [PostgreSQL Cluster]
-        AE_DB[(Abada Engine DB)]
-        KC_DB[(Keycloak DB)]
-    end
-
-    subgraph Identity
-        KC[Keycloak]
-    end
-
-    subgraph Engine
-        AE[Abada Engine]
-    end
-
-    subgraph Gateway
-        GW[Traefik Gateway]
-    end
-
-    subgraph Apps
-        AA[Abada Apps (Tenda, Orun)]
-        UA[User Apps]
-    end
-
-    %% Flows
-    U[User] --> AA
-    U --> UA
-    AA --> GW
-    UA --> GW
-    GW --> KC
-    GW --> AE
-    KC --> KC_DB
-    AE --> AE_DB
-    
-    %% Authentication flows
-    AA -.->|auth request| KC
-    UA -.->|auth request| KC
+    U["User"] --> AA["Abada Apps<br>Tenda, Orun"] & UA["User Apps"]
+    AA --> GW["Traefik Gateway"] & KC["Keycloak"]
+    UA --> GW & KC
+    GW --> KC & AE["Abada Engine"]
+    KC --> KC_DB[("Keycloak DB")]
+    AE --> AE_DB[("Abada Engine DB")]
 ```
 
 * **Keycloak** handles login, group membership, and token issuance.
@@ -76,29 +51,22 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant AA as Abada Apps (Tenda/Orun)
-    participant UA as User Apps
+    participant A as Any App (Abada/User Apps)
     participant KC as Keycloak
     participant GW as Traefik Gateway
     participant AE as Abada Engine
 
-    U->>AA: 1. Access Abada App
-    U->>UA: 1a. Access User App
-    AA->>KC: 2. Redirect to login (OIDC)
-    UA->>KC: 2a. Redirect to login (OIDC)
+    U->>A: 1. Access Application
+    A->>KC: 2. Redirect to login (OIDC)
     U->>KC: 3. Submit credentials
-    KC-->>AA: 4. Return JWT (OIDC token)
-    KC-->>UA: 4a. Return JWT (OIDC token)
-    AA->>GW: 5. API call with Bearer JWT
-    UA->>GW: 5a. API call with Bearer JWT
+    KC-->>A: 4. Return JWT token
+    A->>GW: 5. API call with Bearer JWT
     GW->>KC: 6. Validate JWT signature
     KC-->>GW: 7. Token valid
-    GW->>AE: 8. Inject X-User + X-Groups
+    GW->>AE: 8. Forward request + Inject headers
     AE-->>GW: 9. Process response
-    GW-->>AA: 10. Return data
-    GW-->>UA: 10a. Return data
-    AA-->>U: 11. Render UI
-    UA-->>U: 11a. Render UI
+    GW-->>A: 10. Return data
+    A-->>U: 11. Render UI
 ```
 
 ---
