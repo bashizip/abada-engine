@@ -1,7 +1,6 @@
 package com.abada.engine.api;
 
 import com.abada.engine.AbadaEngineApplication;
-import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.util.BpmnTestUtils;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -24,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
 
 /**
  * Consolidated integration tests for the ProcessController.
@@ -39,18 +36,19 @@ public class ProcessControllerTest {
     @Autowired
     private AbadaEngine abadaEngine;
 
-    @MockBean
-    private UserContextProvider context;
-
     @Autowired
     DatabaseTestHelper databaseTestHelper;
+
+    private HttpHeaders httpHeaders;
 
     @BeforeEach
     void setUp() throws Exception {
         abadaEngine.clearMemory();
         databaseTestHelper.cleanup();
-        when(context.getUsername()).thenReturn("test-user");
-        when(context.getGroups()).thenReturn(List.of("test-group"));
+
+        httpHeaders = new HttpHeaders();
+        httpHeaders.set("X-User", "test-user");
+        httpHeaders.set("X-Groups", "test-group");
 
         // Deploy the recipe-cook process before each test
         ByteArrayResource file = new ByteArrayResource(BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
@@ -61,6 +59,7 @@ public class ProcessControllerTest {
         };
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.addAll(httpHeaders);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", file);
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
@@ -73,8 +72,9 @@ public class ProcessControllerTest {
     @Test
     @DisplayName("GET /v1/processes should list deployed processes")
     void shouldListDeployedProcesses() {
+        HttpEntity<Void> requestEntity = new HttpEntity<>(httpHeaders);
         ResponseEntity<List<Map<String, String>>> response = restTemplate.exchange(
-                "/v1/processes", HttpMethod.GET, null, new ParameterizedTypeReference<>() {}
+                "/v1/processes", HttpMethod.GET, requestEntity, new ParameterizedTypeReference<>() {}
         );
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -89,6 +89,7 @@ public class ProcessControllerTest {
     void shouldStartProcess() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.addAll(httpHeaders);
         HttpEntity<String> request = new HttpEntity<>("processId=recipe-cook", headers);
 
         ResponseEntity<String> response = restTemplate.postForEntity("/v1/processes/start", request, String.class);
@@ -103,7 +104,8 @@ public class ProcessControllerTest {
     @Test
     @DisplayName("GET /v1/processes/{id} should return process definition details")
     void shouldReturnProcessDetailsById() {
-        ResponseEntity<Map> response = restTemplate.getForEntity("/v1/processes/{id}", Map.class, "recipe-cook");
+        HttpEntity<Void> requestEntity = new HttpEntity<>(httpHeaders);
+        ResponseEntity<Map> response = restTemplate.exchange("/v1/processes/{id}", HttpMethod.GET, requestEntity, Map.class, "recipe-cook");
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).containsKeys("id", "name", "bpmnXml");
         assertThat(response.getBody().get("id")).isEqualTo("recipe-cook");
@@ -118,8 +120,9 @@ public class ProcessControllerTest {
         abadaEngine.startProcess("recipe-cook");
         abadaEngine.startProcess("recipe-cook");
 
+        HttpEntity<Void> requestEntity = new HttpEntity<>(httpHeaders);
         ResponseEntity<List<ProcessInstanceDTO>> response = restTemplate.exchange(
-                "/v1/processes/instances", HttpMethod.GET, null, new ParameterizedTypeReference<>() {}
+                "/v1/processes/instances", HttpMethod.GET, requestEntity, new ParameterizedTypeReference<>() {}
         );
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -132,7 +135,8 @@ public class ProcessControllerTest {
     @Test
     @DisplayName("GET /v1/processes/{id} should return 404 for a missing process definition")
     void shouldReturnNotFoundForMissingProcessId() {
-        ResponseEntity<String> response = restTemplate.getForEntity("/v1/processes/{id}", String.class, "nonexistent");
+        HttpEntity<Void> requestEntity = new HttpEntity<>(httpHeaders);
+        ResponseEntity<String> response = restTemplate.exchange("/v1/processes/{id}", HttpMethod.GET, requestEntity, String.class, "nonexistent");
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }
