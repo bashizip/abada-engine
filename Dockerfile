@@ -10,10 +10,18 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
+# Create a non-root user and group for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 # Copy the fat JAR from the builder stage
 COPY --from=builder /app/target/abada-engine-*.jar app.jar
 
-# Expose the default Spring Boot port
+# Change ownership to the new user
+RUN chown appuser:appgroup app.jar
+
+# Switch to the non-root user
+USER appuser
+
 EXPOSE 5601
 
 # Run the application
