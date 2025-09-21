@@ -1,16 +1,22 @@
 package com.abada.engine.context;
 
+import com.abada.engine.security.Identity;
+import com.abada.engine.security.IdentityContext;
+import org.springframework.stereotype.Component;
+
 import java.util.List;
 
-public interface UserContextProvider {
+@Component
+public class UserContextProvider {
+    public String getUsername() {
+        return IdentityContext.get()
+                .map(Identity::username)
+                .orElseThrow(() -> new IllegalStateException("No user in context"));
+    }
 
-    /**
-     * Returns the currently authenticated username.
-     */
-    String getUsername();
-
-    /**
-     * Returns the groups the current user belongs to.
-     */
-    List<String> getGroups();
+    public List<String> getGroups() {
+        return IdentityContext.get()
+                .map(identity -> List.copyOf(identity.groups()))
+                .orElse(List.of());
+    }
 }

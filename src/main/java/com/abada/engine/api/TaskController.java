@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/v1/tasks")
@@ -25,11 +26,18 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskInstance>> getTasks() {
+    public ResponseEntity<List<TaskDetailsDto>> getTasks() {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
         List<TaskInstance> visible = engine.getTaskManager().getVisibleTasksForUser(user, groups);
-        return ResponseEntity.ok(visible);
+
+        List<TaskDetailsDto> taskDetailsDtos = visible.stream().map(task -> {
+            ProcessInstance processInstance = engine.getProcessInstanceById(task.getProcessInstanceId());
+            Map<String, Object> variables = (processInstance != null) ? processInstance.getVariables() : Map.of();
+            return TaskDetailsDto.from(task, variables);
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(taskDetailsDtos);
     }
 
     @GetMapping("/{id}")
