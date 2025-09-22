@@ -1,6 +1,6 @@
 # Abada Engine API Documentation
 
-This document provides a detailed overview of the Abada Engine REST API endpoints.
+This document provides a detailed overview of the Abada Engine REST API endpoints. All request and response bodies are in JSON format.
 
 ---
 
@@ -15,174 +15,215 @@ All API endpoints require the following headers to be sent with each request to 
 
 ## Process Controller
 
-### POST /v1/processes/deploy
+### Deploy a Process
 
-- **Description:** Deploys a new BPMN process definition from an XML file. The process documentation is automatically extracted from the `<bpmn:documentation>` tag within the file.
-- **Request:**
-  - `Content-Type`: `multipart/form-data`
-  - `file`: The BPMN 2.0 XML file to be deployed.
-- **Responses:**
-  - `200 OK`: with the message "Deployed".
+Deploys a new BPMN process definition from an XML file.
 
-### GET /v1/processes
+- **Method & URL**: `POST /v1/processes/deploy`
+- **Request Type**: `multipart/form-data`
+  - `file`: The BPMN 2.0 XML file.
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "status": "Deployed"
+  }
+  ```
 
-- **Description:** Retrieves a list of all deployed process definitions.
-- **Responses:**
-  - `200 OK`
-    ```json
-    [
-      {
-        "id": "process_1",
-        "name": "My Process",
-        "documentation": "This is the official process for handling customer orders."
-      }
-    ]
-    ```
+### List Deployed Processes
 
-### POST /v1/processes/start
+Retrieves a list of all deployed process definitions.
 
-- **Description:** Starts a new instance of a deployed process.
-- **Request:**
-  - `processId`: The ID of the process to start.
-- **Responses:**
-  - `200 OK`: with a message indicating the started instance ID.
-
-### GET /v1/processes/instances
-
-- **Description:** Retrieves a list of all process instances.
-- **Responses:**
-  - `200 OK`
-    ```json
-    [
-      {
-        "id": "instance_123",
-        "currentActivityId": "user_task_1",
-        "variables": {
-          "orderId": "order_456"
-        },
-        "waitingForUserTask": true,
-        "isCompleted": false
-      }
-    ]
-    ```
-
-### GET /v1/processes/instance/{id}
-
-- **Description:** Retrieves a specific process instance by its ID.
-- **Parameters:**
-  - `id` (path variable): The ID of the process instance.
-- **Responses:**
-  - `200 OK`
-    ```json
+- **Method & URL**: `GET /v1/processes`
+- **Success Response** (`200 OK`):
+  ```json
+  [
     {
-      "id": "instance_123",
+      "id": "process_1",
+      "name": "My Process",
+      "documentation": "This is the official process for handling customer orders."
+    }
+  ]
+  ```
+
+### Start a Process Instance
+
+Starts a new instance of a deployed process.
+
+- **Method & URL**: `POST /v1/processes/start`
+- **Query Parameters**:
+  - `processId` (string, required): The ID of the process to start. Example: `/v1/processes/start?processId=recipe-cook`
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "processInstanceId": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+  }
+  ```
+
+### List All Process Instances
+
+Retrieves a list of all process instances, both active and completed.
+
+- **Method & URL**: `GET /v1/processes/instances`
+- **Success Response** (`200 OK`):
+  ```json
+  [
+    {
+      "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
       "currentActivityId": "user_task_1",
       "variables": {
         "orderId": "order_456"
       },
-      "waitingForUserTask": true,
-      "isCompleted": false
+      "isCompleted": false,
+      "startDate": "2024-01-01T12:00:00Z",
+      "endDate": null
     }
-    ```
-  - `404 Not Found`
+  ]
+  ```
 
-### GET /v1/processes/{id}
+### Get a Process Instance by ID
 
-- **Description:** Retrieves a specific process definition by its ID, including its documentation and the full BPMN XML.
-- **Parameters:**
-  - `id` (path variable): The ID of the process definition.
-- **Responses:**
-  - `200 OK`
-    ```json
-    {
-      "id": "process_1",
-      "name": "My Process",
-      "documentation": "This is the official process for handling customer orders.",
-      "bpmnXml": "<bpmn:definitions>..."
-    }
-    ```
-  - `404 Not Found`
+Retrieves a specific process instance by its ID.
+
+- **Method & URL**: `GET /v1/processes/instance/{id}`
+- **Path Parameters**:
+  - `{id}` (string, required): The unique ID of the process instance. **This must be part of the URL path.**
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "currentActivityId": "user_task_1",
+    "variables": {
+      "orderId": "order_456"
+    },
+    "isCompleted": false,
+    "startDate": "2024-01-01T12:00:00Z",
+    "endDate": null
+  }
+  ```
+
+### Get a Process Definition by ID
+
+Retrieves a specific process definition by its ID, including its documentation and the full BPMN XML.
+
+- **Method & URL**: `GET /v1/processes/{id}`
+- **Path Parameters**:
+  - `{id}` (string, required): The ID of the process definition (e.g., `recipe-cook`). **This must be part of the URL path.**
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "id": "recipe-cook",
+    "name": "Recipe Cook Process",
+    "documentation": "A simple process for cooking a recipe.",
+    "bpmnXml": "<bpmn:definitions>..."
+  }
+  ```
 
 ---
 
 ## Task Controller
 
-### GET /v1/tasks
+### List Visible Tasks
 
-- **Description:** Retrieves a list of tasks visible to the current user based on their identity.
-- **Responses:**
-  - `200 OK`
-    ```json
-    [
-      {
-        "id": "task_789",
-        "taskDefinitionKey": "user_task_1",
-        "name": "Review Order",
-        "assignee": "patrick",
-        "candidateUsers": [],
-        "candidateGroups": ["managers"],
-        "processInstanceId": "instance_123",
-        "variables": {}
-      }
-    ]
-    ```
+Retrieves a list of tasks visible to the current user.
 
-### GET /v1/tasks/{id}
-
-- **Description:** Retrieves the details of a specific task by its ID, including all process variables.
-- **Parameters:**
-  - `id` (path variable): The ID of the task.
-- **Responses:**
-  - `200 OK`
-    ```json
+- **Method & URL**: `GET /v1/tasks`
+- **Success Response** (`200 OK`):
+  ```json
+  [
     {
       "id": "task_789",
-      "taskDefinitionKey": "user_task_1",
       "name": "Review Order",
       "assignee": "patrick",
-      "candidateUsers": [],
       "candidateGroups": ["managers"],
       "processInstanceId": "instance_123",
       "variables": {
-        "orderId": "order_456",
-        "amount": 100.0
+        "orderId": "order_456"
       }
     }
-    ```
-  - `404 Not Found`
+  ]
+  ```
 
-### POST /v1/tasks/claim
+### Get Task by ID
 
-- **Description:** Claims a task for the current user.
-- **Request:**
-  - `taskId`: The ID of the task to claim.
-- **Responses:**
-  - `200 OK`: with the message "Claimed".
-  - `400 Bad Request`: if the task cannot be claimed.
+Retrieves the details of a specific task by its ID, including all process variables.
 
-### POST /v1/tasks/complete
-
-- **Description:** Completes a task, optionally passing in process variables.
-- **Request:**
-  - `taskId`: The ID of the task to complete.
-  - `variables` (optional request body):
-    ```json
-    {
-      "approved": true
+- **Method & URL**: `GET /v1/tasks/{id}`
+- **Path Parameters**:
+  - `{id}` (string, required): The unique ID of the task. **This must be part of the URL path.**
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "id": "task_789",
+    "name": "Review Order",
+    "assignee": "patrick",
+    "candidateGroups": ["managers"],
+    "processInstanceId": "instance_123",
+    "variables": {
+      "orderId": "order_456",
+      "amount": 100.0
     }
-    ```
-- **Responses:**
-  - `200 OK`: with the message "Completed".
-  - `400 Bad Request`: if the task cannot be completed.
+  }
+  ```
+
+### Claim a Task
+
+Claims an unassigned task for the current user.
+
+- **Method & URL**: `POST /v1/tasks/claim`
+- **Query Parameters**:
+  - `taskId` (string, required): The ID of the task to claim. Example: `/v1/tasks/claim?taskId=task_789`
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "status": "Claimed",
+    "taskId": "task_789"
+  }
+  ```
+- **Error Response** (`400 Bad Request`):
+  ```json
+  {
+    "error": "Cannot claim task",
+    "taskId": "task_789"
+  }
+  ```
+
+### Complete a Task
+
+Completes a task currently assigned to the user.
+
+- **Method & URL**: `POST /v1/tasks/complete`
+- **Query Parameters**:
+  - `taskId` (string, required): The ID of the task to complete. Example: `/v1/tasks/complete?taskId=task_789`
+- **Request Body** (JSON, optional):
+  ```json
+  {
+    "approved": true,
+    "comments": "Looks good."
+  }
+  ```
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "status": "Completed",
+    "taskId": "task_789"
+  }
+  ```
+- **Error Response** (`400 Bad Request`):
+  ```json
+  {
+    "error": "Cannot complete task",
+    "taskId": "task_789"
+  }
+  ```
 
 ---
 
 ## Event Controller
 
-### POST /v1/events/messages
+### Correlate a Message Event
 
-- **Description:** Correlates a message event to a waiting process instance.
-- **Request Body:**
+- **Method & URL**: `POST /v1/events/messages`
+- **Request Body** (JSON, required):
   ```json
   {
     "messageName": "order_shipped",
@@ -192,13 +233,12 @@ All API endpoints require the following headers to be sent with each request to 
     }
   }
   ```
-- **Responses:**
-  - `202 Accepted`
+- **Success Response**: `202 Accepted` (No response body)
 
-### POST /v1/events/signals
+### Broadcast a Signal Event
 
-- **Description:** Broadcasts a signal event to all waiting process instances.
-- **Request Body:**
+- **Method & URL**: `POST /v1/events/signals`
+- **Request Body** (JSON, required):
   ```json
   {
     "signalName": "system_maintenance",
@@ -207,49 +247,4 @@ All API endpoints require the following headers to be sent with each request to 
     }
   }
   ```
-- **Responses:**
-  - `202 Accepted`
-
----
-
-## External Task Controller
-
-### POST /v1/external-tasks/fetch-and-lock
-
-- **Description:** Fetches and locks available external tasks for a given set of topics.
-- **Request Body:**
-  ```json
-  {
-    "workerId": "worker_abc",
-    "topics": ["charge_credit_card"],
-    "lockDuration": 60000
-  }
-  ```
-- **Responses:**
-  - `200 OK`
-    ```json
-    [
-      {
-        "id": "external_task_xyz",
-        "topicName": "charge_credit_card",
-        "variables": {
-          "orderId": "order_456",
-          "amount": 100.0
-        }
-      }
-    ]
-    ```
-
-### POST /v1/external-tasks/{id}/complete
-
-- **Description:** Completes an external task and resumes the corresponding process instance.
-- **Parameters:**
-  - `id` (path variable): The unique ID of the external task to complete.
-- **Request Body:**
-  ```json
-  {
-    "paymentTransactionId": "txn_12345"
-  }
-  ```
-- **Responses:**
-  - `200 OK`
+- **Success Response**: `202 Accepted` (No response body)

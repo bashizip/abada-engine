@@ -37,13 +37,13 @@ public class ProcessController {
      * Deploys a new BPMN process definition from an XML file.
      *
      * @param file The BPMN 2.0 XML file as a multipart request part.
-     * @return A confirmation message upon successful deployment.
+     * @return A JSON object confirming successful deployment.
      * @throws IOException If the file cannot be read.
      */
     @PostMapping(value = "/deploy", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> deploy(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<Map<String, Object>> deploy(@RequestParam("file") MultipartFile file) throws IOException {
         engine.deploy(file.getInputStream());
-        return ResponseEntity.ok("Deployed");
+        return ResponseEntity.ok(Map.of("status", "Deployed"));
     }
 
     /**

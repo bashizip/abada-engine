@@ -1,0 +1,5 @@
+### Send POST request with json body
+POST http://localhost:5601/abada/api/v1/tasks/claim?taskId=eea72b83-e1f8-4707-ad6c-f679ca6bb5bb
+Content-Type: application/json
+X-User: alice
+X-Groups: customers

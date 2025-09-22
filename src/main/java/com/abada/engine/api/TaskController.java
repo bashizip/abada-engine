@@ -89,13 +89,17 @@ public class TaskController {
      * be a candidate for the task (either by direct user candidacy or group membership).
      *
      * @param taskId The unique identifier of the task to claim.
-     * @return A {@link ResponseEntity} with a confirmation message (200 OK) on success,
-     *         or a 400 Bad Request response if the task cannot be claimed (e.g., already assigned or not a candidate).
+     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK),
+     *         or a JSON error object if the task cannot be claimed (400 Bad Request).
      */
     @PostMapping("/claim")
-    public ResponseEntity<String> claim(@RequestParam String taskId) {
+    public ResponseEntity<Map<String, Object>> claim(@RequestParam String taskId) {
         boolean claimed = engine.claim(taskId, context.getUsername(), context.getGroups());
-        return claimed ? ResponseEntity.ok("Claimed") : ResponseEntity.badRequest().body("Cannot claim");
+        if (claimed) {
+            return ResponseEntity.ok(Map.of("status", "Claimed", "taskId", taskId));
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("error", "Cannot claim task", "taskId", taskId));
+        }
     }
 
     /**
@@ -106,13 +110,17 @@ public class TaskController {
      *
      * @param taskId    The unique identifier of the task to complete.
      * @param variables An optional JSON object in the request body containing variables to be set in the process instance.
-     * @return A {@link ResponseEntity} with a confirmation message (200 OK) on success,
-     *         or a 400 Bad Request response if the task cannot be completed (e.g., not assigned to the user).
+     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK),
+     *         or a JSON error object if the task cannot be completed (400 Bad Request).
      */
     @PostMapping("/complete")
-    public ResponseEntity<String> complete(@RequestParam String taskId, @RequestBody(required = false) Map<String, Object> variables) {
+    public ResponseEntity<Map<String, Object>> complete(@RequestParam String taskId, @RequestBody(required = false) Map<String, Object> variables) {
         boolean completed = engine.completeTask(taskId, context.getUsername(), context.getGroups(), variables);
-        return completed ? ResponseEntity.ok("Completed") : ResponseEntity.badRequest().body("Cannot complete");
+        if (completed) {
+            return ResponseEntity.ok(Map.of("status", "Completed", "taskId", taskId));
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("error", "Cannot complete task", "taskId", taskId));
+        }
     }
 
 }

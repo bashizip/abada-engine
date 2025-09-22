@@ -21,7 +21,9 @@ server:
   servlet:
     context-path: /abada/api
 
+logging:
   level:
+    org.springframework.web: TRACE
     org.springframework.jdbc.datasource: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql: TRACE

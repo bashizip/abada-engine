@@ -68,12 +68,18 @@ public class TaskControllerTest {
         assertThat(detailsResponse.getBody().name()).isEqualTo("Choose Recipe");
 
         // --- Step 4: Alice claims and completes the task ---
-        ResponseEntity<Void> claimResponse = restTemplate.exchange("/v1/tasks/claim?taskId={taskId}", HttpMethod.POST, aliceRequestEntity, Void.class, taskId);
+        ResponseEntity<Map> claimResponse = restTemplate.exchange("/v1/tasks/claim?taskId={taskId}", HttpMethod.POST, aliceRequestEntity, Map.class, taskId);
         assertThat(claimResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(claimResponse.getBody()).isNotNull();
+        assertThat(claimResponse.getBody().get("status")).isEqualTo("Claimed");
+        assertThat(claimResponse.getBody().get("taskId")).isEqualTo(taskId);
 
         HttpEntity<Map<String, Object>> completeRequest = new HttpEntity<>(Map.of("goodOne", true), aliceHeaders);
-        ResponseEntity<Void> completeResponse = restTemplate.exchange("/v1/tasks/complete?taskId={taskId}", HttpMethod.POST, completeRequest, Void.class, taskId);
+        ResponseEntity<Map> completeResponse = restTemplate.exchange("/v1/tasks/complete?taskId={taskId}", HttpMethod.POST, completeRequest, Map.class, taskId);
         assertThat(completeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(completeResponse.getBody()).isNotNull();
+        assertThat(completeResponse.getBody().get("status")).isEqualTo("Completed");
+        assertThat(completeResponse.getBody().get("taskId")).isEqualTo(taskId);
 
         // --- Step 5: Switch user to Bob and verify the next task is visible ---
         HttpHeaders bobHeaders = new HttpHeaders();
