@@ -4,35 +4,12 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
 
 ---
 
-## Root Controller
+## Authentication
 
-### GET /v1
+All API endpoints require the following headers to be sent with each request to establish the user's identity and permissions:
 
-- **Description:** Returns a welcome message to the Abada Engine API.
-- **Responses:**
-  - `200 OK`
-    ```json
-    {
-      "message": "Welcome to Abada Engine API"
-    }
-    ```
-
----
-
-## Info Controller
-
-### GET /v1/info
-
-- **Description:** Provides information about the running Abada Engine instance.
-- **Responses:**
-  - `200 OK`
-    ```json
-    {
-      "status": "UP",
-      "engineVersion": "0.8.2-alpha",
-      "bpmnSupport": "BPMN model Validation"
-    }
-    ```
+- `X-User`: The unique identifier for the user (e.g., `alice`).
+- `X-Groups`: A comma-separated list of groups the user belongs to (e.g., `customers,managers`).
 
 ---
 
@@ -40,10 +17,10 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
 
 ### POST /v1/processes/deploy
 
-- **Description:** Deploys a new BPMN process definition.
+- **Description:** Deploys a new BPMN process definition from an XML file. The process documentation is automatically extracted from the `<bpmn:documentation>` tag within the file.
 - **Request:**
   - `Content-Type`: `multipart/form-data`
-  - `file`: The BPMN file to be deployed.
+  - `file`: The BPMN 2.0 XML file to be deployed.
 - **Responses:**
   - `200 OK`: with the message "Deployed".
 
@@ -56,7 +33,8 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
     [
       {
         "id": "process_1",
-        "name": "My Process"
+        "name": "My Process",
+        "documentation": "This is the official process for handling customer orders."
       }
     ]
     ```
@@ -110,7 +88,7 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
 
 ### GET /v1/processes/{id}
 
-- **Description:** Retrieves a specific process definition by its ID, including the BPMN XML.
+- **Description:** Retrieves a specific process definition by its ID, including its documentation and the full BPMN XML.
 - **Parameters:**
   - `id` (path variable): The ID of the process definition.
 - **Responses:**
@@ -119,7 +97,8 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
     {
       "id": "process_1",
       "name": "My Process",
-      "bpmnXml": "..."
+      "documentation": "This is the official process for handling customer orders.",
+      "bpmnXml": "<bpmn:definitions>..."
     }
     ```
   - `404 Not Found`
@@ -130,7 +109,7 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
 
 ### GET /v1/tasks
 
-- **Description:** Retrieves a list of tasks visible to the current user.
+- **Description:** Retrieves a list of tasks visible to the current user based on their identity.
 - **Responses:**
   - `200 OK`
     ```json
@@ -142,14 +121,15 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
         "assignee": "patrick",
         "candidateUsers": [],
         "candidateGroups": ["managers"],
-        "processInstanceId": "instance_123"
+        "processInstanceId": "instance_123",
+        "variables": {}
       }
     ]
     ```
 
 ### GET /v1/tasks/{id}
 
-- **Description:** Retrieves the details of a specific task by its ID, including process variables.
+- **Description:** Retrieves the details of a specific task by its ID, including all process variables.
 - **Parameters:**
   - `id` (path variable): The ID of the task.
 - **Responses:**
@@ -182,7 +162,7 @@ This document provides a detailed overview of the Abada Engine REST API endpoint
 
 ### POST /v1/tasks/complete
 
-- **Description:** Completes a task.
+- **Description:** Completes a task, optionally passing in process variables.
 - **Request:**
   - `taskId`: The ID of the task to complete.
   - `variables` (optional request body):

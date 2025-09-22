@@ -64,7 +64,8 @@ public class ProcessControllerTest {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", file);
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, deployHeaders);
-        restTemplate.postForEntity("/v1/processes/deploy", requestEntity, String.class);
+        ResponseEntity<String> deployResponse = restTemplate.postForEntity("/v1/processes/deploy", requestEntity, String.class);
+        assertThat(deployResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     /**
@@ -86,17 +87,18 @@ public class ProcessControllerTest {
      * Verifies that the POST /v1/processes/start endpoint successfully starts a new process instance.
      */
     @Test
-    @DisplayName("POST /v1/processes/start should start a process instance")
+    @DisplayName("POST /v1/processes/start should start a process instance and return JSON")
     void shouldStartProcess() {
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         startHeaders.addAll(authHeaders);
         HttpEntity<String> request = new HttpEntity<>("processId=recipe-cook", startHeaders);
 
-        ResponseEntity<String> response = restTemplate.postForEntity("/v1/processes/start", request, String.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start", request, Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Started instance:");
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("processInstanceId")).isNotNull();
     }
 
     /**
