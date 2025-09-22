@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
@@ -83,7 +84,7 @@ public class AbadaEngine {
     public ProcessInstance startProcess(String processDefinitionId) {
         ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
         if (definition == null) {
-            throw new IllegalArgumentException("Unknown process ID: " + processDefinitionId);
+            throw new ProcessEngineException("Unknown process ID: " + processDefinitionId);
         }
 
         ProcessInstance instance = new ProcessInstance(definition);
@@ -128,11 +129,12 @@ public class AbadaEngine {
         }
 
         TaskInstance currentTask = taskManager.getTask(taskId)
-                .orElseThrow(() -> new IllegalStateException("Task not found: " + taskId));
+                .orElseThrow(() -> new ProcessEngineException("Task not found: " + taskId));
 
         String processInstanceId = currentTask.getProcessInstanceId();
         ProcessInstance instance = instances.get(processInstanceId);
         if (instance == null) {
+            // This is an internal consistency error, not a client error.
             throw new IllegalStateException("No process instance found for id=" + processInstanceId);
         }
 
@@ -190,7 +192,7 @@ public class AbadaEngine {
         log.info("Resuming process instance {} from event {}", processInstanceId, eventId);
         ProcessInstance instance = instances.get(processInstanceId);
         if (instance == null) {
-            throw new IllegalStateException("No process instance found for id=" + processInstanceId);
+            throw new ProcessEngineException("No process instance found for id=" + processInstanceId);
         }
 
         if (variables != null && !variables.isEmpty()) {
