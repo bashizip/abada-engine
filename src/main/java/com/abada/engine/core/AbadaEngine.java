@@ -241,6 +241,8 @@ public class AbadaEngine {
         task.setCandidateUsers(entity.getCandidateUsers());
         task.setCandidateGroups(entity.getCandidateGroups());
         task.setStatus(entity.getStatus());
+        task.setStartDate(entity.getStartDate());
+        task.setEndDate(entity.getEndDate());
 
         taskManager.addTask(task);
     }
@@ -318,6 +320,8 @@ public class AbadaEngine {
         entity.setName(taskInstance.getName());
         entity.setAssignee(taskInstance.getAssignee());
         entity.setStatus(taskInstance.getStatus());
+        entity.setStartDate(taskInstance.getStartDate());
+        entity.setEndDate(taskInstance.getEndDate());
 
         entity.setCandidateUsers(new ArrayList<>(taskInstance.getCandidateUsers()));
         entity.setCandidateGroups(new ArrayList<>(taskInstance.getCandidateGroups()));

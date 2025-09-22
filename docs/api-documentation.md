@@ -159,6 +159,8 @@ Retrieves a list of tasks visible to the current user.
       "name": "Review Order",
       "assignee": "patrick",
       "status": "CLAIMED",
+      "startDate": "2024-01-01T12:00:00Z",
+      "endDate": null,
       "candidateGroups": ["managers"],
       "processInstanceId": "instance_123",
       "variables": {
@@ -182,6 +184,8 @@ Retrieves the details of a specific task by its ID, including all process variab
     "name": "Review Order",
     "assignee": "patrick",
     "status": "CLAIMED",
+    "startDate": "2024-01-01T12:00:00Z",
+    "endDate": null,
     "candidateGroups": ["managers"],
     "processInstanceId": "instance_123",
     "variables": {

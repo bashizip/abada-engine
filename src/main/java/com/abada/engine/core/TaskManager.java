@@ -4,6 +4,7 @@ import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -78,6 +79,7 @@ public class TaskManager {
         TaskInstance task = tasks.get(taskId);
         if (task != null) {
             task.setStatus(TaskStatus.COMPLETED);
+            task.setEndDate(Instant.now());
         }
     }
 
@@ -87,6 +89,7 @@ public class TaskManager {
             return false;
         }
         task.setStatus(TaskStatus.FAILED);
+        task.setEndDate(Instant.now());
         return true;
     }
 

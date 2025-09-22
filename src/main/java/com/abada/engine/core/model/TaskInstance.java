@@ -3,6 +3,7 @@ package com.abada.engine.core.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,11 +16,14 @@ public class TaskInstance {
     private String name;
     private String assignee;
     private TaskStatus status;
+    private Instant startDate;
+    private Instant endDate;
     private List<String> candidateUsers = new ArrayList<>();
     private List<String> candidateGroups = new ArrayList<>();
 
     public TaskInstance() {
         this.status = TaskStatus.AVAILABLE;
+        this.startDate = Instant.now();
     }
 
     public String getId() {
@@ -68,6 +72,22 @@ public class TaskInstance {
 
     public void setStatus(TaskStatus status) {
         this.status = status;
+    }
+
+    public Instant getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(Instant startDate) {
+        this.startDate = startDate;
+    }
+
+    public Instant getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Instant endDate) {
+        this.endDate = endDate;
     }
 
     public List<String> getCandidateUsers() {
