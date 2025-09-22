@@ -4,6 +4,7 @@ import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
@@ -92,7 +93,9 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         List<UserTaskPayload> userTasks = instance.advance();
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : userTasks) {
@@ -142,7 +145,9 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         List<UserTaskPayload> nextTasks = instance.advance(currentTask.getTaskDefinitionKey());
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : nextTasks) {
@@ -168,7 +173,9 @@ public class AbadaEngine {
         }
 
         List<UserTaskPayload> nextTasks = instance.advance(eventId);
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : nextTasks) {
@@ -190,7 +197,9 @@ public class AbadaEngine {
         ProcessInstance instance = new ProcessInstance(
                 entity.getId(),
                 def,
-                List.of(entity.getCurrentActivityId()) // Wrap in a list
+                List.of(entity.getCurrentActivityId()),
+                entity.getStartDate(),
+                entity.getEndDate()
         );
         instance.putAllVariables(readMap(entity.getVariablesJson()));
         instances.put(instance.getId(), instance);
@@ -272,11 +281,13 @@ public class AbadaEngine {
         }
 
         if (instance.isCompleted()) {
-            entity.setStatus(ProcessInstanceEntity.Status.COMPLETED);
+            entity.setStatus(ProcessStatus.COMPLETED);
         } else {
-            entity.setStatus(ProcessInstanceEntity.Status.RUNNING);
+            entity.setStatus(ProcessStatus.RUNNING);
         }
 
+        entity.setStartDate(instance.getStartDate());
+        entity.setEndDate(instance.getEndDate());
         entity.setVariablesJson(writeMap(instance.getVariables()));
         return entity;
     }

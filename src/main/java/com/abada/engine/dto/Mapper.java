@@ -12,7 +12,9 @@ public class Mapper {
                     currentToken,
                     pi.getVariables(),
                     pi.isWaitingForUserTask(),
-                    pi.isCompleted()
+                    pi.isCompleted(),
+                    pi.getStartDate(),
+                    pi.getEndDate()
             );
         }
     }

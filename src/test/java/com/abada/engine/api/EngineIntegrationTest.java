@@ -76,8 +76,9 @@ public class EngineIntegrationTest {
         startHeaders.addAll(aliceHeaders);
 
         HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
-        ResponseEntity<String> response = restTemplate.postForEntity("/v1/processes/start", startRequest, String.class);
-        return response.getBody().replace("Started instance: ", "");
+        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start", startRequest, Map.class);
+        assertNotNull(response.getBody());
+        return (String) response.getBody().get("processInstanceId");
     }
 
     @Test
@@ -125,7 +126,7 @@ public class EngineIntegrationTest {
         assertEquals(0, remainingTasks.size());
 
         ResponseEntity<ProcessInstanceDTO> instanceResponse = restTemplate.exchange(
-                "/v1/processes/instance/" + instanceId, HttpMethod.GET, bobRequest, ProcessInstanceDTO.class
+                "/v1/processes/instance/{id}", HttpMethod.GET, bobRequest, ProcessInstanceDTO.class, instanceId
         );
         assertNotNull(instanceResponse.getBody());
         assertTrue(instanceResponse.getBody().isCompleted());

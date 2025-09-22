@@ -1,6 +1,9 @@
 package com.abada.engine.persistence.entity;
 
+import com.abada.engine.core.model.ProcessStatus;
 import jakarta.persistence.*;
+
+import java.time.Instant;
 
 @Entity
 @Table(name = "process_instances")
@@ -14,24 +17,23 @@ public class ProcessInstanceEntity {
     private String currentActivityId;
 
     @Enumerated(EnumType.STRING)
-    private Status status;
+    private ProcessStatus status;
+
+    @Column(name = "start_date", nullable = false)
+    private Instant startDate;
+
+    @Column(name = "end_date")
+    private Instant endDate;
 
     @Lob
     @Column(name = "variables_json", nullable = false)
     private String variablesJson; // Jackson-serialized Map
 
-    public enum Status {
-        RUNNING,
-        COMPLETED,
-        SUSPENDED,
-        CANCELLED
-    }
-
     // Constructors
     public ProcessInstanceEntity() {
     }
 
-    public ProcessInstanceEntity(String id, String processDefinitionId, String currentActivityId, Status status) {
+    public ProcessInstanceEntity(String id, String processDefinitionId, String currentActivityId, ProcessStatus status) {
         this.id = id;
         this.processDefinitionId = processDefinitionId;
         this.currentActivityId = currentActivityId;
@@ -72,12 +74,28 @@ public class ProcessInstanceEntity {
         this.currentActivityId = currentActivityId;
     }
 
-    public Status getStatus() {
+    public ProcessStatus getStatus() {
         return status;
     }
 
 
-    public void setStatus(Status status) {
+    public void setStatus(ProcessStatus status) {
         this.status = status;
+    }
+
+    public Instant getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(Instant startDate) {
+        this.startDate = startDate;
+    }
+
+    public Instant getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Instant endDate) {
+        this.endDate = endDate;
     }
 }

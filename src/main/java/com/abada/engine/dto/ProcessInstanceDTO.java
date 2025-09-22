@@ -1,6 +1,8 @@
 package com.abada.engine.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import java.time.Instant;
 import java.util.Map;
 
 
@@ -10,5 +12,7 @@ public record ProcessInstanceDTO(
         String currentActivityId,
         Map<String, Object> variables,
         boolean waitingForUserTask,
-        boolean isCompleted
+        boolean isCompleted,
+        Instant startDate,
+        Instant endDate
 ) {}

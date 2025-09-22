@@ -7,6 +7,7 @@ import com.abada.engine.spi.JavaDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.*;
 
 public class ProcessInstance {
@@ -14,6 +15,8 @@ public class ProcessInstance {
     private String id;
     private ParsedProcessDefinition definition;
     private final Map<String, Object> variables = new HashMap<>();
+    private Instant startDate;
+    private Instant endDate;
 
     private final List<String> activeTokens = new ArrayList<>();
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
@@ -25,12 +28,15 @@ public class ProcessInstance {
         this.id = UUID.randomUUID().toString();
         this.definition = definition;
         this.activeTokens.add(definition.getStartEventId());
+        this.startDate = Instant.now();
     }
 
-    public ProcessInstance(String id, ParsedProcessDefinition definition, List<String> activeTokens) {
+    public ProcessInstance(String id, ParsedProcessDefinition definition, List<String> activeTokens, Instant startDate, Instant endDate) {
         this.id = id;
         this.definition = definition;
         this.activeTokens.addAll(activeTokens);
+        this.startDate = startDate;
+        this.endDate = endDate;
     }
 
     public ProcessInstance() {
@@ -42,6 +48,18 @@ public class ProcessInstance {
     public void setActiveTokens(List<String> tokens) {
         activeTokens.clear();
         activeTokens.addAll(tokens);
+    }
+
+    public Instant getStartDate() {
+        return startDate;
+    }
+
+    public Instant getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Instant endDate) {
+        this.endDate = endDate;
     }
 
     public void setVariable(String key, Object value) { variables.put(key, value); }
