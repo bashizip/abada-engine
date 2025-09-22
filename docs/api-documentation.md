@@ -101,6 +101,28 @@ Retrieves a specific process instance by its ID.
   }
   ```
 
+### Fail a Process Instance
+
+Marks a running process instance as FAILED. This is a terminal status that stops all execution of the instance.
+
+- **Method & URL**: `POST /v1/processes/instance/{id}/fail`
+- **Path Parameters**:
+  - `{id}` (string, required): The unique ID of the process instance to fail. **This must be part of the URL path.**
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "status": "Failed",
+    "processInstanceId": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+  }
+  ```
+- **Error Response** (`400 Bad Request`):
+  ```json
+  {
+    "error": "Cannot fail process instance",
+    "processInstanceId": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+  }
+  ```
+
 ### Get a Process Definition by ID
 
 Retrieves a specific process definition by its ID, including its documentation and the full BPMN XML.
@@ -127,6 +149,8 @@ Retrieves a specific process definition by its ID, including its documentation a
 Retrieves a list of tasks visible to the current user.
 
 - **Method & URL**: `GET /v1/tasks`
+- **Query Parameters**:
+  - `status` (string, optional): Filters tasks by their current status. Valid values: `AVAILABLE`, `CLAIMED`, `COMPLETED`, etc.
 - **Success Response** (`200 OK`):
   ```json
   [
@@ -134,6 +158,7 @@ Retrieves a list of tasks visible to the current user.
       "id": "task_789",
       "name": "Review Order",
       "assignee": "patrick",
+      "status": "CLAIMED",
       "candidateGroups": ["managers"],
       "processInstanceId": "instance_123",
       "variables": {
@@ -156,6 +181,7 @@ Retrieves the details of a specific task by its ID, including all process variab
     "id": "task_789",
     "name": "Review Order",
     "assignee": "patrick",
+    "status": "CLAIMED",
     "candidateGroups": ["managers"],
     "processInstanceId": "instance_123",
     "variables": {
@@ -212,6 +238,28 @@ Completes a task currently assigned to the user.
   ```json
   {
     "error": "Cannot complete task",
+    "taskId": "task_789"
+  }
+  ```
+
+### Fail a Task
+
+Marks a task as FAILED. This is a terminal status and does not advance the process.
+
+- **Method & URL**: `POST /v1/tasks/fail`
+- **Query Parameters**:
+  - `taskId` (string, required): The ID of the task to fail. Example: `/v1/tasks/fail?taskId=task_789`
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "status": "Failed",
+    "taskId": "task_789"
+  }
+  ```
+- **Error Response** (`400 Bad Request`):
+  ```json
+  {
+    "error": "Cannot fail task",
     "taskId": "task_789"
   }
   ```

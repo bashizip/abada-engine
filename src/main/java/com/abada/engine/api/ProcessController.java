@@ -108,6 +108,23 @@ public class ProcessController {
     }
 
     /**
+     * Marks a process instance as FAILED.
+     * This is a terminal status that stops all execution of the instance.
+     *
+     * @param id The unique ID of the process instance to fail.
+     * @return A JSON object confirming the status change.
+     */
+    @PostMapping("/instance/{id}/fail")
+    public ResponseEntity<Map<String, Object>> failInstance(@PathVariable String id) {
+        boolean failed = engine.failProcess(id);
+        if (failed) {
+            return ResponseEntity.ok(Map.of("status", "Failed", "processInstanceId", id));
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("error", "Cannot fail process instance", "processInstanceId", id));
+        }
+    }
+
+    /**
      * Retrieves the details of a specific process definition by its ID.
      *
      * @param id The ID of the process definition (as defined in the BPMN file).

@@ -4,6 +4,7 @@ import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.TaskDetailsDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,19 +34,19 @@ public class TaskController {
     }
 
     /**
-     * Retrieves a list of tasks that are visible to the current user.
+     * Retrieves a list of tasks that are visible to the current user, with optional filtering by status.
      * <p>
      * A task is considered visible if it is directly assigned to the user, or if it is unassigned
      * and the user is a member of one of the task's candidate groups.
      *
+     * @param status (Optional) The status to filter tasks by (e.g., AVAILABLE, CLAIMED).
      * @return A {@link ResponseEntity} containing a list of {@link TaskDetailsDto} objects.
-     *         The list will be empty if no tasks are visible to the user.
      */
     @GetMapping
-    public ResponseEntity<List<TaskDetailsDto>> getTasks() {
+    public ResponseEntity<List<TaskDetailsDto>> getTasks(@RequestParam(required = false) TaskStatus status) {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
-        List<TaskInstance> visible = engine.getTaskManager().getVisibleTasksForUser(user, groups);
+        List<TaskInstance> visible = engine.getTaskManager().getVisibleTasksForUser(user, groups, status);
 
         List<TaskDetailsDto> taskDetailsDtos = visible.stream().map(task -> {
             ProcessInstance processInstance = engine.getProcessInstanceById(task.getProcessInstanceId());
@@ -123,4 +124,23 @@ public class TaskController {
         }
     }
 
+    /**
+     * Marks a task as FAILED.
+     * <p>
+     * This is a terminal status and does not advance the process. It is used to indicate that a task
+     * could not be successfully completed due to a business or system error.
+     *
+     * @param taskId The unique identifier of the task to fail.
+     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK),
+     *         or a JSON error object if the task cannot be failed (400 Bad Request).
+     */
+    @PostMapping("/fail")
+    public ResponseEntity<Map<String, Object>> fail(@RequestParam String taskId) {
+        boolean failed = engine.failTask(taskId);
+        if (failed) {
+            return ResponseEntity.ok(Map.of("status", "Failed", "taskId", taskId));
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("error", "Cannot fail task", "taskId", taskId));
+        }
+    }
 }

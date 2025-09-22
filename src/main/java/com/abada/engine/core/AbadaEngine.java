@@ -4,6 +4,7 @@ import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
@@ -92,7 +93,9 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         List<UserTaskPayload> userTasks = instance.advance();
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : userTasks) {
@@ -142,7 +145,9 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         List<UserTaskPayload> nextTasks = instance.advance(currentTask.getTaskDefinitionKey());
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : nextTasks) {
@@ -153,6 +158,31 @@ public class AbadaEngine {
         scheduleWaitingTimerEvents(instance);
         createExternalTaskJobs(instance);
 
+        return true;
+    }
+
+    public boolean failTask(String taskId) {
+        if (taskManager.failTask(taskId)) {
+            taskManager.getTask(taskId)
+                    .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
+            return true;
+        }
+        return false;
+    }
+
+    public boolean failProcess(String processInstanceId) {
+        ProcessInstance instance = instances.get(processInstanceId);
+        if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED || instance.getStatus() == ProcessStatus.FAILED) {
+            log.warn("Process instance {} not found or already in a terminal state.", processInstanceId);
+            return false;
+        }
+
+        log.info("Failing process instance {}", processInstanceId);
+        instance.setStatus(ProcessStatus.FAILED);
+        instance.setEndDate(Instant.now());
+        instance.setActiveTokens(Collections.emptyList()); // Clear active tokens to stop execution
+
+        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
         return true;
     }
 
@@ -168,7 +198,9 @@ public class AbadaEngine {
         }
 
         List<UserTaskPayload> nextTasks = instance.advance(eventId);
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : nextTasks) {
@@ -190,8 +222,11 @@ public class AbadaEngine {
         ProcessInstance instance = new ProcessInstance(
                 entity.getId(),
                 def,
-                List.of(entity.getCurrentActivityId()) // Wrap in a list
+                List.of(entity.getCurrentActivityId()),
+                entity.getStartDate(),
+                entity.getEndDate()
         );
+        instance.setStatus(entity.getStatus());
         instance.putAllVariables(readMap(entity.getVariablesJson()));
         instances.put(instance.getId(), instance);
     }
@@ -205,13 +240,7 @@ public class AbadaEngine {
         task.setAssignee(entity.getAssignee());
         task.setCandidateUsers(entity.getCandidateUsers());
         task.setCandidateGroups(entity.getCandidateGroups());
-
-        if (entity.getStatus() == TaskEntity.Status.COMPLETED) {
-            task.setCompleted(true);
-        }
-        else if (entity.getStatus() == TaskEntity.Status.ASSIGNED) {
-            task.setAssignee(entity.getAssignee());
-        }
+        task.setStatus(entity.getStatus());
 
         taskManager.addTask(task);
     }
@@ -269,14 +298,14 @@ public class AbadaEngine {
 
         if (instance.getActiveTokens() != null && !instance.getActiveTokens().isEmpty()) {
             entity.setCurrentActivityId(instance.getActiveTokens().get(0));
-        }
-
-        if (instance.isCompleted()) {
-            entity.setStatus(ProcessInstanceEntity.Status.COMPLETED);
         } else {
-            entity.setStatus(ProcessInstanceEntity.Status.RUNNING);
+            entity.setCurrentActivityId(null);
         }
 
+        entity.setStatus(instance.getStatus());
+
+        entity.setStartDate(instance.getStartDate());
+        entity.setEndDate(instance.getEndDate());
         entity.setVariablesJson(writeMap(instance.getVariables()));
         return entity;
     }
@@ -288,17 +317,10 @@ public class AbadaEngine {
         entity.setTaskDefinitionKey(taskInstance.getTaskDefinitionKey());
         entity.setName(taskInstance.getName());
         entity.setAssignee(taskInstance.getAssignee());
+        entity.setStatus(taskInstance.getStatus());
 
         entity.setCandidateUsers(new ArrayList<>(taskInstance.getCandidateUsers()));
         entity.setCandidateGroups(new ArrayList<>(taskInstance.getCandidateGroups()));
-
-        if (taskInstance.isCompleted()) {
-            entity.setStatus(TaskEntity.Status.COMPLETED);
-        } else if (taskInstance.isClaimed()) {
-            entity.setStatus(TaskEntity.Status.ASSIGNED);
-        } else {
-            entity.setStatus(TaskEntity.Status.CREATED);
-        }
 
         return entity;
     }

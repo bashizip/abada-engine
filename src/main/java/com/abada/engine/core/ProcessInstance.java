@@ -7,6 +7,7 @@ import com.abada.engine.spi.JavaDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.*;
 
 public class ProcessInstance {
@@ -14,6 +15,9 @@ public class ProcessInstance {
     private String id;
     private ParsedProcessDefinition definition;
     private final Map<String, Object> variables = new HashMap<>();
+    private Instant startDate;
+    private Instant endDate;
+    private ProcessStatus status;
 
     private final List<String> activeTokens = new ArrayList<>();
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
@@ -25,15 +29,21 @@ public class ProcessInstance {
         this.id = UUID.randomUUID().toString();
         this.definition = definition;
         this.activeTokens.add(definition.getStartEventId());
+        this.startDate = Instant.now();
+        this.status = ProcessStatus.RUNNING;
     }
 
-    public ProcessInstance(String id, ParsedProcessDefinition definition, List<String> activeTokens) {
+    public ProcessInstance(String id, ParsedProcessDefinition definition, List<String> activeTokens, Instant startDate, Instant endDate) {
         this.id = id;
         this.definition = definition;
         this.activeTokens.addAll(activeTokens);
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.status = activeTokens.isEmpty() ? ProcessStatus.COMPLETED : ProcessStatus.RUNNING;
     }
 
     public ProcessInstance() {
+        this.status = ProcessStatus.RUNNING;
     }
 
     public String getId() { return id; }
@@ -42,6 +52,26 @@ public class ProcessInstance {
     public void setActiveTokens(List<String> tokens) {
         activeTokens.clear();
         activeTokens.addAll(tokens);
+    }
+
+    public Instant getStartDate() {
+        return startDate;
+    }
+
+    public Instant getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Instant endDate) {
+        this.endDate = endDate;
+    }
+
+    public ProcessStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ProcessStatus status) {
+        this.status = status;
     }
 
     public void setVariable(String key, Object value) { variables.put(key, value); }
@@ -55,7 +85,9 @@ public class ProcessInstance {
         return !activeTokens.isEmpty() && activeTokens.stream().anyMatch(t -> definition.isUserTask(t));
     }
 
-    public boolean isCompleted() { return activeTokens.isEmpty(); }
+    public boolean isCompleted() {
+        return this.status == ProcessStatus.COMPLETED;
+    }
 
     public List<UserTaskPayload> advance() {
         return advance(null);
@@ -98,15 +130,12 @@ public class ProcessInstance {
                 boolean isExternalServiceTask = serviceTaskMeta != null && serviceTaskMeta.topicName() != null;
                 boolean isEmbeddedServiceTask = serviceTaskMeta != null && serviceTaskMeta.className() != null;
 
-                // Is it a wait state? (User Task, Catch Event, or External Service Task)
                 if (definition.isUserTask(pointer) || definition.isCatchEvent(pointer) || isExternalServiceTask) {
                     if (Objects.equals(pointer, resumedNodeId)) {
-                        // This node was just completed or triggered, so advance from it.
                         var outgoing = definition.getOutgoing(pointer);
                         current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
                         previousPointer = pointer;
                     } else {
-                        // Arrived at a new wait state. Add to active tokens and stop this path.
                         activeTokens.add(pointer);
                         if (definition.isUserTask(pointer)) {
                             TaskMeta ut = definition.getUserTask(pointer);
@@ -115,7 +144,6 @@ public class ProcessInstance {
                         current = null;
                     }
                 } 
-                // Is it an embedded, synchronous service task?
                 else if (isEmbeddedServiceTask) {
                     try {
                         JavaDelegate delegate = (JavaDelegate) Class.forName(serviceTaskMeta.className()).getConstructor().newInstance();
@@ -185,6 +213,11 @@ public class ProcessInstance {
                 }
             }
         }
+
+        if (activeTokens.isEmpty()) {
+            this.status = ProcessStatus.COMPLETED;
+        }
+
         return newUserTasks;
     }
 

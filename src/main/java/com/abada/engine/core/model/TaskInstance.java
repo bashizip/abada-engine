@@ -14,11 +14,12 @@ public class TaskInstance {
     private String taskDefinitionKey;
     private String name;
     private String assignee;
-    private boolean completed;
+    private TaskStatus status;
     private List<String> candidateUsers = new ArrayList<>();
     private List<String> candidateGroups = new ArrayList<>();
 
     public TaskInstance() {
+        this.status = TaskStatus.AVAILABLE;
     }
 
     public String getId() {
@@ -61,12 +62,12 @@ public class TaskInstance {
         this.assignee = assignee;
     }
 
-    public boolean isCompleted() {
-        return completed;
+    public TaskStatus getStatus() {
+        return status;
     }
 
-    public void setCompleted(boolean completed) {
-        this.completed = completed;
+    public void setStatus(TaskStatus status) {
+        this.status = status;
     }
 
     public List<String> getCandidateUsers() {
@@ -88,8 +89,13 @@ public class TaskInstance {
     // Helper methods
 
     @JsonIgnore
+    public boolean isCompleted() {
+        return this.status == TaskStatus.COMPLETED;
+    }
+
+    @JsonIgnore
     public boolean isClaimed() {
-        return assignee != null && !assignee.isEmpty();
+        return this.status == TaskStatus.CLAIMED;
     }
 
     @Override

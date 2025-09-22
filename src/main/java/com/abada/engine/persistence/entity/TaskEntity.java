@@ -1,5 +1,6 @@
 package com.abada.engine.persistence.entity;
 
+import com.abada.engine.core.model.TaskStatus;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
@@ -38,16 +39,9 @@ public class TaskEntity {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private Status status;
+    private TaskStatus status;
 
-    public enum Status {
-        CREATED,     // Task created, not yet assigned or claimed
-        ASSIGNED,    // Task has been claimed by a user
-        COMPLETED,   // Task isCompleted successfully
-        CANCELLED    // Task was cancelled (optional for admin control)
-    }
-
-    public Status getStatus() {
+    public TaskStatus getStatus() {
         return status;
     }
 
@@ -67,7 +61,7 @@ public class TaskEntity {
         this.name = name;
     }
 
-    public void setStatus(Status status) {
+    public void setStatus(TaskStatus status) {
         this.status = status;
     }
 
