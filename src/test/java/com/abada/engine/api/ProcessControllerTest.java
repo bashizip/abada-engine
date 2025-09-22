@@ -2,6 +2,8 @@ package com.abada.engine.api;
 
 import com.abada.engine.AbadaEngineApplication;
 import com.abada.engine.core.AbadaEngine;
+import com.abada.engine.core.ProcessInstance;
+import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.util.BpmnTestUtils;
 import com.abada.engine.util.DatabaseTestHelper;
@@ -64,7 +66,8 @@ public class ProcessControllerTest {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", file);
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, deployHeaders);
-        restTemplate.postForEntity("/v1/processes/deploy", requestEntity, String.class);
+        ResponseEntity<Map> deployResponse = restTemplate.postForEntity("/v1/processes/deploy", requestEntity, Map.class);
+        assertThat(deployResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     /**
@@ -86,17 +89,37 @@ public class ProcessControllerTest {
      * Verifies that the POST /v1/processes/start endpoint successfully starts a new process instance.
      */
     @Test
-    @DisplayName("POST /v1/processes/start should start a process instance")
+    @DisplayName("POST /v1/processes/start should start a process instance and return JSON")
     void shouldStartProcess() {
         HttpHeaders startHeaders = new HttpHeaders();
         startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         startHeaders.addAll(authHeaders);
         HttpEntity<String> request = new HttpEntity<>("processId=recipe-cook", startHeaders);
 
-        ResponseEntity<String> response = restTemplate.postForEntity("/v1/processes/start", request, String.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start", request, Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Started instance:");
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().get("processInstanceId")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("POST /v1/processes/instance/{id}/fail should mark a process as FAILED")
+    void shouldFailProcessInstance() {
+        // Start a process to get a valid instance ID
+        ProcessInstance instance = abadaEngine.startProcess("recipe-cook");
+        String instanceId = instance.getId();
+
+        // Call the fail endpoint
+        HttpEntity<Void> requestEntity = new HttpEntity<>(authHeaders);
+        ResponseEntity<Map> failResponse = restTemplate.exchange("/v1/processes/instance/{id}/fail", HttpMethod.POST, requestEntity, Map.class, instanceId);
+        assertThat(failResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(failResponse.getBody().get("status")).isEqualTo("Failed");
+
+        // Verify the status is persisted
+        ProcessInstance failedInstance = abadaEngine.getProcessInstanceById(instanceId);
+        assertThat(failedInstance.getStatus()).isEqualTo(ProcessStatus.FAILED);
+        assertThat(failedInstance.getEndDate()).isNotNull();
     }
 
     /**

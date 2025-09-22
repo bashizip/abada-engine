@@ -3,6 +3,7 @@ package com.abada.engine.core.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,11 +15,15 @@ public class TaskInstance {
     private String taskDefinitionKey;
     private String name;
     private String assignee;
-    private boolean completed;
+    private TaskStatus status;
+    private Instant startDate;
+    private Instant endDate;
     private List<String> candidateUsers = new ArrayList<>();
     private List<String> candidateGroups = new ArrayList<>();
 
     public TaskInstance() {
+        this.status = TaskStatus.AVAILABLE;
+        this.startDate = Instant.now();
     }
 
     public String getId() {
@@ -61,12 +66,28 @@ public class TaskInstance {
         this.assignee = assignee;
     }
 
-    public boolean isCompleted() {
-        return completed;
+    public TaskStatus getStatus() {
+        return status;
     }
 
-    public void setCompleted(boolean completed) {
-        this.completed = completed;
+    public void setStatus(TaskStatus status) {
+        this.status = status;
+    }
+
+    public Instant getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(Instant startDate) {
+        this.startDate = startDate;
+    }
+
+    public Instant getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(Instant endDate) {
+        this.endDate = endDate;
     }
 
     public List<String> getCandidateUsers() {
@@ -88,8 +109,13 @@ public class TaskInstance {
     // Helper methods
 
     @JsonIgnore
+    public boolean isCompleted() {
+        return this.status == TaskStatus.COMPLETED;
+    }
+
+    @JsonIgnore
     public boolean isClaimed() {
-        return assignee != null && !assignee.isEmpty();
+        return this.status == TaskStatus.CLAIMED;
     }
 
     @Override

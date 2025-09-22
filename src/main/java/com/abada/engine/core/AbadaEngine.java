@@ -1,9 +1,11 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
@@ -67,7 +69,6 @@ public class AbadaEngine {
         log.info("Deployed process definition: {}", definition.getId());
     }
 
-
     public List<ProcessDefinitionEntity> getDeployedProcesses() {
         return persistenceService.findAllProcessDefinitions();
     }
@@ -83,7 +84,7 @@ public class AbadaEngine {
     public ProcessInstance startProcess(String processDefinitionId) {
         ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
         if (definition == null) {
-            throw new IllegalArgumentException("Unknown process ID: " + processDefinitionId);
+            throw new ProcessEngineException("Unknown process ID: " + processDefinitionId);
         }
 
         ProcessInstance instance = new ProcessInstance(definition);
@@ -93,7 +94,9 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         List<UserTaskPayload> userTasks = instance.advance();
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : userTasks) {
@@ -126,11 +129,12 @@ public class AbadaEngine {
         }
 
         TaskInstance currentTask = taskManager.getTask(taskId)
-                .orElseThrow(() -> new IllegalStateException("Task not found: " + taskId));
+                .orElseThrow(() -> new ProcessEngineException("Task not found: " + taskId));
 
         String processInstanceId = currentTask.getProcessInstanceId();
         ProcessInstance instance = instances.get(processInstanceId);
         if (instance == null) {
+            // This is an internal consistency error, not a client error.
             throw new IllegalStateException("No process instance found for id=" + processInstanceId);
         }
 
@@ -143,7 +147,9 @@ public class AbadaEngine {
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         List<UserTaskPayload> nextTasks = instance.advance(currentTask.getTaskDefinitionKey());
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : nextTasks) {
@@ -157,11 +163,36 @@ public class AbadaEngine {
         return true;
     }
 
+    public boolean failTask(String taskId) {
+        if (taskManager.failTask(taskId)) {
+            taskManager.getTask(taskId)
+                    .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
+            return true;
+        }
+        return false;
+    }
+
+    public boolean failProcess(String processInstanceId) {
+        ProcessInstance instance = instances.get(processInstanceId);
+        if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED || instance.getStatus() == ProcessStatus.FAILED) {
+            log.warn("Process instance {} not found or already in a terminal state.", processInstanceId);
+            return false;
+        }
+
+        log.info("Failing process instance {}", processInstanceId);
+        instance.setStatus(ProcessStatus.FAILED);
+        instance.setEndDate(Instant.now());
+        instance.setActiveTokens(Collections.emptyList()); // Clear active tokens to stop execution
+
+        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
+        return true;
+    }
+
     public void resumeFromEvent(String processInstanceId, String eventId, Map<String, Object> variables) {
         log.info("Resuming process instance {} from event {}", processInstanceId, eventId);
         ProcessInstance instance = instances.get(processInstanceId);
         if (instance == null) {
-            throw new IllegalStateException("No process instance found for id=" + processInstanceId);
+            throw new ProcessEngineException("No process instance found for id=" + processInstanceId);
         }
 
         if (variables != null && !variables.isEmpty()) {
@@ -169,7 +200,9 @@ public class AbadaEngine {
         }
 
         List<UserTaskPayload> nextTasks = instance.advance(eventId);
-
+        if (instance.isCompleted() && instance.getEndDate() == null) {
+            instance.setEndDate(Instant.now());
+        }
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
         for (UserTaskPayload task : nextTasks) {
@@ -191,8 +224,11 @@ public class AbadaEngine {
         ProcessInstance instance = new ProcessInstance(
                 entity.getId(),
                 def,
-                List.of(entity.getCurrentActivityId()) // Wrap in a list
+                List.of(entity.getCurrentActivityId()),
+                entity.getStartDate(),
+                entity.getEndDate()
         );
+        instance.setStatus(entity.getStatus());
         instance.putAllVariables(readMap(entity.getVariablesJson()));
         instances.put(instance.getId(), instance);
     }
@@ -206,13 +242,9 @@ public class AbadaEngine {
         task.setAssignee(entity.getAssignee());
         task.setCandidateUsers(entity.getCandidateUsers());
         task.setCandidateGroups(entity.getCandidateGroups());
-
-        if (entity.getStatus() == TaskEntity.Status.COMPLETED) {
-            task.setCompleted(true);
-        }
-        else if (entity.getStatus() == TaskEntity.Status.ASSIGNED) {
-            task.setAssignee(entity.getAssignee());
-        }
+        task.setStatus(entity.getStatus());
+        task.setStartDate(entity.getStartDate());
+        task.setEndDate(entity.getEndDate());
 
         taskManager.addTask(task);
     }
@@ -270,14 +302,14 @@ public class AbadaEngine {
 
         if (instance.getActiveTokens() != null && !instance.getActiveTokens().isEmpty()) {
             entity.setCurrentActivityId(instance.getActiveTokens().get(0));
-        }
-
-        if (instance.isCompleted()) {
-            entity.setStatus(ProcessInstanceEntity.Status.COMPLETED);
         } else {
-            entity.setStatus(ProcessInstanceEntity.Status.RUNNING);
+            entity.setCurrentActivityId(null);
         }
 
+        entity.setStatus(instance.getStatus());
+
+        entity.setStartDate(instance.getStartDate());
+        entity.setEndDate(instance.getEndDate());
         entity.setVariablesJson(writeMap(instance.getVariables()));
         return entity;
     }
@@ -289,17 +321,12 @@ public class AbadaEngine {
         entity.setTaskDefinitionKey(taskInstance.getTaskDefinitionKey());
         entity.setName(taskInstance.getName());
         entity.setAssignee(taskInstance.getAssignee());
+        entity.setStatus(taskInstance.getStatus());
+        entity.setStartDate(taskInstance.getStartDate());
+        entity.setEndDate(taskInstance.getEndDate());
 
         entity.setCandidateUsers(new ArrayList<>(taskInstance.getCandidateUsers()));
         entity.setCandidateGroups(new ArrayList<>(taskInstance.getCandidateGroups()));
-
-        if (taskInstance.isCompleted()) {
-            entity.setStatus(TaskEntity.Status.COMPLETED);
-        } else if (taskInstance.isClaimed()) {
-            entity.setStatus(TaskEntity.Status.ASSIGNED);
-        } else {
-            entity.setStatus(TaskEntity.Status.CREATED);
-        }
 
         return entity;
     }
@@ -327,6 +354,7 @@ public class AbadaEngine {
         ProcessDefinitionEntity entity = new ProcessDefinitionEntity();
         entity.setId(definition.getId());
         entity.setName(definition.getName());
+        entity.setDocumentation(definition.getDocumentation());
         entity.setBpmnXml(definition.getRawXml());
         persistenceService.saveProcessDefinition(entity);
     }

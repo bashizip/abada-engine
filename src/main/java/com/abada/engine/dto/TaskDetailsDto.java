@@ -1,7 +1,9 @@
 package com.abada.engine.dto;
 
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.TaskStatus;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -14,6 +16,9 @@ public record TaskDetailsDto(
         String taskDefinitionKey,
         String name,
         String assignee,
+        TaskStatus status,
+        Instant startDate,
+        Instant endDate,
         List<String> candidateUsers,
         List<String> candidateGroups,
         String processInstanceId,
@@ -25,6 +30,9 @@ public record TaskDetailsDto(
                 task.getTaskDefinitionKey(),
                 task.getName(),
                 task.getAssignee(),
+                task.getStatus(),
+                task.getStartDate(),
+                task.getEndDate(),
                 task.getCandidateUsers(),
                 task.getCandidateGroups(),
                 task.getProcessInstanceId(),

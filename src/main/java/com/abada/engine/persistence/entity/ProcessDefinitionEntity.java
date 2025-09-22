@@ -13,6 +13,9 @@ public class ProcessDefinitionEntity {
     private String name;
 
     @Column(columnDefinition = "TEXT")
+    private String documentation;
+
+    @Column(columnDefinition = "TEXT")
     private String bpmnXml;
 
     public String getId() {
@@ -29,6 +32,14 @@ public class ProcessDefinitionEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDocumentation() {
+        return documentation;
+    }
+
+    public void setDocumentation(String documentation) {
+        this.documentation = documentation;
     }
 
     public String getBpmnXml() {

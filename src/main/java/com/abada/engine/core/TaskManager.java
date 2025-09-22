@@ -1,10 +1,13 @@
 package com.abada.engine.core;
 
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.TaskStatus;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 public class TaskManager {
@@ -21,6 +24,12 @@ public class TaskManager {
         task.setName(name);
         task.setProcessInstanceId(processInstanceId);
         task.setAssignee(assignee);
+
+        if (assignee != null && !assignee.isEmpty()) {
+            task.setStatus(TaskStatus.CLAIMED);
+        } else {
+            task.setStatus(TaskStatus.AVAILABLE);
+        }
 
         if (candidateUsers != null) {
             task.getCandidateUsers().addAll(candidateUsers);
@@ -39,12 +48,13 @@ public class TaskManager {
 
     public boolean claimTask(String taskId, String user, List<String> userGroups) {
         TaskInstance task = tasks.get(taskId);
-        if (task == null || task.getAssignee() != null) {
+        if (task == null || task.getStatus() != TaskStatus.AVAILABLE) {
             return false;
         }
 
         if (isUserEligible(task, user, userGroups)) {
             task.setAssignee(user);
+            task.setStatus(TaskStatus.CLAIMED);
             return true;
         }
         return false;
@@ -52,28 +62,53 @@ public class TaskManager {
 
     public boolean canComplete(String taskId, String user, List<String> userGroups) {
         TaskInstance task = tasks.get(taskId);
-        if (task == null) {
+        if (task == null || task.isCompleted()) {
             return false;
         }
 
-        return user.equals(task.getAssignee()) || isUserEligible(task, user, userGroups);
+        // A user can complete a task if they are the direct assignee
+        if (user.equals(task.getAssignee())) {
+            return true;
+        }
+        
+        // Or if the task is available and they are an eligible candidate
+        return task.getStatus() == TaskStatus.AVAILABLE && isUserEligible(task, user, userGroups);
     }
 
     public void completeTask(String taskId) {
         TaskInstance task = tasks.get(taskId);
         if (task != null) {
-            task.setCompleted(true);
+            task.setStatus(TaskStatus.COMPLETED);
+            task.setEndDate(Instant.now());
         }
     }
 
+    public boolean failTask(String taskId) {
+        TaskInstance task = tasks.get(taskId);
+        if (task == null || task.isCompleted()) { // Can't fail a non-existent or completed task
+            return false;
+        }
+        task.setStatus(TaskStatus.FAILED);
+        task.setEndDate(Instant.now());
+        return true;
+    }
 
     public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups) {
+        return getVisibleTasksForUser(user, groups, null);
+    }
+
+    public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups, TaskStatus status) {
         System.out.println("All tasks: " + tasks);
-        List<TaskInstance> result = tasks.values().stream()
-                .filter(task -> !task.isCompleted())  // ✅ hide isCompleted tasks
-                .filter(task -> isUserEligible(task, user, groups))
-                .toList();
-        System.out.println("Visible tasks for user " + user + " in groups " + groups + ": " + result.toString());
+        Stream<TaskInstance> stream = tasks.values().stream()
+                .filter(task -> task.getStatus() != TaskStatus.COMPLETED)  // ✅ hide completed tasks
+                .filter(task -> isUserEligible(task, user, groups));
+
+        if (status != null) {
+            stream = stream.filter(task -> task.getStatus() == status);
+        }
+
+        List<TaskInstance> result = stream.toList();
+        System.out.println("Visible tasks for user " + user + " in groups " + groups + " with status " + status + ": " + result.toString());
         return result;
     }
 
@@ -90,7 +125,7 @@ public class TaskManager {
 
     public List<TaskInstance> getTasksForProcessInstance(String processInstanceId) {
         return tasks.values().stream()
-                .filter(t -> t.getProcessInstanceId().equals(processInstanceId) && !t.isCompleted())
+                .filter(t -> t.getProcessInstanceId().equals(processInstanceId) && t.getStatus() != TaskStatus.COMPLETED)
                 .collect(Collectors.toList());
     }
 
@@ -103,8 +138,9 @@ public class TaskManager {
         if (task.getAssignee() != null) {
             return task.getAssignee().equals(user); // direct assignee match
         }
+        // If unassigned, check candidate users and groups
         return task.getCandidateUsers().contains(user) ||
-                groups.stream().anyMatch(task.getCandidateGroups()::contains);
+                (groups != null && groups.stream().anyMatch(task.getCandidateGroups()::contains));
     }
 
 

@@ -48,6 +48,7 @@ public class ProcessInstanceAdvanceTest {
         ParsedProcessDefinition def = new ParsedProcessDefinition(
                 "proc1",
                 "Test Process",
+                "A test process with a conditional gateway.",
                 "start",
                 Map.of("taskB", taskB, "taskC", taskC),
                 Collections.emptyMap(), // serviceTasks
@@ -90,6 +91,7 @@ public class ProcessInstanceAdvanceTest {
         ParsedProcessDefinition def = new ParsedProcessDefinition(
                 "proc1",
                 "Test Process",
+                "A test process with a conditional gateway.",
                 "start",
                 Map.of("taskB", taskB, "taskC", taskC),
                 Collections.emptyMap(), // serviceTasks
@@ -125,6 +127,7 @@ public class ProcessInstanceAdvanceTest {
         ParsedProcessDefinition def = new ParsedProcessDefinition(
                 "proc1",
                 "Test Process",
+                "A simple linear process.",
                 "start",
                 Map.of("taskA", taskA),
                 Collections.emptyMap(), // serviceTasks

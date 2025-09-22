@@ -32,6 +32,7 @@ public class ProcessDefinitionTest {
         definition = new ParsedProcessDefinition(
                 "demoProc",
                 "Demo Process",
+                "A process for testing purposes.",
                 "startEvent1",
                 tasks,
                 Collections.emptyMap(), // serviceTasks

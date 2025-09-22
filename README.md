@@ -1,39 +1,28 @@
-# Abada Engine
+# Abada Platform
 
-Abada Engine is a lightweight, embeddable BPMN 2.0 workflow engine for Java. It focuses on a small, predictable core you can run in-process or expose over HTTP.
-
----
-
-## Overview
-
-* **Language/Runtime:** Java 21, Spring Boot 3
-* **Persistence:** H2 by default (switchable)
-* **Parsing:** Camunda BPMN Model API (parsing only)
-* **Use modes:** library (embedded), standalone REST, or Docker
+A modular, culturally-rooted BPMN 2.0 process automation platform built on Java 21 and Spring Boot 3. Abada provides a lightweight, embeddable workflow engine and a suite of tools for monitoring, task management, and administration.
 
 ---
 
-## Current status (0.7.0-alpha)
+## Project Architecture
 
-* BPMN parsing
-* User Tasks and Service Tasks (stub)
-* **Gateways**:
-    * Exclusive Gateway (XOR)
-    * Parallel Gateway (AND) for forking and joining
-    * Inclusive Gateway (OR) for conditional forking and joining
-* **Events**:
-    * Message Catch Event (point-to-point correlation)
-    * Timer Catch Event (persistent, scheduled delays)
-    * Signal Catch Event (broadcast to multiple instances)
-* Process & task persistence
-* REST APIs for processes and tasks
-* Validation (schema + basic semantics)
+The Abada Platform is composed of several independent modules, each with a distinct responsibility:
+
+| Module         | Description                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| `abada-engine` | Core BPMN execution engine exposed via a REST API.                          |
+| `orun`         | **(Frontend)** Monitoring and observability dashboard.                      |
+| `tenda`        | **(Frontend)** End-user interface for viewing and completing tasks.         |
+| `admin`        | **(Frontend)** Admin panel to deploy and manage process definitions.        |
+| `semaflow`     | Converts natural language descriptions to valid BPMN XML using Spring AI.   |
+
+All components are designed to be containerized and deployed independently. For a complete overview of the project's vision, component identity, and deployment strategy, please see the **[Architecture Documentation](docs/abada_architecture_doc.md)**.
 
 ---
 
-## Quick start
+## Quick Start (Docker)
 
-### Run with Docker Compose
+The fastest way to run the `abada-engine` is with Docker Compose:
 
 ```yaml
 version: '3.8'
@@ -49,91 +38,107 @@ services:
     restart: unless-stopped
 ```
 
-Then:
-
-```bash
-docker compose up -d
-```
-
-API base: `http://localhost:5601/abada/api/v1`
-
-### Minimal API flow
-
-* **Deploy** a BPMN file
-
-  ```http
-  POST /abada/v1/processes/deploy
-  Content-Type: multipart/form-data
-  Body: file=<your_bpmn_file>
-  ```
-* **Start** a process instance
-
-  ```http
-  POST /abada/v1/processes/start
-  Content-Type: application/x-www-form-urlencoded
-  Body: processId=recipe-cook
-  ```
-* **List** visible tasks for the current user
-
-  ```http
-  GET /abada/v1/tasks
-  ```
-* **Claim** a task
-
-  ```http
-  POST /abada/v1/tasks/claim?taskId=<runtimeTaskId>
-  ```
-* **Complete** a task (with variables used by gateways)
-
-  ```http
-  POST /abada/v1/tasks/complete?taskId=<runtimeTaskId>
-  Content-Type: application/json
-  {
-    "goodOne": true
-  }
-  ```
+Run `docker compose up -d`, and the engine will be available at `http://localhost:5601`.
 
 ---
 
-## Design highlights
+## API Usage
 
-* Small, testable core (`ProcessInstance.advance(...)`) with clear token movement
-* Explicit variable merge *before* advancement so gateways see inputs
-* Condition evaluation supports Camunda‑style `${...}` and simple JS
-* Deterministic gateway selection: first matching condition, else default, else error
+The Abada Engine exposes a versioned REST API under the `/v1` path.
 
-More details: see `docs/exclusive-gateway.md`.
+### Authentication
+
+The API uses an identity provider pattern. All requests **must** include the following headers to define the user context:
+
+*   `X-User`: The unique identifier of the user (e.g., `alice`).
+*   `X-Groups`: A comma-separated list of groups the user belongs to (e.g., `customers,reviewers`).
+
+### Example Flow
+
+Here is a minimal flow to deploy a process and complete a task.
+
+*   **1. Deploy a BPMN file**
+
+    ```http
+    POST /v1/processes/deploy
+    X-User: admin
+    X-Groups: administrators
+    Content-Type: multipart/form-data
+
+    file=<your_bpmn_file.bpmn>
+    ```
+
+*   **2. Start a process instance**
+
+    ```http
+    POST /v1/processes/start
+    X-User: alice
+    X-Groups: customers
+    Content-Type: application/x-www-form-urlencoded
+
+    processId=your-process-id
+    ```
+
+*   **3. List visible tasks**
+
+    ```http
+    GET /v1/tasks
+    X-User: alice
+    X-Groups: customers
+    ```
+
+*   **4. Claim and Complete a task**
+
+    ```http
+    # First, claim the task
+    POST /v1/tasks/claim?taskId=<runtimeTaskId>
+    X-User: alice
+    X-Groups: customers
+
+    # Then, complete it with variables
+    POST /v1/tasks/complete?taskId=<runtimeTaskId>
+    X-User: alice
+    X-Groups: customers
+    Content-Type: application/json
+
+    {
+      "goodOne": true
+    }
+    ```
+
+For more details, see the **[API Documentation](docs/api-documentation.md)**.
+
+---
+
+## Frontend Development
+
+The `Tenda` (task list) and `Orun` (monitoring) frontends are developed as separate Next.js applications that consume the `abada-engine` API.
+
+We have prepared a comprehensive guide for frontend developers to get started quickly. It includes the project requirements, proposed code structure, and a list of key API files to reference.
+
+**&rarr; [View the Frontend Development Prompt](docs/frontend-development-prompt.md)**
+
+---
+
+## Engine Status (0.7.0-alpha)
+
+*   **Core:** BPMN parsing, User Tasks, Service Tasks (stub).
+*   **Gateways:** Exclusive (XOR), Parallel (AND), Inclusive (OR).
+*   **Events:** Message, Timer, and Signal Catch Events.
+*   **Persistence:** H2 (default) or PostgreSQL.
+*   **API:** Versioned REST API (`/v1`) with header-based authentication.
 
 ---
 
 ## Roadmap
 
-**Near term (0.8.x)**
-
-* Service Task execution SPI (replace stub)
-* Process instance history (audit trail)
-* Conditional Event support
-* Publish artifacts to Maven Central
-
-**Medium term**
-
-* Lightweight web dashboard
-* Improved error handling and problem details in REST
-* Pluggable expression engine (MVEL/JEXL) behind an interface
-
-**Open issues / ideas**
-
-* Process variables API improvements
-* Full support for BPMN event sub-processes
-
-See the GitHub Issues tab for up‑to‑date items.
+See the GitHub Issues tab for the most up-to-date roadmap.
 
 ---
 
 ## Contributing
 
-* Issues and PRs are welcome.
-* Please include tests for engine behavior (advance, gateways, API) when possible.
+Issues and PRs are welcome. Please include tests for any new engine behavior.
 
 ## License
 
