@@ -67,7 +67,6 @@ public class AbadaEngine {
         log.info("Deployed process definition: {}", definition.getId());
     }
 
-
     public List<ProcessDefinitionEntity> getDeployedProcesses() {
         return persistenceService.findAllProcessDefinitions();
     }
@@ -327,6 +326,7 @@ public class AbadaEngine {
         ProcessDefinitionEntity entity = new ProcessDefinitionEntity();
         entity.setId(definition.getId());
         entity.setName(definition.getName());
+        entity.setDocumentation(definition.getDocumentation());
         entity.setBpmnXml(definition.getRawXml());
         persistenceService.saveProcessDefinition(entity);
     }

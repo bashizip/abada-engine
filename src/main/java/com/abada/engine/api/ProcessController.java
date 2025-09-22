@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -50,9 +51,8 @@ public class ProcessController {
 
     @PostMapping("/start")
     public ResponseEntity<String> start(@RequestParam("processId") String processId) {
-        ProcessInstance instanceId = engine.startProcess(processId);
-
-        return ResponseEntity.ok("Started instance: " + instanceId.getId());
+        ProcessInstance instance = engine.startProcess(processId);
+        return ResponseEntity.ok("Started instance: " + instance.getId());
     }
 
 
@@ -76,11 +76,14 @@ public class ProcessController {
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, String>> getProcessById(@PathVariable String id) {
         return engine.getProcessDefinitionById(id)
-                .map(def -> Map.of(
-                        "id", def.getId(),
-                        "name", def.getName(),
-                        "bpmnXml", def.getBpmnXml()
-                ))
+                .map(def -> {
+                    Map<String, String> responseMap = new HashMap<>();
+                    responseMap.put("id", def.getId());
+                    responseMap.put("name", def.getName());
+                    responseMap.put("documentation", def.getDocumentation()); // Safely handles null
+                    responseMap.put("bpmnXml", def.getBpmnXml());
+                    return responseMap;
+                })
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

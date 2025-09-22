@@ -27,6 +27,10 @@ public class BpmnParser {
 
             String id = process.getId();
             String name = process.getName();
+            String documentation = process.getDocumentations().stream()
+                    .findFirst()
+                    .map(Documentation::getTextContent)
+                    .orElse(null);
 
             String startEventId = model.getModelElementsByType(StartEvent.class).stream()
                     .findFirst()
@@ -117,7 +121,7 @@ public class BpmnParser {
                 endEvents.put(endEvent.getId(), null);
             }
 
-            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, startEventId, userTasks, serviceTasks, flows, gateways, events, endEvents, rawXml);
+            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, documentation, startEventId, userTasks, serviceTasks, flows, gateways, events, endEvents, rawXml);
             for (SequenceFlow flow : flows) {
                 definition.addOutgoing(flow.getSourceRef(), flow);
             }

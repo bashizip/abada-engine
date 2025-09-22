@@ -8,6 +8,7 @@ public class ParsedProcessDefinition implements Serializable {
 
     private final String id;
     private final String name;
+    private final String documentation;
     private final String startEventId;
     private final Map<String, TaskMeta> userTasks;
     private final Map<String, ServiceTaskMeta> serviceTasks;
@@ -24,7 +25,7 @@ public class ParsedProcessDefinition implements Serializable {
     public List<SequenceFlow> getIncoming(String targetId) { return incomingByTarget.getOrDefault(targetId, List.of()); }
 
 
-    public ParsedProcessDefinition(String id, String name, String startEventId,
+    public ParsedProcessDefinition(String id, String name, String documentation, String startEventId,
                                    Map<String, TaskMeta> userTasks,
                                    Map<String, ServiceTaskMeta> serviceTasks,
                                    List<SequenceFlow> sequenceFlows,
@@ -34,6 +35,7 @@ public class ParsedProcessDefinition implements Serializable {
                                    String rawXml) {
         this.id = id;
         this.name = name;
+        this.documentation = documentation;
         this.startEventId = startEventId;
         this.userTasks = Collections.unmodifiableMap(new HashMap<>(userTasks));
         this.serviceTasks = Collections.unmodifiableMap(new HashMap<>(serviceTasks));
@@ -91,6 +93,10 @@ public class ParsedProcessDefinition implements Serializable {
 
     public String getName() {
         return name;
+    }
+
+    public String getDocumentation() {
+        return documentation;
     }
 
     public String getStartEventId() {
