@@ -1,7 +1,6 @@
 package com.abada.engine.api;
 
 import com.abada.engine.AbadaEngineApplication;
-import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.TaskManager;
@@ -13,8 +12,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
@@ -24,8 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = AbadaEngineApplication.class)
 @ActiveProfiles("test")
@@ -40,14 +40,14 @@ public class EventControllerTest {
     @Autowired
     private TaskManager taskManager;
 
-    @MockBean
-    private UserContextProvider context;
+    private HttpHeaders headers;
 
     @BeforeEach
     void setUp() {
         abadaEngine.clearMemory();
-        when(context.getUsername()).thenReturn("test-user");
-        when(context.getGroups()).thenReturn(List.of("test-group"));
+        headers = new HttpHeaders();
+        headers.set("X-User", "test-user");
+        headers.set("X-Groups", "test-group");
     }
 
     @Test
@@ -68,7 +68,8 @@ public class EventControllerTest {
 
         // 4. Send the message via the REST API
         MessageEventRequest request = new MessageEventRequest("OrderPaid", correlationKey, Map.of("paymentStatus", "CONFIRMED"));
-        ResponseEntity<Void> response = restTemplate.postForEntity("/v1/events/messages", request, Void.class);
+        HttpEntity<MessageEventRequest> requestEntity = new HttpEntity<>(request, headers);
+        ResponseEntity<Void> response = restTemplate.exchange("/v1/events/messages", HttpMethod.POST, requestEntity, Void.class);
 
         // 5. Assert the API call was successful and the process moved on
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
@@ -97,7 +98,8 @@ public class EventControllerTest {
 
         // 4. Send the signal via the REST API
         SignalEventRequest request = new SignalEventRequest("SignalGo", Map.of("signalData", "BroadcastInfo"));
-        ResponseEntity<Void> response = restTemplate.postForEntity("/v1/events/signals", request, Void.class);
+        HttpEntity<SignalEventRequest> requestEntity = new HttpEntity<>(request, headers);
+        ResponseEntity<Void> response = restTemplate.exchange("/v1/events/signals", HttpMethod.POST, requestEntity, Void.class);
 
         // 5. Assert the API call was successful and both processes moved on
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
