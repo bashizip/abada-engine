@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.core.model.GatewayMeta;
 import com.abada.engine.core.model.SequenceFlow;
 import com.abada.engine.util.ConditionEvaluator;
@@ -57,7 +58,7 @@ public final class GatewaySelector {
                 }
                 return defaultFlowId;
             }
-            throw new IllegalStateException("No matching condition and no default flow for gateway " + gw.id());
+            throw new ProcessEngineException("No matching condition and no default flow for gateway " + gw.id());
         }
         return chosen;
     }
@@ -109,7 +110,7 @@ public final class GatewaySelector {
                 chosenFlows.add(defaultFlowId);
             } else {
                 // If there's no default flow, it's an error as per the spec
-                throw new IllegalStateException("No matching condition and no default flow for inclusive gateway " + gw.id());
+                throw new ProcessEngineException("No matching condition and no default flow for inclusive gateway " + gw.id());
             }
         }
 
