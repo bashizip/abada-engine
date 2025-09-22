@@ -1,5 +1,6 @@
 package com.abada.engine.core;
 
+import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import org.springframework.stereotype.Component;
@@ -46,33 +47,38 @@ public class TaskManager {
         return tasks;
     }
 
-    public boolean claimTask(String taskId, String user, List<String> userGroups) {
+    public void claimTask(String taskId, String user, List<String> userGroups) {
         TaskInstance task = tasks.get(taskId);
-        if (task == null || task.getStatus() != TaskStatus.AVAILABLE) {
-            return false;
+        if (task == null) {
+            throw new ProcessEngineException("Task not found: " + taskId);
+        }
+        if (task.getStatus() != TaskStatus.AVAILABLE) {
+            throw new ProcessEngineException("Task is not available to be claimed. Current status: " + task.getStatus());
         }
 
-        if (isUserEligible(task, user, userGroups)) {
-            task.setAssignee(user);
-            task.setStatus(TaskStatus.CLAIMED);
-            return true;
+        if (!isUserEligible(task, user, userGroups)) {
+            throw new ProcessEngineException("User " + user + " is not eligible to claim task " + taskId);
         }
-        return false;
+
+        task.setAssignee(user);
+        task.setStatus(TaskStatus.CLAIMED);
     }
 
-    public boolean canComplete(String taskId, String user, List<String> userGroups) {
+    public void checkCanComplete(String taskId, String user, List<String> userGroups) {
         TaskInstance task = tasks.get(taskId);
-        if (task == null || task.isCompleted()) {
-            return false;
+        if (task == null) {
+            throw new ProcessEngineException("Task not found: " + taskId);
+        }
+        if (task.isCompleted()) {
+            throw new ProcessEngineException("Task is already completed.");
         }
 
-        // A user can complete a task if they are the direct assignee
-        if (user.equals(task.getAssignee())) {
-            return true;
+        boolean isAssignee = user.equals(task.getAssignee());
+        boolean isEligibleAndAvailable = task.getStatus() == TaskStatus.AVAILABLE && isUserEligible(task, user, userGroups);
+
+        if (!isAssignee && !isEligibleAndAvailable) {
+            throw new ProcessEngineException("User " + user + " is not authorized to complete task " + taskId);
         }
-        
-        // Or if the task is available and they are an eligible candidate
-        return task.getStatus() == TaskStatus.AVAILABLE && isUserEligible(task, user, userGroups);
     }
 
     public void completeTask(String taskId) {
@@ -83,14 +89,13 @@ public class TaskManager {
         }
     }
 
-    public boolean failTask(String taskId) {
+    public void failTask(String taskId) {
         TaskInstance task = tasks.get(taskId);
         if (task == null || task.isCompleted()) { // Can't fail a non-existent or completed task
-            return false;
+            throw new ProcessEngineException("Task not found or is already completed: " + taskId);
         }
         task.setStatus(TaskStatus.FAILED);
         task.setEndDate(Instant.now());
-        return true;
     }
 
     public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups) {
@@ -100,7 +105,7 @@ public class TaskManager {
     public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups, TaskStatus status) {
         System.out.println("All tasks: " + tasks);
         Stream<TaskInstance> stream = tasks.values().stream()
-                .filter(task -> task.getStatus() != TaskStatus.COMPLETED)  // ✅ hide completed tasks
+                .filter(task -> task.getStatus() != TaskStatus.COMPLETED && task.getStatus() != TaskStatus.FAILED)
                 .filter(task -> isUserEligible(task, user, groups));
 
         if (status != null) {
