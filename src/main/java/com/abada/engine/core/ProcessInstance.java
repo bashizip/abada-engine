@@ -39,7 +39,7 @@ public class ProcessInstance {
         this.activeTokens.addAll(activeTokens);
         this.startDate = startDate;
         this.endDate = endDate;
-        this.status = activeTokens.isEmpty() ? ProcessStatus.COMPLETED : ProcessStatus.RUNNING;
+        // The status will be set during rehydration in the engine
     }
 
     public ProcessInstance() {

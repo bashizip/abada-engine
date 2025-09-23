@@ -3,6 +3,7 @@ package com.abada.engine.api;
 import com.abada.engine.AbadaEngineApplication;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.model.TaskStatus;
+import com.abada.engine.dto.ErrorResponse;
 import com.abada.engine.dto.TaskDetailsDto;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -147,5 +148,57 @@ public class TaskControllerTest {
         assertThat(detailsResponse.getBody().status()).isEqualTo(TaskStatus.FAILED);
         assertThat(detailsResponse.getBody().startDate()).isNotNull();
         assertThat(detailsResponse.getBody().endDate()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Should return 400 error when claiming an already claimed task")
+    void shouldReturnErrorWhenClaimingUnavailableTask() {
+        // --- Step 1: Start process and have Alice claim the task ---
+        abadaEngine.startProcess("recipe-cook");
+        HttpHeaders aliceHeaders = new HttpHeaders();
+        aliceHeaders.set("X-User", "alice");
+        aliceHeaders.set("X-Groups", "customers");
+        HttpEntity<Void> aliceRequestEntity = new HttpEntity<>(aliceHeaders);
+        ResponseEntity<List<TaskDetailsDto>> listResponse = restTemplate.exchange("/v1/tasks", HttpMethod.GET, aliceRequestEntity, new ParameterizedTypeReference<>() {});
+        String taskId = listResponse.getBody().get(0).id();
+        restTemplate.exchange("/v1/tasks/claim?taskId={taskId}", HttpMethod.POST, aliceRequestEntity, Map.class, taskId);
+
+        // --- Step 2: Have Bob try to claim the same task ---
+        HttpHeaders bobHeaders = new HttpHeaders();
+        bobHeaders.set("X-User", "bob");
+        bobHeaders.set("X-Groups", "customers");
+        HttpEntity<Void> bobRequestEntity = new HttpEntity<>(bobHeaders);
+        ResponseEntity<ErrorResponse> errorResponse = restTemplate.exchange("/v1/tasks/claim?taskId={taskId}", HttpMethod.POST, bobRequestEntity, ErrorResponse.class, taskId);
+
+        // --- Step 3: Verify the error response ---
+        assertThat(errorResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(errorResponse.getBody()).isNotNull();
+        assertThat(errorResponse.getBody().message()).contains("Task is not available to be claimed");
+    }
+
+    @Test
+    @DisplayName("Should return 400 error when completing a task assigned to another user")
+    void shouldReturnErrorWhenCompletingUnassignedTask() {
+        // --- Step 1: Start process and have Alice claim the task ---
+        abadaEngine.startProcess("recipe-cook");
+        HttpHeaders aliceHeaders = new HttpHeaders();
+        aliceHeaders.set("X-User", "alice");
+        aliceHeaders.set("X-Groups", "customers");
+        HttpEntity<Void> aliceRequestEntity = new HttpEntity<>(aliceHeaders);
+        ResponseEntity<List<TaskDetailsDto>> listResponse = restTemplate.exchange("/v1/tasks", HttpMethod.GET, aliceRequestEntity, new ParameterizedTypeReference<>() {});
+        String taskId = listResponse.getBody().get(0).id();
+        restTemplate.exchange("/v1/tasks/claim?taskId={taskId}", HttpMethod.POST, aliceRequestEntity, Map.class, taskId);
+
+        // --- Step 2: Have Bob (unauthorized) try to complete the task ---
+        HttpHeaders bobHeaders = new HttpHeaders();
+        bobHeaders.set("X-User", "bob");
+        bobHeaders.set("X-Groups", "customers");
+        HttpEntity<Map<String, Object>> bobCompleteRequest = new HttpEntity<>(Map.of("goodOne", true), bobHeaders);
+        ResponseEntity<ErrorResponse> errorResponse = restTemplate.exchange("/v1/tasks/complete?taskId={taskId}", HttpMethod.POST, bobCompleteRequest, ErrorResponse.class, taskId);
+
+        // --- Step 3: Verify the error response ---
+        assertThat(errorResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(errorResponse.getBody()).isNotNull();
+        assertThat(errorResponse.getBody().message()).contains("is not authorized to complete task");
     }
 }

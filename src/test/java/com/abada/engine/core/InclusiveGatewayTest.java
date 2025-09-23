@@ -49,14 +49,14 @@ public class InclusiveGatewayTest {
         TaskInstance initialTask = initialTasks.get(0);
         assertEquals("Task_SetDetails", initialTask.getTaskDefinitionKey());
 
-        boolean completed = abadaEngine.completeTask(initialTask.getId(), "test-user", List.of(), variables);
-        assertTrue(completed);
+       abadaEngine.completeTask(initialTask.getId(), "test-user", List.of(), variables);
+        assertTrue(initialTask.isCompleted());
         return initialTask;
     }
 
     @Test
     @DisplayName("Inclusive gateway should fork into multiple paths when conditions are met")
-    void shouldFollowMultiplePathsWhenConditionsAreTrue() {
+    void shouldFollowMultiplePathsWhenConditionsAreTiue() {
         // Given
         ProcessInstance pi = abadaEngine.startProcess("OrderFulfillmentProcess");
         Map<String, Object> variables = Map.of("order", Map.of(

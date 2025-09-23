@@ -5,6 +5,7 @@ import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.StateReloadService;
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.util.BpmnTestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,11 +78,13 @@ public class AbadaEnginePersistenceReloadTest {
         assertEquals(taskIdBefore, taskIdAfter, "Task ID should be the same before and after reload");
 
         // 6. Complete the task and verify second task appears for Bob
-        boolean claimed = abadaEngine.claim(taskIdAfter, "alice", List.of("customers"));
-        assertTrue(claimed, "Alice should be able to claim task");
+        abadaEngine.claim(taskIdAfter, "alice", List.of("customers"));
+        TaskInstance claimedTask = abadaEngine.getTaskManager().getTask(taskIdAfter).orElseThrow();
+        assertEquals(TaskStatus.CLAIMED, claimedTask.getStatus());
 
-        boolean completed = abadaEngine.completeTask(taskIdAfter, "alice", List.of("customers"), Map.of("goodOne", true));
-        assertTrue(completed, "Alice should be able to complete task");
+        abadaEngine.completeTask(taskIdAfter, "alice", List.of("customers"), Map.of("goodOne", true));
+        TaskInstance completedTask = abadaEngine.getTaskManager().getTask(taskIdAfter).orElseThrow();
+        assertEquals(TaskStatus.COMPLETED, completedTask.getStatus());
 
         // 7. Switch context to Bob in 'cuistos' group
         when(context.getUsername()).thenReturn("bob");
@@ -92,11 +95,13 @@ public class AbadaEnginePersistenceReloadTest {
 
         String secondTaskId = tasksForBob.get(0).getId();
 
-        boolean bobClaimed = abadaEngine.claim(secondTaskId, "bob", List.of("cuistos"));
-        assertTrue(bobClaimed, "Bob should be able to claim the second task");
+        abadaEngine.claim(secondTaskId, "bob", List.of("cuistos"));
+        TaskInstance bobClaimedTask = abadaEngine.getTaskManager().getTask(secondTaskId).orElseThrow();
+        assertEquals(TaskStatus.CLAIMED, bobClaimedTask.getStatus());
 
-        boolean bobCompleted = abadaEngine.completeTask(secondTaskId, "bob", List.of("cuistos"), Collections.emptyMap());
-        assertTrue(bobCompleted, "Bob should be able to complete the second task");
+        abadaEngine.completeTask(secondTaskId, "bob", List.of("cuistos"), Collections.emptyMap());
+        TaskInstance bobCompletedTask = abadaEngine.getTaskManager().getTask(secondTaskId).orElseThrow();
+        assertEquals(TaskStatus.COMPLETED, bobCompletedTask.getStatus());
 
         ProcessInstance reloadedInstance = abadaEngine.getProcessInstanceById(processInstance.getId());
         assertTrue(reloadedInstance.isCompleted(), "Process should be isCompleted after Bob's task");
