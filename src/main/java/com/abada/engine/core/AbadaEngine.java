@@ -210,10 +210,12 @@ public class AbadaEngine {
             throw new IllegalStateException("No deployed process definition found for ID: " + entity.getProcessDefinitionId());
         }
 
+        List<String> activeTokens = entity.getCurrentActivityId() != null ? List.of(entity.getCurrentActivityId()) : Collections.emptyList();
+
         ProcessInstance instance = new ProcessInstance(
                 entity.getId(),
                 def,
-                List.of(entity.getCurrentActivityId()),
+                activeTokens,
                 entity.getStartDate(),
                 entity.getEndDate()
         );
