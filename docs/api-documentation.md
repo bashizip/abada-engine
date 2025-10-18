@@ -257,6 +257,112 @@ Marks a task as FAILED.
   }
   ```
 
+### Get User Statistics
+
+Retrieves comprehensive statistics and activity data for the current user.
+
+- **Method & URL**: `GET /v1/tasks/user-stats`
+- **Success Response** (`200 OK`):
+  ```json
+  {
+    "quickStats": {
+      "activeTasks": 2,
+      "completedTasks": 15,
+      "runningProcesses": 3,
+      "availableTasks": 1
+    },
+    "recentTasks": [
+      {
+        "id": "03b905d8-c251-4c40-8bb3-086a29299445",
+        "name": "Review Order",
+        "taskDefinitionKey": "review-order",
+        "status": "COMPLETED",
+        "startDate": "2024-01-15T10:30:00Z",
+        "processInstanceId": "656f2037-dddd-4c0f-af68-02a8634ff0e4"
+      },
+      {
+        "id": "c1067e06-5910-42cc-b172-c9bcf91b24d8",
+        "name": "Approve Payment",
+        "taskDefinitionKey": "approve-payment",
+        "status": "CLAIMED",
+        "startDate": "2024-01-15T09:15:00Z",
+        "processInstanceId": "17278ff4-40d0-426c-88bd-c8b24c64c39e"
+      }
+    ],
+    "tasksByStatus": {
+      "AVAILABLE": 1,
+      "CLAIMED": 2,
+      "COMPLETED": 15,
+      "FAILED": 0
+    },
+    "overdueTasks": [
+      {
+        "id": "overdue-task-123",
+        "name": "Urgent Review",
+        "taskDefinitionKey": "urgent-review",
+        "startDate": "2024-01-08T14:00:00Z",
+        "daysOverdue": 7,
+        "processInstanceId": "process-instance-456"
+      }
+    ],
+    "processActivity": {
+      "recentlyStartedProcesses": [
+        {
+          "id": "bf395379-cf21-4129-84f1-ac39c68022f7",
+          "processDefinitionId": "order-processing",
+          "startDate": "2024-01-15T08:00:00Z",
+          "currentActivityId": "review-order"
+        },
+        {
+          "id": "656f2037-dddd-4c0f-af68-02a8634ff0e4",
+          "processDefinitionId": "payment-approval",
+          "startDate": "2024-01-14T16:30:00Z",
+          "currentActivityId": null
+        }
+      ],
+      "activeProcessCount": 3,
+      "completionRate": 0.75
+    }
+  }
+  ```
+
+**Response Fields Description:**
+
+- **quickStats**: Summary statistics for the user
+  - `activeTasks`: Number of tasks currently in CLAIMED status by the user
+  - `completedTasks`: Number of tasks completed by the user
+  - `runningProcesses`: Number of process instances that have tasks for the user
+  - `availableTasks`: Number of tasks the user can claim (AVAILABLE status + eligible)
+
+- **recentTasks**: Array of the 10 most recent tasks assigned to the user, ordered by start date (newest first)
+  - `id`: Unique task identifier
+  - `name`: Human-readable task name
+  - `taskDefinitionKey`: BPMN task definition key
+  - `status`: Current task status
+  - `startDate`: When the task was created
+  - `processInstanceId`: ID of the process instance containing this task
+
+- **tasksByStatus**: Object with task counts grouped by status
+  - Keys are task status values (AVAILABLE, CLAIMED, COMPLETED, FAILED, etc.)
+  - Values are the count of tasks in that status for the user
+
+- **overdueTasks**: Array of tasks that are overdue (CLAIMED for more than 7 days)
+  - `id`: Unique task identifier
+  - `name`: Human-readable task name
+  - `taskDefinitionKey`: BPMN task definition key
+  - `startDate`: When the task was created
+  - `daysOverdue`: Number of days the task has been overdue
+  - `processInstanceId`: ID of the process instance containing this task
+
+- **processActivity**: Information about processes related to the user
+  - `recentlyStartedProcesses`: Array of recently started processes that have tasks for the user
+    - `id`: Unique process instance identifier
+    - `processDefinitionId`: ID of the process definition
+    - `startDate`: When the process instance was started
+    - `currentActivityId`: Current activity ID (null if process is completed)
+  - `activeProcessCount`: Number of active (RUNNING) process instances with user's tasks
+  - `completionRate`: Decimal value (0.0 to 1.0) representing the completion rate for processes with user's tasks
+
 ---
 
 ## Event Controller

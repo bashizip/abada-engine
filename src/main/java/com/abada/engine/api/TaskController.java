@@ -3,9 +3,11 @@ package com.abada.engine.api;
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
+import com.abada.engine.core.UserStatsService;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.TaskDetailsDto;
+import com.abada.engine.dto.UserStatsDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,10 +29,12 @@ public class TaskController {
 
     private final AbadaEngine engine;
     private final UserContextProvider context;
+    private final UserStatsService userStatsService;
 
-    public TaskController(AbadaEngine engine, UserContextProvider context) {
+    public TaskController(AbadaEngine engine, UserContextProvider context, UserStatsService userStatsService) {
         this.engine = engine;
         this.context = context;
+        this.userStatsService = userStatsService;
     }
 
     /**
@@ -121,5 +125,26 @@ public class TaskController {
     public ResponseEntity<Map<String, Object>> fail(@RequestParam String taskId) {
         engine.failTask(taskId);
         return ResponseEntity.ok(Map.of("status", "Failed", "taskId", taskId));
+    }
+
+    /**
+     * Retrieves comprehensive statistics and activity data for the current user.
+     * <p>
+     * This endpoint provides:
+     * - Quick stats (active tasks, completed tasks, running processes, available tasks)
+     * - Recent tasks assigned to the user (last 10)
+     * - Tasks grouped by status
+     * - Overdue tasks (CLAIMED for more than 7 days)
+     * - Process activity (recently started processes, active process count, completion rate)
+     *
+     * @return A {@link ResponseEntity} containing a {@link UserStatsDto} with all user statistics.
+     */
+    @GetMapping("/user-stats")
+    public ResponseEntity<UserStatsDto> getUserStats() {
+        String username = context.getUsername();
+        List<String> userGroups = context.getGroups();
+        
+        UserStatsDto stats = userStatsService.getUserStats(username, userGroups);
+        return ResponseEntity.ok(stats);
     }
 }
