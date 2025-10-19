@@ -39,6 +39,7 @@ public class EventManager {
                 switch (eventMeta.type()) {
                     case MESSAGE -> registerMessageSubscription(instance, eventMeta);
                     case SIGNAL -> registerSignalSubscription(instance, eventMeta);
+                    case CONDITIONAL -> log.debug("Conditional events not yet implemented for instance {}", instance.getId());
                     // Timer events are handled by the JobScheduler, not here.
                 }
             }

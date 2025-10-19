@@ -3,9 +3,11 @@ package com.abada.engine.api;
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
+import com.abada.engine.core.UserStatsService;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.TaskDetailsDto;
+import com.abada.engine.dto.UserStatsDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,10 +29,12 @@ public class TaskController {
 
     private final AbadaEngine engine;
     private final UserContextProvider context;
+    private final UserStatsService userStatsService;
 
-    public TaskController(AbadaEngine engine, UserContextProvider context) {
+    public TaskController(AbadaEngine engine, UserContextProvider context, UserStatsService userStatsService) {
         this.engine = engine;
         this.context = context;
+        this.userStatsService = userStatsService;
     }
 
     /**
@@ -85,62 +89,62 @@ public class TaskController {
 
     /**
      * Allows the current user to claim an unassigned task.
-     * <p>
-     * To successfully claim a task, the task must not have an assignee, and the current user must
-     * be a candidate for the task (either by direct user candidacy or group membership).
+     * Any exceptions (e.g., task not available) are handled by the GlobalExceptionHandler.
      *
      * @param taskId The unique identifier of the task to claim.
-     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK),
-     *         or a JSON error object if the task cannot be claimed (400 Bad Request).
+     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/claim")
     public ResponseEntity<Map<String, Object>> claim(@RequestParam String taskId) {
-        boolean claimed = engine.claim(taskId, context.getUsername(), context.getGroups());
-        if (claimed) {
-            return ResponseEntity.ok(Map.of("status", "Claimed", "taskId", taskId));
-        } else {
-            return ResponseEntity.badRequest().body(Map.of("error", "Cannot claim task", "taskId", taskId));
-        }
+        engine.claim(taskId, context.getUsername(), context.getGroups());
+        return ResponseEntity.ok(Map.of("status", "Claimed", "taskId", taskId));
     }
 
     /**
      * Completes a task that is currently assigned to the user, optionally updating process variables.
-     * <p>
-     * The task must be assigned to the current user for the completion to be successful.
-     * Any variables provided in the request body will be merged into the process instance's variable scope.
+     * Any exceptions (e.g., user not authorized) are handled by the GlobalExceptionHandler.
      *
      * @param taskId    The unique identifier of the task to complete.
      * @param variables An optional JSON object in the request body containing variables to be set in the process instance.
-     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK),
-     *         or a JSON error object if the task cannot be completed (400 Bad Request).
+     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/complete")
     public ResponseEntity<Map<String, Object>> complete(@RequestParam String taskId, @RequestBody(required = false) Map<String, Object> variables) {
-        boolean completed = engine.completeTask(taskId, context.getUsername(), context.getGroups(), variables);
-        if (completed) {
-            return ResponseEntity.ok(Map.of("status", "Completed", "taskId", taskId));
-        } else {
-            return ResponseEntity.badRequest().body(Map.of("error", "Cannot complete task", "taskId", taskId));
-        }
+        engine.completeTask(taskId, context.getUsername(), context.getGroups(), variables);
+        return ResponseEntity.ok(Map.of("status", "Completed", "taskId", taskId));
     }
 
     /**
      * Marks a task as FAILED.
-     * <p>
-     * This is a terminal status and does not advance the process. It is used to indicate that a task
-     * could not be successfully completed due to a business or system error.
+     * Any exceptions (e.g., task not found) are handled by the GlobalExceptionHandler.
      *
      * @param taskId The unique identifier of the task to fail.
-     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK),
-     *         or a JSON error object if the task cannot be failed (400 Bad Request).
+     * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/fail")
     public ResponseEntity<Map<String, Object>> fail(@RequestParam String taskId) {
-        boolean failed = engine.failTask(taskId);
-        if (failed) {
-            return ResponseEntity.ok(Map.of("status", "Failed", "taskId", taskId));
-        } else {
-            return ResponseEntity.badRequest().body(Map.of("error", "Cannot fail task", "taskId", taskId));
-        }
+        engine.failTask(taskId);
+        return ResponseEntity.ok(Map.of("status", "Failed", "taskId", taskId));
+    }
+
+    /**
+     * Retrieves comprehensive statistics and activity data for the current user.
+     * <p>
+     * This endpoint provides:
+     * - Quick stats (active tasks, completed tasks, running processes, available tasks)
+     * - Recent tasks assigned to the user (last 10)
+     * - Tasks grouped by status
+     * - Overdue tasks (CLAIMED for more than 7 days)
+     * - Process activity (recently started processes, active process count, completion rate)
+     *
+     * @return A {@link ResponseEntity} containing a {@link UserStatsDto} with all user statistics.
+     */
+    @GetMapping("/user-stats")
+    public ResponseEntity<UserStatsDto> getUserStats() {
+        String username = context.getUsername();
+        List<String> userGroups = context.getGroups();
+        
+        UserStatsDto stats = userStatsService.getUserStats(username, userGroups);
+        return ResponseEntity.ok(stats);
     }
 }

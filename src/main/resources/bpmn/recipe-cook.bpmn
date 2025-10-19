@@ -6,7 +6,7 @@
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="choose-recipe" />
-    <bpmn:exclusiveGateway id="gw_goodone" name="Good One ?">
+    <bpmn:exclusiveGateway id="gw_goodone" name="Good One ?" default="back-choose-flow">
       <bpmn:extensionElements />
       <bpmn:incoming>Flow_2</bpmn:incoming>
       <bpmn:outgoing>to-cook-flow</bpmn:outgoing>
@@ -14,7 +14,7 @@
     </bpmn:exclusiveGateway>
     <bpmn:sequenceFlow id="Flow_2" sourceRef="choose-recipe" targetRef="gw_goodone" />
     <bpmn:sequenceFlow id="to-cook-flow" name="+" sourceRef="gw_goodone" targetRef="cook-recipe">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${goodOne }</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${goodOne}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:endEvent id="Event_1">
       <bpmn:incoming>Flow_5</bpmn:incoming>
@@ -29,9 +29,7 @@
       <bpmn:incoming>to-cook-flow</bpmn:incoming>
       <bpmn:outgoing>Flow_5</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:sequenceFlow id="back-choose-flow" name="-" sourceRef="gw_goodone" targetRef="choose-recipe">
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!goodOne}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="back-choose-flow" name="-" sourceRef="gw_goodone" targetRef="choose-recipe" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="recipe-cook">

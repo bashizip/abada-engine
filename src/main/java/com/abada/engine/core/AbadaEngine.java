@@ -110,23 +110,17 @@ public class AbadaEngine {
         return instance;
     }
 
-    public boolean claim(String taskId, String user, List<String> groups) {
-        if (taskManager.claimTask(taskId, user, groups)) {
-            taskManager.getTask(taskId)
-                    .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
-            return true;
-        }
-        return false;
+    public void claim(String taskId, String user, List<String> groups) {
+        taskManager.claimTask(taskId, user, groups);
+        taskManager.getTask(taskId)
+                .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
     }
 
 
-    public boolean completeTask(String taskId, String user, List<String> groups, Map<String, Object> variables) {
+    public void completeTask(String taskId, String user, List<String> groups, Map<String, Object> variables) {
         log.info("Completing task {} with variables: {}", taskId, variables);
 
-        if (!taskManager.canComplete(taskId, user, groups)) {
-            log.warn("User {} cannot complete task {}", user, taskId);
-            return false;
-        }
+        taskManager.checkCanComplete(taskId, user, groups);
 
         TaskInstance currentTask = taskManager.getTask(taskId)
                 .orElseThrow(() -> new ProcessEngineException("Task not found: " + taskId));
@@ -159,17 +153,12 @@ public class AbadaEngine {
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
         createExternalTaskJobs(instance);
-
-        return true;
     }
 
-    public boolean failTask(String taskId) {
-        if (taskManager.failTask(taskId)) {
-            taskManager.getTask(taskId)
-                    .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
-            return true;
-        }
-        return false;
+    public void failTask(String taskId) {
+        taskManager.failTask(taskId);
+        taskManager.getTask(taskId)
+                .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
     }
 
     public boolean failProcess(String processInstanceId) {
@@ -221,10 +210,12 @@ public class AbadaEngine {
             throw new IllegalStateException("No deployed process definition found for ID: " + entity.getProcessDefinitionId());
         }
 
+        List<String> activeTokens = entity.getCurrentActivityId() != null ? List.of(entity.getCurrentActivityId()) : Collections.emptyList();
+
         ProcessInstance instance = new ProcessInstance(
                 entity.getId(),
                 def,
-                List.of(entity.getCurrentActivityId()),
+                activeTokens,
                 entity.getStartDate(),
                 entity.getEndDate()
         );

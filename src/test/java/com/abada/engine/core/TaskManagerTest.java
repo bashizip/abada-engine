@@ -1,7 +1,9 @@
 package com.abada.engine.core;
 
 import com.abada.engine.core.model.TaskInstance;
+import com.abada.engine.core.model.TaskStatus;
 import org.camunda.bpm.model.bpmn.instance.Process;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -51,9 +53,9 @@ public class TaskManagerTest {
 
         TaskInstance task = visible.get(0);
 
-        boolean claimed = taskManager.claimTask(task.getId(), "user2", List.of("group2"));
+        taskManager.claimTask(task.getId(), "user2", List.of("group2"));
 
-        assertThat(claimed).isTrue();
+        Assertions.assertEquals(TaskStatus.CLAIMED, task.getStatus());
         assertThat(task.getAssignee()).isEqualTo("user2");
         assertThat(task.isCompleted()).isFalse();
     }
@@ -75,8 +77,6 @@ public class TaskManagerTest {
 
         assertThat(task.getAssignee()).isEqualTo("user3");
 
-        boolean canComplete = taskManager.canComplete(task.getId(), "user3", List.of("group3"));
-        assertThat(canComplete).isTrue();
         taskManager.completeTask(task.getId());
         assertThat(task.isCompleted()).isTrue();
 
