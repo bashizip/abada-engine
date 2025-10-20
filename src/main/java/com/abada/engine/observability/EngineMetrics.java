@@ -142,6 +142,7 @@ public class EngineMetrics {
 
     // Process Metrics Methods
     public void recordProcessStarted(String processDefinitionId) {
+        // Record global and per-process metrics
         processInstancesStarted.increment();
         processStartedCounters.computeIfAbsent(processDefinitionId, id ->
             Counter.builder("abada.process.instances.started")
@@ -149,10 +150,13 @@ public class EngineMetrics {
                   .description("Process instances started by definition")
                   .register(meterRegistry)
         ).increment();
+        
+        // Track active process
         activeProcessInstances.incrementAndGet();
     }
 
     public void recordProcessCompleted(String processDefinitionId) {
+        // Record completion metrics
         processInstancesCompleted.increment();
         processCompletedCounters.computeIfAbsent(processDefinitionId, id ->
             Counter.builder("abada.process.instances.completed")
@@ -160,10 +164,14 @@ public class EngineMetrics {
                   .description("Process instances completed by definition")
                   .register(meterRegistry)
         ).increment();
+        
+        // Clean up active tracking
+        processStartedCounters.remove(processDefinitionId);
         activeProcessInstances.decrementAndGet();
     }
 
     public void recordProcessFailed(String processDefinitionId) {
+        // Record failure metrics
         processInstancesFailed.increment();
         processFailedCounters.computeIfAbsent(processDefinitionId, id ->
             Counter.builder("abada.process.instances.failed")
@@ -171,6 +179,9 @@ public class EngineMetrics {
                   .description("Process instances failed by definition")
                   .register(meterRegistry)
         ).increment();
+        
+        // Clean up active tracking
+        processStartedCounters.remove(processDefinitionId);
         activeProcessInstances.decrementAndGet();
     }
 
@@ -197,6 +208,7 @@ public class EngineMetrics {
     private final ConcurrentHashMap<String, Timer> taskProcessingTimers = new ConcurrentHashMap<>();
 
     public void recordTaskCreated(String taskDefinitionKey) {
+        // Record global and per-task metrics
         tasksCreated.increment();
         taskCreatedCounters.computeIfAbsent(taskDefinitionKey, key ->
             Counter.builder("abada.tasks.created")
@@ -204,10 +216,13 @@ public class EngineMetrics {
                   .description("Tasks created by definition key")
                   .register(meterRegistry)
         ).increment();
+        
+        // Track active task
         activeTasks.incrementAndGet();
     }
 
     public void recordTaskClaimed(String taskDefinitionKey) {
+        // Record claim metrics
         tasksClaimed.increment();
         taskClaimedCounters.computeIfAbsent(taskDefinitionKey, key ->
             Counter.builder("abada.tasks.claimed")
@@ -218,6 +233,7 @@ public class EngineMetrics {
     }
 
     public void recordTaskCompleted(String taskDefinitionKey) {
+        // Record completion metrics
         tasksCompleted.increment();
         taskCompletedCounters.computeIfAbsent(taskDefinitionKey, key ->
             Counter.builder("abada.tasks.completed")
@@ -225,10 +241,14 @@ public class EngineMetrics {
                   .description("Tasks completed by definition key")
                   .register(meterRegistry)
         ).increment();
+        
+        // Clean up active tracking
+        taskCreatedCounters.remove(taskDefinitionKey);
         activeTasks.decrementAndGet();
     }
 
     public void recordTaskFailed(String taskDefinitionKey) {
+        // Record failure metrics
         tasksFailed.increment();
         taskFailedCounters.computeIfAbsent(taskDefinitionKey, key ->
             Counter.builder("abada.tasks.failed")
@@ -236,6 +256,9 @@ public class EngineMetrics {
                   .description("Tasks failed by definition key")
                   .register(meterRegistry)
         ).increment();
+        
+        // Clean up active tracking
+        taskCreatedCounters.remove(taskDefinitionKey);
         activeTasks.decrementAndGet();
     }
 
@@ -365,13 +388,32 @@ public class EngineMetrics {
     public void cleanupStaleMetrics(long maxAgeMinutes) {
         long cutoffTime = System.currentTimeMillis() - (maxAgeMinutes * 60 * 1000);
         
-        // Clean up process metrics
+        // Reset active process counters if they have no completion/failure
+        processStartedCounters.forEach((processId, counter) -> {
+            if (!processCompletedCounters.containsKey(processId) && 
+                !processFailedCounters.containsKey(processId)) {
+                processStartedCounters.remove(processId);
+                // Reset active instance count
+                activeProcessInstances.set(0);
+            }
+        });
+
+        // Reset active task counters if they have no completion/failure
+        taskCreatedCounters.forEach((taskId, counter) -> {
+            if (!taskCompletedCounters.containsKey(taskId) && 
+                !taskFailedCounters.containsKey(taskId)) {
+                taskCreatedCounters.remove(taskId);
+                // Reset active task count
+                activeTasks.set(0);
+            }
+        });
+
+        // Apply size limits to prevent memory leaks
         cleanupMetricCache(processStartedCounters, cutoffTime);
         cleanupMetricCache(processCompletedCounters, cutoffTime);
         cleanupMetricCache(processFailedCounters, cutoffTime);
         cleanupMetricCache(processTimers, cutoffTime);
 
-        // Clean up task metrics
         cleanupMetricCache(taskCreatedCounters, cutoffTime);
         cleanupMetricCache(taskClaimedCounters, cutoffTime);
         cleanupMetricCache(taskCompletedCounters, cutoffTime);
@@ -379,12 +421,10 @@ public class EngineMetrics {
         cleanupMetricCache(taskWaitingTimers, cutoffTime);
         cleanupMetricCache(taskProcessingTimers, cutoffTime);
 
-        // Clean up event metrics
         cleanupMetricCache(eventPublishedCounters, cutoffTime);
         cleanupMetricCache(eventConsumedCounters, cutoffTime);
         cleanupMetricCache(eventCorrelatedCounters, cutoffTime);
 
-        // Clean up job metrics
         cleanupMetricCache(jobExecutedCounters, cutoffTime);
         cleanupMetricCache(jobFailedCounters, cutoffTime);
         cleanupMetricCache(jobExecutionTimers, cutoffTime);
@@ -397,22 +437,21 @@ public class EngineMetrics {
     private <T> void cleanupMetricCache(ConcurrentHashMap<String, T> cache, long cutoffTime) {
         if (cache == null) return;
         
-        cache.entrySet().removeIf(entry -> {
-            if (entry.getValue() instanceof Counter) {
-                Counter counter = (Counter) entry.getValue();
-                // Remove if counter hasn't recorded any activity
-                return counter.count() == 0;
-            } else if (entry.getValue() instanceof Timer) {
-                Timer timer = (Timer) entry.getValue();
-                // Remove if timer hasn't recorded anything
-                return timer.count() == 0;
+        // First pass: clean up metrics for incomplete/inactive items
+        List<String> keysToRemove = new ArrayList<>();
+        
+        cache.forEach((key, value) -> {
+            if (value instanceof Counter || value instanceof Timer) {
+                // Remove from cache but leave in registry since Micrometer manages metric lifecycle
+                keysToRemove.add(key);
             }
-            return false;
         });
+        
+        keysToRemove.forEach(cache::remove);
 
+        // Apply size limit if needed
         if (!cache.isEmpty() && cache.size() > 1000) {
-            // If we have too many metrics, remove the oldest ones
-            // This is a safeguard against memory leaks
+            // Get sorted list of keys by activity level
             List<String> keys = new ArrayList<>(cache.keySet());
             keys.sort((k1, k2) -> {
                 T m1 = cache.get(k1);
@@ -425,9 +464,9 @@ public class EngineMetrics {
                 return 0;
             });
             
-            // Remove oldest 20% of metrics
+            // Remove oldest 20% from cache
             int toRemove = keys.size() / 5;
-            for (int i = 0; i < toRemove; i++) {
+            for (int i = 0; i < toRemove && i < keys.size(); i++) {
                 cache.remove(keys.get(i));
             }
         }

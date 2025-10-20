@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: abada-engine-test
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+    sampling-type: probability
+  metrics:
+    export:
+      otlp:
+        enabled: true
+
+otel:
+  service:
+    name: abada-engine-test
+    version: test
+  resource:
+    attributes:
+      service.name: abada-engine-test
+      deployment.environment: test
+  traces:
+    exporter: otlp
+    sampler: traceidratio
+    sampler.arg: 1.0
+  metrics:
+    exporter: otlp
+  logs:
+    exporter: none
+
+logging:
+  level:
+    io.opentelemetry: INFO
+    io.micrometer: INFO
+    com.abada.engine: DEBUG

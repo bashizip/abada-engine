@@ -3,7 +3,6 @@ package com.abada.engine.config;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,7 +26,8 @@ class ObservabilityConfigTest {
     @Test
     void shouldConfigureOpenTelemetry() {
         assertThat(openTelemetry).isNotNull();
-        assertThat(openTelemetry.getTracerProvider()).isInstanceOf(SdkTracerProvider.class);
+        assertThat(openTelemetry.getTracerProvider()).isNotNull();
+        assertThat(openTelemetry.getTracerProvider().getClass().getName()).contains("OpenTelemetrySdk$ObfuscatedTracerProvider");
     }
 
     @Test

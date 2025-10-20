@@ -9,23 +9,16 @@ server:
 app:
   version: 0.8.2-alpha
 
-# OpenTelemetry Configuration
+# Observability Configuration
 management:
   tracing:
     sampling:
-      probability: 1.0  # Always sample in development, configure per environment
-    sampling-type: probability
-  otlp:
-    tracing:
-      endpoint: http://localhost:4318/v1/traces
-    metrics:
-      endpoint: http://localhost:4318/v1/metrics
+      probability: 1.0  # Always sample in development
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
   metrics:
-    export:
-      otlp:
-        enabled: true
-        step: 10s
-        url: http://localhost:4318/v1/metrics
     distribution:
       percentiles-histogram:
         http.server.requests: true
@@ -39,29 +32,6 @@ management:
         abada.task.waiting_time: 0.5, 0.95, 0.99
         abada.task.processing_time: 0.5, 0.95, 0.99
         abada.job.execution_time: 0.5, 0.95, 0.99
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-
-# OpenTelemetry SDK Configuration
-otel:
-  service:
-    name: abada-engine
-    version: 0.8.2-alpha
-  resource:
-    attributes:
-      service.name: abada-engine
-      service.version: 0.8.2-alpha
-      deployment.environment: development
-  traces:
-    exporter: otlp
-    sampler: traceidratio
-    sampler.arg: 1.0
-  metrics:
-    exporter: otlp
-  logs:
-    exporter: none  # Use structured logging instead
 
 # Logging Configuration
 logging:

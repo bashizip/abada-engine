@@ -12,6 +12,29 @@ management:
       enabled: true
     propagation:
       type: W3C
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        abada.process.duration: true
+        abada.task.waiting_time: true
+        abada.task.processing_time: true
+        abada.job.execution_time: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+        abada.process.duration: 0.5, 0.95, 0.99
+        abada.task.waiting_time: 0.5, 0.95, 0.99
+        abada.task.processing_time: 0.5, 0.95, 0.99
+        abada.job.execution_time: 0.5, 0.95, 0.99
+    export:
+      otlp:
+        enabled: true
+        step: 10s
+        url: ${management.otlp.metrics.endpoint}
 
 # Application Information
 app:
@@ -29,9 +52,6 @@ logging:
     com.abada.engine: DEBUG
     io.opentelemetry: INFO
     io.micrometer: INFO
-
-# Metrics Configuration
-management.endpoints.web.exposure.include: health,metrics,prometheus
 
 # OpenTelemetry Resource Attributes
 otel:

@@ -43,11 +43,7 @@ public class TaskManagerTest {
 
     @BeforeEach
     void setUp() {
-        // Setup timer samples
-        when(engineMetrics.startTaskWaitingTimer()).thenReturn(timerSample);
-        when(engineMetrics.startTaskProcessingTimer()).thenReturn(timerSample);
-        
-        // Setup span creation
+        // Setup span creation - required for all task operations
         when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
         when(spanBuilder.startSpan()).thenReturn(span);
         when(span.makeCurrent()).thenReturn(() -> {});
