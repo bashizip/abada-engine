@@ -1,0 +1,53 @@
+# OpenTelemetry Configuration
+management:
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+    metrics:
+      endpoint: http://localhost:4318/v1/metrics
+  tracing:
+    sampling:
+      probability: 1.0  # 100% sampling in development, adjust for production
+    baggage:
+      enabled: true
+    propagation:
+      type: W3C
+
+# Application Information
+app:
+  version: ${APP_VERSION:0.8.2-alpha}
+
+spring:
+  application:
+    name: abada-engine
+
+# Logging Configuration
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    com.abada.engine: DEBUG
+    io.opentelemetry: INFO
+    io.micrometer: INFO
+
+# Metrics Configuration
+management.endpoints.web.exposure.include: health,metrics,prometheus
+
+# OpenTelemetry Resource Attributes
+otel:
+  resource:
+    attributes:
+      deployment.environment: ${OTEL_DEPLOYMENT_ENVIRONMENT:development}
+      service.namespace: com.abada
+      service.name: ${spring.application.name}
+      service.version: ${app.version}
+      service.instance.id: ${HOSTNAME:unknown}
+
+# OpenTelemetry Batch Export Configuration
+otel.traces.exporter:
+  otlp:
+    timeout: 30s
+  batch:
+    max.queue.size: 2048
+    max.export.batch.size: 512
+    schedule.delay: 5s
