@@ -1,17 +1,23 @@
 # OpenTelemetry Configuration
 management:
-  otlp:
-    tracing:
-      endpoint: http://localhost:4318/v1/traces
-    metrics:
-      endpoint: http://localhost:4318/v1/metrics
   tracing:
     sampling:
-      probability: 1.0  # 100% sampling in development, adjust for production
-    baggage:
-      enabled: true
-    propagation:
-      type: W3C
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+    metrics:
+      endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+
+otel:
+  service:
+    name: ${OTEL_SERVICE_NAME:abada-engine}
+    version: ${OTEL_SERVICE_VERSION:0.8.2-alpha}
+  resource:
+    attributes:
+      service.name: ${OTEL_SERVICE_NAME:abada-engine}
+      service.version: ${OTEL_SERVICE_VERSION:0.8.2-alpha}
+      deployment.environment: ${OTEL_DEPLOYMENT_ENVIRONMENT:development}
   endpoints:
     web:
       exposure:
@@ -53,8 +59,14 @@ logging:
     io.opentelemetry: INFO
     io.micrometer: INFO
 
-# OpenTelemetry Resource Attributes
+# OpenTelemetry SDK Configuration
 otel:
+  traces:
+    sampler: traceidratio
+    sampler.arg: 1.0
+    exporter: otlp
+  metrics:
+    exporter: otlp
   resource:
     attributes:
       deployment.environment: ${OTEL_DEPLOYMENT_ENVIRONMENT:development}
@@ -62,12 +74,3 @@ otel:
       service.name: ${spring.application.name}
       service.version: ${app.version}
       service.instance.id: ${HOSTNAME:unknown}
-
-# OpenTelemetry Batch Export Configuration
-otel.traces.exporter:
-  otlp:
-    timeout: 30s
-  batch:
-    max.queue.size: 2048
-    max.export.batch.size: 512
-    schedule.delay: 5s
