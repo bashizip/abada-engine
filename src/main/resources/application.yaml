@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: abada-engine
+
+server:
+  servlet:
+    context-path: /abada/api
+
+app:
+  version: 0.8.2-alpha
+
+# OpenTelemetry Configuration
+management:
+  tracing:
+    sampling:
+      probability: 1.0  # Always sample in development, configure per environment
+    sampling-type: probability
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+    metrics:
+      endpoint: http://localhost:4318/v1/metrics
+  metrics:
+    export:
+      otlp:
+        enabled: true
+        step: 10s
+        url: http://localhost:4318/v1/metrics
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        abada.process.duration: true
+        abada.task.waiting_time: true
+        abada.task.processing_time: true
+        abada.job.execution_time: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+        abada.process.duration: 0.5, 0.95, 0.99
+        abada.task.waiting_time: 0.5, 0.95, 0.99
+        abada.task.processing_time: 0.5, 0.95, 0.99
+        abada.job.execution_time: 0.5, 0.95, 0.99
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+# OpenTelemetry SDK Configuration
+otel:
+  service:
+    name: abada-engine
+    version: 0.8.2-alpha
+  resource:
+    attributes:
+      service.name: abada-engine
+      service.version: 0.8.2-alpha
+      deployment.environment: development
+  traces:
+    exporter: otlp
+    sampler: traceidratio
+    sampler.arg: 1.0
+  metrics:
+    exporter: otlp
+  logs:
+    exporter: none  # Use structured logging instead
+
+# Logging Configuration
+logging:
+  level:
+    io.opentelemetry: INFO
+    io.micrometer: INFO
+    com.abada.engine: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"

@@ -21,6 +21,33 @@ server:
   servlet:
     context-path: /abada/api
 
+# OpenTelemetry Test Configuration
+management:
+  tracing:
+    sampling:
+      probability: 0.0  # Disable sampling in tests for performance
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+    metrics:
+      endpoint: http://localhost:4318/v1/metrics
+  metrics:
+    export:
+      otlp:
+        enabled: false  # Disable metrics export in tests
+
+otel:
+  resource:
+    attributes:
+      deployment.environment: test
+  traces:
+    exporter: none  # Disable trace export in tests
+    sampler.arg: 0.0  # No sampling in tests
+  metrics:
+    exporter: none  # Disable metrics export in tests
+
 logging:
   level:
     root: DEBUG
+    io.opentelemetry: WARN
+    io.micrometer: WARN

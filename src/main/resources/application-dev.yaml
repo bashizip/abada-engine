@@ -21,6 +21,24 @@ server:
   servlet:
     context-path: /abada/api
 
+# OpenTelemetry Development Configuration
+management:
+  tracing:
+    sampling:
+      probability: 1.0  # Always sample in development
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+    metrics:
+      endpoint: http://localhost:4318/v1/metrics
+
+otel:
+  resource:
+    attributes:
+      deployment.environment: development
+  traces:
+    sampler.arg: 1.0  # Always sample
+
 logging:
   level:
     org.springframework.web: TRACE
@@ -28,3 +46,6 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql: TRACE
     com.zaxxer.hikari: DEBUG
+    io.opentelemetry: DEBUG
+    io.micrometer: DEBUG
+    com.abada.engine: DEBUG

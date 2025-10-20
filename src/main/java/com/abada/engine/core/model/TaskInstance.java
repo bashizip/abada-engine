@@ -2,6 +2,7 @@ package com.abada.engine.core.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.micrometer.core.instrument.Timer;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,6 +21,12 @@ public class TaskInstance {
     private Instant endDate;
     private List<String> candidateUsers = new ArrayList<>();
     private List<String> candidateGroups = new ArrayList<>();
+    
+    @JsonIgnore
+    private Timer.Sample waitingTimeSample;
+    
+    @JsonIgnore
+    private Timer.Sample processingTimeSample;
 
     public TaskInstance() {
         this.status = TaskStatus.AVAILABLE;
@@ -104,6 +111,22 @@ public class TaskInstance {
 
     public void setCandidateGroups(List<String> candidateGroups) {
         this.candidateGroups = candidateGroups;
+    }
+
+    public Timer.Sample getWaitingTimeSample() {
+        return waitingTimeSample;
+    }
+
+    public void setWaitingTimeSample(Timer.Sample waitingTimeSample) {
+        this.waitingTimeSample = waitingTimeSample;
+    }
+
+    public Timer.Sample getProcessingTimeSample() {
+        return processingTimeSample;
+    }
+
+    public void setProcessingTimeSample(Timer.Sample processingTimeSample) {
+        this.processingTimeSample = processingTimeSample;
     }
 
     // Helper methods
