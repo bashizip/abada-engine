@@ -6,21 +6,25 @@ import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.observability.EngineMetrics;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.annotation.SpanTag;
-import io.micrometer.tracing.annotation.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
 public class TaskManager {
 
-    private final Map<String, TaskInstance> tasks = new HashMap<>();
+    private final Map<String, TaskInstance> tasks = new ConcurrentHashMap<>();
     private final EngineMetrics engineMetrics;
     private final Tracer tracer;
 

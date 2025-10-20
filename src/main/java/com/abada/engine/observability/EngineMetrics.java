@@ -70,9 +70,9 @@ public class EngineMetrics {
                 .description("Process execution duration")
                 .register(meterRegistry);
 
-        Gauge.builder("abada.process.instances.active")
+        Gauge.builder("abada.process.instances.active", activeProcessInstances, AtomicLong::get)
                 .description("Number of currently active process instances")
-                .register(meterRegistry, activeProcessInstances, AtomicLong::get);
+                .register(meterRegistry);
 
         // Initialize Task Metrics
         this.tasksCreated = Counter.builder("abada.tasks.created")
@@ -99,9 +99,9 @@ public class EngineMetrics {
                 .description("Time from task claim to completion")
                 .register(meterRegistry);
 
-        Gauge.builder("abada.tasks.active")
+        Gauge.builder("abada.tasks.active", activeTasks, AtomicLong::get)
                 .description("Number of currently active tasks")
-                .register(meterRegistry, activeTasks, AtomicLong::get);
+                .register(meterRegistry);
 
         // Initialize Event Metrics
         this.eventsPublished = Counter.builder("abada.events.published")

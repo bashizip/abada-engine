@@ -30,8 +30,6 @@
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <opentelemetry.version>1.44.1</opentelemetry.version>
-        <opentelemetry.instrumentation.version>1.44.1</opentelemetry.instrumentation.version>
     </properties>
     <dependencies>
         <dependency>
@@ -86,17 +84,16 @@
 
         <!-- OpenTelemetry Dependencies -->
         <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-bom</artifactId>
-            <version>${opentelemetry.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
+         <groupId>io.opentelemetry.instrumentation</groupId>
+          <artifactId>opentelemetry-spring-boot-starter</artifactId>
+          <version>2.20.1</version>
+      </dependency>
 
         <!-- Micrometer OTLP Registry -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-otlp</artifactId>
+            <version>1.15.5</version>
         </dependency>
 
         <!-- Micrometer Tracing Bridge -->
@@ -108,15 +105,9 @@
     </dependencies>
 
     <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>io.opentelemetry</groupId>
-                <artifactId>opentelemetry-bom</artifactId>
-                <version>${opentelemetry.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
+    <dependencies>
+
+    </dependencies>  
     </dependencyManagement>
 
     <build>

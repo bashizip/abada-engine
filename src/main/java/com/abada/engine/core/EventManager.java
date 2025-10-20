@@ -3,7 +3,7 @@ package com.abada.engine.core;
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.observability.EngineMetrics;
 import io.micrometer.tracing.annotation.SpanTag;
-import io.micrometer.tracing.annotation.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import org.slf4j.Logger;

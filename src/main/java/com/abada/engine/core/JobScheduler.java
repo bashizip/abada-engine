@@ -5,7 +5,7 @@ import com.abada.engine.persistence.entity.JobEntity;
 import com.abada.engine.persistence.repository.JobRepository;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.annotation.SpanTag;
-import io.micrometer.tracing.annotation.WithSpan;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import org.slf4j.Logger;

@@ -1,10 +1,7 @@
 package com.abada.engine.config;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.registry.otlp.OtlpConfig;
 import io.micrometer.registry.otlp.OtlpMeterRegistry;
-import io.micrometer.tracing.Tracer;
-import io.opentelemetry.api.trace.Tracer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -64,4 +61,5 @@ public class ObservabilityConfig {
     }
 
     // Tracers are auto-configured by Spring Boot
+
 }
