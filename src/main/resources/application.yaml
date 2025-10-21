@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: abada-engine
+  profiles:
+    active: dev
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    metrics:
+      export:
+        url: http://localhost:4318/v1/metrics
+        step: 10s
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+
+otel:
+  service:
+    name: ${spring.application.name}
+    version: 0.8.2-alpha
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+      service.version: 0.8.2-alpha
+      deployment.environment: ${spring.profiles.active}
+  traces:
+    exporter: otlp
+    sampler: traceidratio@1.0
+  metrics:
+    exporter: otlp
