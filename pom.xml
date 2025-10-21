@@ -82,7 +82,73 @@
             <version>7.23.0</version> <!-- match your modeling tools -->
         </dependency>
 
+
+        <!-- Actuator (Micrometer + endpoints) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Micrometer observation core (optional if Spring Boot auto-configure) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-observation</artifactId>
+        </dependency>
+
+        <!-- Micrometer registry OTLP (envoi des métriques au collector via OTLP) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-otlp</artifactId>
+            <version>1.15.4</version> <!-- stable release example -->
+        </dependency>
+
+        <!-- (Optionnel) Micrometer Prometheus registry si tu veux exposer /actuator/prometheus -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- OpenTelemetry Spring Boot starter (auto-instrumentation + starter hooks) -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-spring-boot-starter</artifactId>
+            <version>2.21.0</version>
+        </dependency>
+
+        <!-- OpenTelemetry OTLP exporter (pour traces/métriques/logs via OTLP) -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <version>1.54.1</version>
+        </dependency>
+
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- OpenTelemetry BOM -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>1.55.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Micrometer BOM (optionnel, si tu veux contrôler versions Micrometer) -->
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-bom</artifactId>
+                <version>1.15.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- spring-boot-dependencies (normalement dans parent pom) -->
+            <!-- ... -->
+        </dependencies>
+    </dependencyManagement>
+
 
     <build>
         <plugins>
