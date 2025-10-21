@@ -126,12 +126,12 @@ Required Maven dependencies:
    - [x] Implement timer metrics methods
    - [x] Implement gauge metrics methods
 
-3. **Add Process Metrics**
-   - [ ] Process instance creation counter
-   - [ ] Process completion counter
-   - [ ] Process execution duration timer
-   - [ ] Active process instances gauge
-   - [ ] Process failure counter
+3. **Add Process Metrics** ✓
+   - [x] Process instance creation counter
+   - [x] Process completion counter
+   - [x] Process execution duration timer
+   - [x] Active process instances gauge
+   - [x] Process failure counter
 
 4. **Add Task Metrics**
    - [ ] Task creation counter

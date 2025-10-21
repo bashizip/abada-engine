@@ -216,6 +216,9 @@ public class AbadaEngine {
         instance.setEndDate(Instant.now());
         instance.setActiveTokens(Collections.emptyList()); // Clear active tokens to stop execution
 
+        // Record metrics for process failure
+        engineMetrics.recordProcessFailed(instance.getDefinition().getId());
+        
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
         return true;
     }
