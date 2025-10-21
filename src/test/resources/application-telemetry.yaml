@@ -1,0 +1,39 @@
+# Telemetry profile configuration for integration testing
+spring:
+  application:
+    name: abada-engine-it
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    metrics:
+      export:
+        step: 1s
+        enabled: true
+      endpoint: http://localhost:4318/v1/metrics
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+
+otel:
+  service:
+    name: abada-engine-it
+    version: test
+  resource:
+    attributes:
+      deployment.environment: integration-test
+  traces:
+    exporter: otlp
+    sampler: traceidratio
+    sampler.arg: 1.0
+  metrics:
+    exporter: otlp
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    com.abada.engine: DEBUG
+    io.opentelemetry: INFO
+    io.micrometer: INFO

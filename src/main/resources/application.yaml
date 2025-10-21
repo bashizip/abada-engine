@@ -17,7 +17,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   metrics:
     distribution:
       percentiles-histogram:
@@ -32,6 +32,30 @@ management:
         abada.task.waiting_time: 0.5, 0.95, 0.99
         abada.task.processing_time: 0.5, 0.95, 0.99
         abada.job.execution_time: 0.5, 0.95, 0.99
+  otlp:
+    metrics:
+      export:
+        step: 10s
+        enabled: true
+      endpoint: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+
+# OpenTelemetry Configuration
+otel:
+  service:
+    name: ${spring.application.name}
+    version: ${app.version}
+  resource:
+    attributes:
+      deployment.environment: ${OTEL_DEPLOYMENT_ENVIRONMENT:development}
+      service.namespace: com.abada
+  traces:
+    sampler: traceidratio
+    sampler.arg: 1.0
+    exporter: otlp
+  metrics:
+    exporter: otlp
 
 # Logging Configuration
 logging:
