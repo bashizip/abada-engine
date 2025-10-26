@@ -132,7 +132,9 @@ public class AbadaEngine {
                 engineMetrics.recordProcessCompleted(processDefinitionId);
             }
             persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
-
+            
+            // Note: Active process instances are automatically tracked by engineMetrics.recordProcessStarted/Completed/Failed
+            
             for (UserTaskPayload task : userTasks) {
                 createAndPersistTask(task, instance.getId());
             }
