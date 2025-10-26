@@ -122,7 +122,7 @@ public class AbadaEngine {
             span.setAttribute("process.definition.name", definition.getName());
             
             engineMetrics.recordProcessStarted(processDefinitionId);
-            log.info("Started process instance: {}", instance.getId());
+            log.info("Started process instance: {} of definition: {}", instance.getId(), processDefinitionId);
 
             persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
 
@@ -132,9 +132,7 @@ public class AbadaEngine {
                 engineMetrics.recordProcessCompleted(processDefinitionId);
             }
             persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
-            
-            // Note: Active process instances are automatically tracked by engineMetrics.recordProcessStarted/Completed/Failed
-            
+
             for (UserTaskPayload task : userTasks) {
                 createAndPersistTask(task, instance.getId());
             }

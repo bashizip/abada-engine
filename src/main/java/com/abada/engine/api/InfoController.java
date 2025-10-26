@@ -23,7 +23,7 @@ public class InfoController {
         return Map.of(
                 "status", "UP",
                 "engineVersion", appVersion,
-                "bpmnSupport", "BPMN model Validation"
+                "bpmnSupport", "The core engine features implemented"
         );
     }
 }

@@ -106,7 +106,7 @@
             <version>1.15.4</version> <!-- stable release example -->
         </dependency>
 
-        <!-- (Optionnel) Micrometer Prometheus registry si tu veux exposer /actuator/prometheus -->
+        <!-- (Optionnel) Micrometer Prometheus registry for exposing /actuator/prometheus -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
@@ -170,8 +170,6 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- spring-boot-dependencies (normalement dans parent pom) -->
-            <!-- ... -->
         </dependencies>
     </dependencyManagement>
 

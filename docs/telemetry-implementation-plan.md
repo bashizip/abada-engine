@@ -134,12 +134,12 @@ Required Maven dependencies:
    - [x] Process failure counter
 
 4. **Add Task Metrics**
-   - [ ] Task creation counter
-   - [ ] Task completion counter
-   - [ ] Task processing time timer
-   - [ ] Task waiting time timer
-   - [ ] Active tasks gauge
-   - [ ] Task failure counter
+   - [x] Task creation counter
+   - [x] Task completion counter
+   - [x] Task processing time timer
+   - [x] Task waiting time timer
+   - [x] Active tasks gauge
+   - [x] Task failure counter
 
 5. **Add Event Metrics**
    - [ ] Event processing counter
