@@ -2,7 +2,7 @@
 data/
 
 # ignore logs
-logs/
+/logs/
 
 HELP.md
 target/
@@ -40,5 +40,6 @@ build/
 
 # maven
 
-.run-dev/
-.run-tests/
+/.run-dev/
+/.run-tests/
+
