@@ -1,5 +1,6 @@
 package com.abada.engine.observability;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -26,6 +27,11 @@ public class TelemetryIntegrationTest {
 
     @Test
     void shouldCaptureBasicTelemetry() {
+
+        // Verify OpenTelemetry is configured
+        assertThat(openTelemetry.getTracerProvider()).isNotNull();
+        assertThat(tracer).isNotNull();
+
         // Create a test metric
         meterRegistry.counter("test.counter").increment();
         
@@ -33,14 +39,13 @@ public class TelemetryIntegrationTest {
         Span span = tracer.spanBuilder("test.operation").startSpan();
         span.end();
 
+        Counter counter = meterRegistry.get("test.counter").counter();
+
+        assertThat(counter).isNotNull();
         // Verify metric was recorded
-        assertThat(meterRegistry.get("test.counter").counter())
-            .isNotNull()
-            .extracting("count")
+        assertThat(counter.count())
             .isEqualTo(1.0);
 
-        // Verify OpenTelemetry is configured
-        assertThat(openTelemetry.getTracerProvider()).isNotNull();
-        assertThat(tracer).isNotNull();
+
     }
 }
