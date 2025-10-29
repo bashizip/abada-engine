@@ -28,9 +28,9 @@ management:
         include: health,info,metrics,prometheus
   otlp:
     tracing:
-      endpoint: http://localhost:4318/v1/traces
+      endpoint: http://otel-collector:4318/v1/traces
     metrics:
-      endpoint: http://localhost:4318/v1/metrics
+      endpoint: http://otel-collector:4318/v1/metrics
 
 otel:
   resource:

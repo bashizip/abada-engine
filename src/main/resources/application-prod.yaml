@@ -3,41 +3,43 @@ spring:
     name: abada-engine-${spring.profiles.active}
 
   datasource:
-    url: jdbc:h2:file:./data/abada-prod-db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ${DB_PASSWORD:abada123}
+    url: jdbc:postgresql://postgres:5432/abada_engine
+    driver-class-name: org.postgresql.Driver
+    username: abada
+    password: ${POSTGRES_PASSWORD:postgres_secure_password}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
   jpa:
     hibernate:
       ddl-auto: update
       show-sql: false
-    database-platform: org.hibernate.dialect.H2Dialect
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
 
 # OpenTelemetry Development Configuration
 management:
   tracing:
     sampling:
-      probability: 1.0  # Always sample in development
+      probability: 0.1  # 10% sampling in production
   endpoints:
     web:
       exposure:
         include: health,info,metrics,prometheus
   otlp:
     tracing:
-      endpoint: http://localhost:4318/v1/traces
+      endpoint: http://otel-collector:4318/v1/traces
     metrics:
-      endpoint: http://localhost:4318/v1/metrics
+      endpoint: http://otel-collector:4318/v1/metrics
 
 otel:
   resource:
     attributes:
       deployment.environment: prod
   traces:
-    sampler.arg: 1.0  # Always sample
+    sampler.arg: 0.1  # 10% sampling in production
 
 logging:
   level:
