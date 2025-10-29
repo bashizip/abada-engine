@@ -7,6 +7,7 @@ import com.abada.engine.core.model.ServiceTaskMeta;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.dto.UserTaskPayload;
+import com.abada.engine.observability.EngineMetrics;
 import com.abada.engine.parser.BpmnParser;
 import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ExternalTaskEntity;
@@ -17,6 +18,10 @@ import com.abada.engine.persistence.repository.ExternalTaskRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.tracing.annotation.SpanTag;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +47,13 @@ public class AbadaEngine {
     private final JobScheduler jobScheduler;
     private final ExternalTaskRepository externalTaskRepository;
     private final ObjectMapper om;
+    private final EngineMetrics engineMetrics;
+    private final Tracer tracer;
     private final Map<String, ParsedProcessDefinition> processDefinitions = new HashMap<>();
     private final Map<String, ProcessInstance> instances = new HashMap<>();
 
     @Autowired
-    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, EventManager eventManager, @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om) {
+    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, EventManager eventManager, @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om, EngineMetrics engineMetrics, Tracer tracer) {
         this.persistenceService = persistenceService;
         this.parser = new BpmnParser();
         this.taskManager = taskManager;
@@ -54,6 +61,8 @@ public class AbadaEngine {
         this.jobScheduler = jobScheduler;
         this.externalTaskRepository = externalTaskRepository;
         this.om = om;
+        this.engineMetrics = engineMetrics;
+        this.tracer = tracer;
     }
 
     @PostConstruct
@@ -63,10 +72,24 @@ public class AbadaEngine {
     }
 
     public void deploy(InputStream bpmnXml) {
-        ParsedProcessDefinition definition = parser.parse(bpmnXml);
-        processDefinitions.put(definition.getId(), definition);
-        saveProcessDefinition(definition);
-        log.info("Deployed process definition: {}", definition.getId());
+        Span span = tracer.spanBuilder("abada.process.deploy").startSpan();
+        try (var scope = span.makeCurrent()) {
+            ParsedProcessDefinition definition = parser.parse(bpmnXml);
+            processDefinitions.put(definition.getId(), definition);
+            saveProcessDefinition(definition);
+            
+            span.setAttribute("process.definition.id", definition.getId());
+            span.setAttribute("process.definition.name", definition.getName());
+            span.setAttribute("process.definition.version", "1.0");
+            
+            log.info("Deployed process definition: {}", definition.getId());
+        } catch (Exception e) {
+            span.recordException(e);
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
+        }
     }
 
     public List<ProcessDefinitionEntity> getDeployedProcesses() {
@@ -81,33 +104,53 @@ public class AbadaEngine {
         return processDefinitions.get(processDefinitionId);
     }
 
-    public ProcessInstance startProcess(String processDefinitionId) {
-        ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
-        if (definition == null) {
-            throw new ProcessEngineException("Unknown process ID: " + processDefinitionId);
+    public ProcessInstance startProcess(@SpanTag("process.definition.id") String processDefinitionId) {
+        Timer.Sample sample = engineMetrics.startProcessTimer();
+        Span span = tracer.spanBuilder("abada.process.start").startSpan();
+        
+        try (var scope = span.makeCurrent()) {
+            ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
+            if (definition == null) {
+                throw new ProcessEngineException("Unknown process ID: " + processDefinitionId);
+            }
+
+            ProcessInstance instance = new ProcessInstance(definition);
+            instances.put(instance.getId(), instance);
+            
+            span.setAttribute("process.instance.id", instance.getId());
+            span.setAttribute("process.definition.id", processDefinitionId);
+            span.setAttribute("process.definition.name", definition.getName());
+            
+            engineMetrics.recordProcessStarted(processDefinitionId);
+            log.info("Started process instance: {} of definition: {}", instance.getId(), processDefinitionId);
+
+            persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
+
+            List<UserTaskPayload> userTasks = instance.advance();
+            if (instance.isCompleted() && instance.getEndDate() == null) {
+                instance.setEndDate(Instant.now());
+                engineMetrics.recordProcessCompleted(processDefinitionId);
+            }
+            persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
+
+            for (UserTaskPayload task : userTasks) {
+                createAndPersistTask(task, instance.getId());
+            }
+
+            eventManager.registerWaitStates(instance);
+            scheduleWaitingTimerEvents(instance);
+            createExternalTaskJobs(instance);
+
+            engineMetrics.recordProcessDuration(sample, processDefinitionId);
+            return instance;
+        } catch (Exception e) {
+            engineMetrics.recordProcessFailed(processDefinitionId);
+            span.recordException(e);
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
         }
-
-        ProcessInstance instance = new ProcessInstance(definition);
-        instances.put(instance.getId(), instance);
-        log.info("Started process instance: {}", instance.getId());
-
-        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
-
-        List<UserTaskPayload> userTasks = instance.advance();
-        if (instance.isCompleted() && instance.getEndDate() == null) {
-            instance.setEndDate(Instant.now());
-        }
-        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
-
-        for (UserTaskPayload task : userTasks) {
-            createAndPersistTask(task, instance.getId());
-        }
-
-        eventManager.registerWaitStates(instance);
-        scheduleWaitingTimerEvents(instance);
-        createExternalTaskJobs(instance);
-
-        return instance;
     }
 
     public void claim(String taskId, String user, List<String> groups) {
@@ -173,6 +216,9 @@ public class AbadaEngine {
         instance.setEndDate(Instant.now());
         instance.setActiveTokens(Collections.emptyList()); // Clear active tokens to stop execution
 
+        // Record metrics for process failure
+        engineMetrics.recordProcessFailed(instance.getDefinition().getId());
+        
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
         return true;
     }
@@ -329,8 +375,19 @@ public class AbadaEngine {
         processDefinitions.clear(); // Ensure definitions are cleared between tests
     }
 
-    public ProcessInstance getProcessInstanceById(String id) {
-        return instances.get(id);
+    public ProcessInstance getProcessInstanceById(@SpanTag("process.instance.id") String id) {
+        Span span = tracer.spanBuilder("abada.process.get").startSpan();
+        try (var scope = span.makeCurrent()) {
+            span.setAttribute("process.instance.id", id);
+            ProcessInstance instance = instances.get(id);
+            if (instance != null) {
+                span.setAttribute("process.definition.id", instance.getDefinition().getId());
+                span.setAttribute("process.status", instance.getStatus().toString());
+            }
+            return instance;
+        } finally {
+            span.end();
+        }
     }
 
     public Collection<ProcessInstance> getAllProcessInstances() {

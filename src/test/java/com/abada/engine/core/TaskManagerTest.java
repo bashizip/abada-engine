@@ -2,21 +2,57 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
-import org.camunda.bpm.model.bpmn.instance.Process;
+import com.abada.engine.observability.EngineMetrics;
+import io.micrometer.core.instrument.Timer;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 public class TaskManagerTest {
+
+    @Mock
+    private EngineMetrics engineMetrics;
+    
+    @Mock
+    private Tracer tracer;
+    
+    @Mock
+    private Span span;
+    
+    @Mock
+    private Timer.Sample timerSample;
+    
+    @Mock
+    private io.opentelemetry.api.trace.SpanBuilder spanBuilder;
+    
+    private TaskManager taskManager;
+
+    @BeforeEach
+    void setUp() {
+        // Setup span creation - required for all task operations
+        when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
+        when(spanBuilder.startSpan()).thenReturn(span);
+        when(span.makeCurrent()).thenReturn(() -> {});
+        
+        taskManager = new TaskManager(engineMetrics, tracer);
+    }
 
     @Test
     void testCreateAndRetrieveTask() {
-        TaskManager taskManager = new TaskManager();
         String processInstanceId = UUID.randomUUID().toString();
 
         taskManager.createTask(
@@ -38,7 +74,6 @@ public class TaskManagerTest {
 
     @Test
     void testClaimTask() {
-        TaskManager taskManager = new TaskManager();
         String processInstanceId = UUID.randomUUID().toString();
 
         taskManager.createTask(
@@ -62,7 +97,6 @@ public class TaskManagerTest {
 
     @Test
     void testCompleteTask() {
-        TaskManager taskManager = new TaskManager();
         String processInstanceId = UUID.randomUUID().toString();
 
         taskManager.createTask(
@@ -87,7 +121,6 @@ public class TaskManagerTest {
 
     @Test
     void testGetTaskByDefinitionKey() {
-        TaskManager taskManager = new TaskManager();
         String processInstanceId = UUID.randomUUID().toString();
 
         taskManager.createTask(

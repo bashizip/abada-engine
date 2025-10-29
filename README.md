@@ -130,6 +130,12 @@ We have prepared a comprehensive guide for frontend developers to get started qu
 
 ---
 
+## Release Notes
+
+*   [Version 0.8.2-alpha](docs/0.8.2-alpha-release-notes.md)
+
+---
+
 ## Roadmap
 
 See the GitHub Issues tab for the most up-to-date roadmap.

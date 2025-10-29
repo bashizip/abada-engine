@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: abada-engine
+    version: 0.8.2-alpha
+  profiles:
+    active: dev
+
+server:
+  port: ${SERVER_PORT:5601} # Uses 5601 unless overridden by env var
+  servlet:
+    context-path: /abada/api
+
+# Logging Configuration
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"

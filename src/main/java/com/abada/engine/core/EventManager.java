@@ -1,8 +1,14 @@
 package com.abada.engine.core;
 
 import com.abada.engine.core.model.EventMeta;
+import com.abada.engine.observability.EngineMetrics;
+import io.micrometer.tracing.annotation.SpanTag;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -16,6 +22,14 @@ public class EventManager {
     private static final Logger log = LoggerFactory.getLogger(EventManager.class);
 
     private AbadaEngine abadaEngine;
+    private final EngineMetrics engineMetrics;
+    private final Tracer tracer;
+
+    @Autowired
+    public EventManager(EngineMetrics engineMetrics, Tracer tracer) {
+        this.engineMetrics = engineMetrics;
+        this.tracer = tracer;
+    }
 
     // Registry for message-based event subscriptions: <MessageName, <CorrelationKey, WaitingInstance>>
     private final Map<String, Map<String, WaitingInstance>> messageSubscriptions = new ConcurrentHashMap<>();
@@ -63,26 +77,69 @@ public class EventManager {
         log.info("Registered instance {} waiting for signal '{}'", instance.getId(), signalName);
     }
 
-    public void correlateMessage(String messageName, String correlationKey, Map<String, Object> variables) {
-        Map<String, WaitingInstance> subs = messageSubscriptions.get(messageName);
-        if (subs != null) {
-            WaitingInstance waitingInstance = subs.remove(correlationKey);
-            if (waitingInstance != null) {
-                log.info("Correlated message '{}' with key '{}' to instance {}. Resuming...", messageName, correlationKey, waitingInstance.processInstanceId);
-                abadaEngine.resumeFromEvent(waitingInstance.processInstanceId, waitingInstance.eventId, variables);
+    @WithSpan("abada.event.correlate.message")
+    public void correlateMessage(@SpanTag("event.name") String messageName, 
+                                @SpanTag("correlation.key") String correlationKey, 
+                                Map<String, Object> variables) {
+        Span span = tracer.spanBuilder("abada.event.correlate.message").startSpan();
+        
+        try (var scope = span.makeCurrent()) {
+            span.setAttribute("event.name", messageName);
+            span.setAttribute("event.type", "MESSAGE");
+            span.setAttribute("correlation.key", correlationKey);
+            
+            Map<String, WaitingInstance> subs = messageSubscriptions.get(messageName);
+            if (subs != null) {
+                WaitingInstance waitingInstance = subs.remove(correlationKey);
+                if (waitingInstance != null) {
+                    span.setAttribute("process.instance.id", waitingInstance.processInstanceId);
+                    span.setAttribute("event.id", waitingInstance.eventId);
+                    
+                    log.info("Correlated message '{}' with key '{}' to instance {}. Resuming...", messageName, correlationKey, waitingInstance.processInstanceId);
+                    abadaEngine.resumeFromEvent(waitingInstance.processInstanceId, waitingInstance.eventId, variables);
+                    
+                    engineMetrics.recordEventCorrelated("MESSAGE", messageName);
+                } else {
+                    span.setAttribute("correlation.result", "no_matching_instance");
+                }
+            } else {
+                span.setAttribute("correlation.result", "no_subscriptions");
             }
+        } catch (Exception e) {
+            span.recordException(e);
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
         }
     }
 	
-    public void broadcastSignal(String signalName, Map<String, Object> variables) {
-        List<WaitingInstance> subs = signalSubscriptions.remove(signalName);
-        if (subs != null && !subs.isEmpty()) {
-            log.info("Broadcasting signal '{}' to {} waiting instances.", signalName, subs.size());
-            for (WaitingInstance waitingInstance : subs) {
-                abadaEngine.resumeFromEvent(waitingInstance.processInstanceId, waitingInstance.eventId, variables);
+    @WithSpan("abada.event.broadcast.signal")
+    public void broadcastSignal(@SpanTag("event.name") String signalName, Map<String, Object> variables) {
+        Span span = tracer.spanBuilder("abada.event.broadcast.signal").startSpan();
+        
+        try (var scope = span.makeCurrent()) {
+            span.setAttribute("event.name", signalName);
+            span.setAttribute("event.type", "SIGNAL");
+            
+            List<WaitingInstance> subs = signalSubscriptions.remove(signalName);
+            if (subs != null && !subs.isEmpty()) {
+                span.setAttribute("instances.count", subs.size());
+                log.info("Broadcasting signal '{}' to {} waiting instances.", signalName, subs.size());
+                for (WaitingInstance waitingInstance : subs) {
+                    abadaEngine.resumeFromEvent(waitingInstance.processInstanceId, waitingInstance.eventId, variables);
+                    engineMetrics.recordEventCorrelated("SIGNAL", signalName);
+                }
+            } else {
+                span.setAttribute("instances.count", 0);
+                log.warn("Received signal '{}' but no instances were waiting.", signalName);
             }
-        } else {
-            log.warn("Received signal '{}' but no instances were waiting.", signalName);
+        } catch (Exception e) {
+            span.recordException(e);
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            span.end();
         }
     }
 
