@@ -79,11 +79,7 @@ class EventMetricsIntegrationTest {
         String eventType = "SIGNAL";
         String eventName = "order-completed";
 
-        // Verify timer is registered
-        Timer timer = getEventProcessingLatencyTimer(eventType, eventName);
-        assertThat(timer.count()).isEqualTo(0L);
-
-        // Test processing latency recording
+        // Test processing latency recording first to create the timer
         Timer.Sample sample = metrics.startEventProcessingTimer();
         try {
             Thread.sleep(50); // Simulate processing time
@@ -92,6 +88,8 @@ class EventMetricsIntegrationTest {
         }
         metrics.recordEventProcessingLatency(sample, eventType, eventName);
 
+        // Now verify the timer was created and has the correct values
+        Timer timer = getEventProcessingLatencyTimer(eventType, eventName);
         assertThat(timer.count()).isEqualTo(1L);
         assertThat(timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS)).isGreaterThan(40.0);
     }

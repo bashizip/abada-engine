@@ -347,15 +347,21 @@ public class EngineMetrics {
     }
 
     public void recordEventProcessingLatency(Timer.Sample sample, String eventType, String eventName) {
-        sample.stop(eventProcessingLatency);
+        // Stop the global timer and get the duration
+        long durationNanos = sample.stop(eventProcessingLatency);
+        
+        // Record the same duration to the tagged timer
         String key = eventType + ":" + eventName;
-        sample.stop(eventProcessingLatencyTimers.computeIfAbsent(key, k ->
+        Timer taggedTimer = eventProcessingLatencyTimers.computeIfAbsent(key, k ->
             Timer.builder("abada.event.processing_latency")
                  .tag(TAG_EVENT_TYPE, eventType)
                  .tag(TAG_EVENT_NAME, eventName)
                  .description("Event processing latency by type and name")
                  .register(meterRegistry)
-        ));
+        );
+        
+        // Record the duration to the tagged timer
+        taggedTimer.record(durationNanos, java.util.concurrent.TimeUnit.NANOSECONDS);
     }
 
     public void incrementEventQueueSize() {
