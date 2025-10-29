@@ -32,13 +32,7 @@ Use the curated Compose stacks for dev, test, and prod:
 
 For endpoints, authentication, and examples, see `docs/api-documentation.md`.
 
----
 
-## Frontend Development
-
-The `Tenda` (tasks) and `Orun` (monitoring) apps are separate Next.js frontends consuming the engine API. See `docs/frontend-development-prompt.md` to get started.
-
----
 
 ## Engine Status (0.8.2-alpha)
 
@@ -58,7 +52,7 @@ The `Tenda` (tasks) and `Orun` (monitoring) apps are separate Next.js frontends 
 
 ## Roadmap
 
-See the GitHub Issues tab for the most up-to-date roadmap.
+See `docs/roadmap-to-beta.md` for the staged milestones from `0.8.2-alpha` to `1.0.0-beta`.
 
 ---
 
