@@ -54,6 +54,8 @@ public class EngineMetrics {
     private final Counter eventsPublished;
     private final Counter eventsConsumed;
     private final Counter eventsCorrelated;
+    private final Timer eventProcessingLatency;
+    private final AtomicLong eventQueueSize = new AtomicLong(0);
 
     // Job Metrics
     private final Counter jobsExecuted;
@@ -124,6 +126,14 @@ public class EngineMetrics {
 
         this.eventsCorrelated = Counter.builder("abada.events.correlated")
                 .description("Total number of events correlated to process instances")
+                .register(meterRegistry);
+
+        this.eventProcessingLatency = Timer.builder("abada.event.processing_latency")
+                .description("Event processing duration from publication to correlation")
+                .register(meterRegistry);
+
+        Gauge.builder("abada.events.queue_size", eventQueueSize, AtomicLong::get)
+                .description("Number of events currently waiting for correlation")
                 .register(meterRegistry);
 
         // Initialize Job Metrics
@@ -294,6 +304,7 @@ public class EngineMetrics {
     private final ConcurrentHashMap<String, Counter> eventPublishedCounters = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Counter> eventConsumedCounters = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Counter> eventCorrelatedCounters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Timer> eventProcessingLatencyTimers = new ConcurrentHashMap<>();
 
     public void recordEventPublished(String eventType, String eventName) {
         eventsPublished.increment();
@@ -329,6 +340,34 @@ public class EngineMetrics {
                   .description("Events correlated by type and name")
                   .register(meterRegistry)
         ).increment();
+    }
+
+    public Timer.Sample startEventProcessingTimer() {
+        return Timer.start(meterRegistry);
+    }
+
+    public void recordEventProcessingLatency(Timer.Sample sample, String eventType, String eventName) {
+        sample.stop(eventProcessingLatency);
+        String key = eventType + ":" + eventName;
+        sample.stop(eventProcessingLatencyTimers.computeIfAbsent(key, k ->
+            Timer.builder("abada.event.processing_latency")
+                 .tag(TAG_EVENT_TYPE, eventType)
+                 .tag(TAG_EVENT_NAME, eventName)
+                 .description("Event processing latency by type and name")
+                 .register(meterRegistry)
+        ));
+    }
+
+    public void incrementEventQueueSize() {
+        eventQueueSize.incrementAndGet();
+    }
+
+    public void decrementEventQueueSize() {
+        eventQueueSize.decrementAndGet();
+    }
+
+    public double getEventQueueSize() {
+        return eventQueueSize.get();
     }
 
     // Job Metrics Methods

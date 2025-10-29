@@ -2,6 +2,7 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.observability.EngineMetrics;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.annotation.SpanTag;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.opentelemetry.api.trace.Span;
@@ -54,7 +55,7 @@ public class EventManager {
                     case MESSAGE -> registerMessageSubscription(instance, eventMeta);
                     case SIGNAL -> registerSignalSubscription(instance, eventMeta);
                     case CONDITIONAL -> log.debug("Conditional events not yet implemented for instance {}", instance.getId());
-                    // Timer events are handled by the JobScheduler, not here.
+                    case TIMER -> log.debug("Timer events are handled by the JobScheduler, not here for instance {}", instance.getId());
                 }
             }
         }
@@ -87,6 +88,9 @@ public class EventManager {
             span.setAttribute("event.name", messageName);
             span.setAttribute("event.type", "MESSAGE");
             span.setAttribute("correlation.key", correlationKey);
+            
+            // Record event consumption
+            engineMetrics.recordEventConsumed("MESSAGE", messageName);
             
             Map<String, WaitingInstance> subs = messageSubscriptions.get(messageName);
             if (subs != null) {
@@ -122,6 +126,9 @@ public class EventManager {
             span.setAttribute("event.name", signalName);
             span.setAttribute("event.type", "SIGNAL");
             
+            // Record event consumption
+            engineMetrics.recordEventConsumed("SIGNAL", signalName);
+            
             List<WaitingInstance> subs = signalSubscriptions.remove(signalName);
             if (subs != null && !subs.isEmpty()) {
                 span.setAttribute("instances.count", subs.size());
@@ -139,6 +146,84 @@ public class EventManager {
             span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
             throw e;
         } finally {
+            span.end();
+        }
+    }
+
+    /**
+     * Publishes a message event to the engine.
+     * This method should be called when an external system sends a message event.
+     */
+    @WithSpan("abada.event.publish.message")
+    public void publishMessage(@SpanTag("event.name") String messageName, 
+                              @SpanTag("correlation.key") String correlationKey, 
+                              Map<String, Object> variables) {
+        Span span = tracer.spanBuilder("abada.event.publish.message").startSpan();
+        Timer.Sample processingSample = engineMetrics.startEventProcessingTimer();
+        
+        try (var scope = span.makeCurrent()) {
+            span.setAttribute("event.name", messageName);
+            span.setAttribute("event.type", "MESSAGE");
+            span.setAttribute("correlation.key", correlationKey);
+            
+            // Record event publication
+            engineMetrics.recordEventPublished("MESSAGE", messageName);
+            
+            // Increment queue size
+            engineMetrics.incrementEventQueueSize();
+            
+            log.info("Publishing message '{}' with correlation key '{}'", messageName, correlationKey);
+            
+            // Process the message correlation
+            correlateMessage(messageName, correlationKey, variables);
+            
+            // Record processing latency
+            engineMetrics.recordEventProcessingLatency(processingSample, "MESSAGE", messageName);
+        } catch (Exception e) {
+            span.recordException(e);
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            // Decrement queue size
+            engineMetrics.decrementEventQueueSize();
+            span.end();
+        }
+    }
+
+    /**
+     * Publishes a signal event to the engine.
+     * This method should be called when an external system sends a signal event.
+     */
+    @WithSpan("abada.event.publish.signal")
+    public void publishSignal(@SpanTag("event.name") String signalName, 
+                             Map<String, Object> variables) {
+        Span span = tracer.spanBuilder("abada.event.publish.signal").startSpan();
+        Timer.Sample processingSample = engineMetrics.startEventProcessingTimer();
+        
+        try (var scope = span.makeCurrent()) {
+            span.setAttribute("event.name", signalName);
+            span.setAttribute("event.type", "SIGNAL");
+            
+            // Record event publication
+            engineMetrics.recordEventPublished("SIGNAL", signalName);
+            
+            // Increment queue size
+            engineMetrics.incrementEventQueueSize();
+            
+            log.info("Publishing signal '{}'", signalName);
+            
+            // Process the signal broadcast
+            broadcastSignal(signalName, variables);
+            
+            // Record processing latency
+            engineMetrics.recordEventProcessingLatency(processingSample, "SIGNAL", signalName);
+        } catch (Exception e) {
+            span.recordException(e);
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+            throw e;
+        } finally {
+            // Decrement queue size
+            engineMetrics.decrementEventQueueSize();
             span.end();
         }
     }
