@@ -114,6 +114,12 @@ com.abada.engine/
 ├── observability/      # Metrics and tracing
 ├── parser/             # BPMN parsing
 └── security/           # Authentication/authorization
+      enabled: true
+      path: /h2-console
+
+# OpenTelemetry Development Configuration
+management:
+  tracing:
 ```
 
 #### 2. Process Execution Engine
@@ -309,6 +315,11 @@ services:
 - Direct port exposure (no load balancer)
 - Hot reloading support
 
+**Service Dependencies:**
+- `abada-engine` depends on `otel-collector` with `condition: service_started`
+- OTEL Collector healthcheck is disabled (minimal container image lacks standard tools, but service is functional)
+- All services connect via Docker network `abada-network` for service discovery
+
 **Access URLs:**
 - Engine: http://localhost:5601/abada/api
 - H2 Console: http://localhost:5601/abada/api/h2-console
@@ -390,16 +401,25 @@ graph LR
 ```
 
 **Key Metrics:**
-- `abada_process_instances_started` - Process creation rate
-- `abada_process_instances_completed` - Process completion rate
-- `abada_tasks_created` - Task creation rate
-- `abada_tasks_completed` - Task completion rate
-- `abada_events_published` - Event publication rate
-- `abada_events_correlated` - Event correlation success rate
+- `abada.process.instances.started` (Prometheus: `abada_process_instances_started`) - Process creation rate
+- `abada.process.instances.completed` (Prometheus: `abada_process_instances_completed`) - Process completion rate
+- `abada.process.instances.failed` (Prometheus: `abada_process_instances_failed`) - Process failure rate
+- `abada.process.duration` (Prometheus: `abada_process_duration_seconds`) - Process execution duration
+- `abada.tasks.created` (Prometheus: `abada_tasks_created`) - Task creation rate
+- `abada.tasks.completed` (Prometheus: `abada_tasks_completed`) - Task completion rate
+- `abada.task.waiting_time` (Prometheus: `abada_task_waiting_time_seconds`) - Time from task creation to claim
+- `abada.task.processing_time` (Prometheus: `abada_task_processing_time_seconds`) - Time from task claim to completion
+- `abada.events.published` (Prometheus: `abada_events_published`) - Event publication rate
+- `abada.events.correlated` (Prometheus: `abada_events_correlated`) - Event correlation success rate
+- `abada.jobs.executed` (Prometheus: `abada_jobs_executed`) - Job execution rate
+- `abada.jobs.failed` (Prometheus: `abada_jobs_failed`) - Job failure rate
+
+**Note:** Micrometer uses dot notation internally, but Prometheus automatically converts dots to underscores when scraping metrics.
 
 #### Traces Flow
 ```mermaid
 graph LR
+    T[Traefik] --> OC[OTEL Collector]
     AE[Abada Engine] --> OC[OTEL Collector]
     OC --> J[Jaeger]
     J --> G[Grafana]
@@ -430,14 +450,52 @@ processors:
     send_batch_size: 1024
   memory_limiter:
     limit_mib: 512
+    check_interval: 1s
+  resource:
+    attributes:
+      - key: service.namespace
+        value: abada
+        action: upsert
 
 exporters:
-  jaeger:
-    endpoint: jaeger:14250
+  otlphttp/jaeger:
+    endpoint: http://jaeger:4318/v1/traces
   prometheus:
     endpoint: "0.0.0.0:8889"
     namespace: abada
+    const_labels:
+      service: abada-engine
+  debug:
+    verbosity: normal
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlphttp/jaeger, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, debug]
+  extensions: [health_check, pprof, zpages]
 ```
+
+**Key Configuration Notes:**
+- **Jaeger Exporter**: Uses `otlphttp/jaeger` (HTTP OTLP protocol) instead of the deprecated `jaeger` exporter
+- **Memory Limiter**: Requires `check_interval` parameter (set to 1s)
+- **Resource Processor**: Adds service namespace attribute to all telemetry data
+- **Debug Exporter**: Enabled for troubleshooting and development
+- **Extensions**: Health check on port 13133, pprof on 1777, zpages on 55679
+- **Healthcheck**: Disabled in docker-compose due to minimal container image lacking standard tools (service is functional)
 
 ### Prometheus Configuration
 
@@ -571,6 +629,19 @@ labels:
   - "traefik.http.routers.abada.rule=PathPrefix(`/abada`)"
   - "traefik.http.services.abada.loadbalancer.server.port=5601"
 ```
+
+**Tracing Configuration:**
+```yaml
+# docker/traefik/traefik.yml
+tracing:
+  otlp:
+    grpc:
+      endpoint: otel-collector:4317
+    http:
+      endpoint: http://otel-collector:4318/v1/traces
+```
+
+Traefik sends distributed traces to the OTEL Collector using OTLP protocol, which are then forwarded to Jaeger for visualization. This provides end-to-end tracing from the load balancer through the application.
 
 ### Scaling Strategy
 
@@ -730,12 +801,20 @@ groups:
       summary: "High process failure rate detected"
   
   - alert: HighTaskWaitingTime
-    expr: histogram_quantile(0.95, abada_task_waiting_time_seconds) > 300
+    expr: histogram_quantile(0.95, rate(abada_task_waiting_time_seconds_bucket[5m])) > 300
     for: 5m
     labels:
       severity: critical
     annotations:
       summary: "Task waiting time is too high"
+  
+  - alert: HighTaskProcessingTime
+    expr: histogram_quantile(0.95, rate(abada_task_processing_time_seconds_bucket[5m])) > 600
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Task processing time is too high"
 ```
 
 ### Grafana Dashboards
