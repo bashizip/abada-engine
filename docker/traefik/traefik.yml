@@ -46,7 +46,8 @@ metrics:
     addRoutersLabels: true
 
 tracing:
-  jaeger:
-    samplingType: const
-    samplingParam: 1.0
-    localAgentHostPort: jaeger:14268
+  otlp:
+    grpc:
+      endpoint: otel-collector:4317
+    http:
+      endpoint: http://otel-collector:4318/v1/traces

@@ -12,6 +12,7 @@ processors:
     send_batch_size: 1024
   memory_limiter:
     limit_mib: 512
+    check_interval: 1s
   resource:
     attributes:
       - key: service.namespace
@@ -19,42 +20,36 @@ processors:
         action: upsert
 
 exporters:
-  jaeger:
-    endpoint: jaeger:14250
-    tls:
-      insecure: true
+  otlphttp/jaeger:
+    endpoint: http://jaeger:4318/v1/traces
   
   prometheus:
     endpoint: "0.0.0.0:8889"
     namespace: abada
     const_labels:
       service: abada-engine
-    metric_relabeling:
-      - source_labels: [__name__]
-        regex: 'abada_.*'
-        action: keep
 
-  logging:
-    loglevel: info
+  debug:
+    verbosity: normal
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [jaeger, logging]
+      exporters: [otlphttp/jaeger, debug]
     
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [prometheus, logging]
+      exporters: [prometheus, debug]
   
   extensions: [health_check, pprof, zpages]
-  
-  extensions:
-    health_check:
-      endpoint: 0.0.0.0:13133
-    pprof:
-      endpoint: 0.0.0.0:1777
-    zpages:
-      endpoint: 0.0.0.0:55679
