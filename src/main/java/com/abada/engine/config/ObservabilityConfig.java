@@ -1,6 +1,5 @@
 package com.abada.engine.config;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.registry.otlp.OtlpConfig;
 import io.micrometer.registry.otlp.OtlpMeterRegistry;
 import io.opentelemetry.api.OpenTelemetry;
@@ -43,8 +42,8 @@ public class ObservabilityConfig {
     @Value("${management.otlp.metrics.export.step:10s}")
     private String metricExportInterval;
 
-    @Value("${management.otlp.metrics.endpoint:http://localhost:4318/v1/metrics}")
-    private String otlpEndpoint;
+    @Value("${management.otlp.metrics.endpoint:http://otel-collector:4318/v1/metrics}")
+    private String otlpMetricsEndpoint;
 
     /**
      * Configures the OpenTelemetry SDK with resource attributes and sampling.
@@ -81,19 +80,36 @@ public class ObservabilityConfig {
 
     /**
      * Configure OTLP meter registry for metrics with appropriate step interval.
+     * Note: Spring Boot auto-configuration should handle OTLP registry setup,
+     * but we provide this as a fallback if auto-configuration doesn't work.
      */
     @Bean
-    public MeterRegistry meterRegistry() {
+    @ConditionalOnProperty(name = "management.otlp.metrics.endpoint")
+    public OtlpMeterRegistry otlpMeterRegistry() {
         OtlpConfig config = new OtlpConfig() {
             @Override
             public String get(String key) {
                 return getConfigValue(key);
             }
 
+            @Override
+            public java.time.Duration step() {
+                try {
+                    // Parse duration string like "10s" to Duration
+                    String stepStr = metricExportInterval;
+                    if (stepStr.endsWith("s")) {
+                        long seconds = Long.parseLong(stepStr.substring(0, stepStr.length() - 1));
+                        return java.time.Duration.ofSeconds(seconds);
+                    }
+                    return java.time.Duration.ofSeconds(10);
+                } catch (Exception e) {
+                    return java.time.Duration.ofSeconds(10);
+                }
+            }
+
             private String getConfigValue(String key) {
                 return switch (key) {
-                    case "otlp.url" -> otlpEndpoint;
-                    case "otlp.step" -> metricExportInterval;
+                    case "otlp.url" -> otlpMetricsEndpoint;
                     default -> null;
                 };
             }
