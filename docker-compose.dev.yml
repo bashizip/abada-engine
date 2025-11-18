@@ -4,7 +4,8 @@ services:
   # Abada Engine for development
   abada-engine:
     build: .
-    container_name: abada-engine-dev
+    image: abada-engine:latest
+    container_name: abada-engine
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SERVER_PORT=5601
@@ -16,7 +17,7 @@ services:
     ports:
       - "5601:5601"  # Direct access for development
     volumes:
-      - ./data:/app/data  # H2 database persistence
+      - ./data:/app/data:z  # H2 database persistence (z flag for SELinux)
     networks:
       - abada-network
     restart: unless-stopped
@@ -26,4 +27,5 @@ services:
       timeout: 10s
       retries: 3
     depends_on:
-      - otel-collector
+      otel-collector:
+        condition: service_started
