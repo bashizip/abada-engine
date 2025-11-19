@@ -15,3 +15,11 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# OpenTelemetry Configuration
+otel:
+  instrumentation:
+    jdbc:
+      # Disabled due to known compatibility issue with Spring Boot 3.5.6
+      # See: root_cause_analysis.md for details
+      enabled: false
