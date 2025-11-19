@@ -33,6 +33,8 @@ management:
       endpoint: http://otel-collector:4318/v1/traces
     metrics:
       endpoint: http://otel-collector:4318/v1/metrics
+    logs:
+      endpoint: http://otel-collector:4318/v1/logs
 
 otel:
   resource:

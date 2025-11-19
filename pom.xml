@@ -149,6 +149,20 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- OpenTelemetry Logback Appender for OTLP log export -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-logback-appender-1.0</artifactId>
+            <version>2.10.0-alpha</version>
+        </dependency>
+
+        <!-- Logstash Logback Encoder for JSON logging -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>8.0</version>
+        </dependency>
+
     </dependencies>
     <dependencyManagement>
         <dependencies>

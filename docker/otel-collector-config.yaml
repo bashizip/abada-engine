@@ -29,6 +29,12 @@ exporters:
     const_labels:
       service: abada-engine
 
+  # Loki exporter using HTTP endpoint
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
   debug:
     verbosity: normal
 
@@ -51,5 +57,10 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
       exporters: [prometheus, debug]
+    
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlphttp/loki, debug]
   
   extensions: [health_check, pprof, zpages]
