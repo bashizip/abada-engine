@@ -15,17 +15,35 @@ services:
       - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=dev
     ports:
-      - "5601:5601"  # Direct access for development
+      - "5601:5601" # Direct access for development
     volumes:
-      - ./data:/app/data:z  # H2 database persistence (z flag for SELinux)
+      - ./data:/app/data:z # H2 database persistence (z flag for SELinux)
     networks:
       - abada-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
     depends_on:
       otel-collector:
         condition: service_started
+  loki:
+    image: grafana/loki:2.9.1
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./docker/loki-config-dev.yaml:/etc/loki/local-config.yaml:ro,z
+      - ./docker/loki-wal:/tmp/loki/wal
+      - ./docker/loki-compactor:/loki/compactor
+    ports:
+      - "3100:3100"
+    networks:
+      - abada-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
