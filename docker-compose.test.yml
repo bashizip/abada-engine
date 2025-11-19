@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Abada Engine for testing
+  abada-engine:
+    build: .
+    image: abada-engine:test
+    container_name: abada-engine-test
+    environment:
+      - SPRING_PROFILES_ACTIVE=test
+      - SERVER_PORT=5601
+      - DB_PASSWORD=${DB_PASSWORD:-abada123}
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.5
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://otel-collector:4318/v1/traces
+      - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
+      - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=test
+    ports:
+      - "5601:5601"
+    networks:
+      - abada-network
+    restart: "no"  # No restart for tests
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - otel-collector

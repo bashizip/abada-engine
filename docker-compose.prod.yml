@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for production
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-prod
+    environment:
+      - POSTGRES_DB=abada_engine
+      - POSTGRES_USER=abada
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - abada-network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abada -d abada_engine"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Abada Engine for production (multiple replicas)
+  abada-engine:
+    build: .
+    image: abada-engine:latest
+    container_name: abada-engine-prod
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SERVER_PORT=5601
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/abada_engine
+      - SPRING_DATASOURCE_USERNAME=abada
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres_secure_password}
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.1
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://otel-collector:4318/v1/traces
+      - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
+      - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=prod
+    deploy:
+      replicas: ${ABADA_ENGINE_REPLICAS:-3}
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - abada-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.abada.rule=PathPrefix(`/abada`)"
+      - "traefik.http.services.abada.loadbalancer.server.port=5601"
+      - "traefik.http.services.abada.loadbalancer.healthcheck.path=/abada/api/actuator/health"
+      - "traefik.http.services.abada.loadbalancer.healthcheck.interval=30s"
+
+volumes:
+  postgres_data:

@@ -17,6 +17,14 @@ While the engine is powerful, it is currently a "headless" system. The next phas
 
 ### 🛠️ Pre-Beta Roadmap
 
+#### `0.8.3-alpha` → Observability & Insights
+
+*   **Goal**: Provide deep visibility into the engine's runtime behavior and ensure issues can be diagnosed in production.
+*   **Key Features**:
+    *   **Structured Logging**: Centralized log aggregation using Loki, with automatic trace context injection.
+    *   **Distributed Tracing**: Full trace propagation across service tasks and external workers using OpenTelemetry standards.
+    *   **Metrics Dashboard**: Real-time Grafana dashboards visualizing process instance counts, activity duration, and error rates.
+
 #### `0.8.4-alpha` → Tenda MVP (Tasklist)
 
 *   **Goal**: Validate the user task lifecycle and APIs from an end-user perspective.

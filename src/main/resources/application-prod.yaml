@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: abada-engine-${spring.profiles.active}
+
+  datasource:
+    url: jdbc:postgresql://postgres:5432/abada_engine
+    driver-class-name: org.postgresql.Driver
+    username: abada
+    password: ${POSTGRES_PASSWORD:postgres_secure_password}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: update
+      show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+# OpenTelemetry Development Configuration
+management:
+  tracing:
+    sampling:
+      probability: 0.1  # 10% sampling in production
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
+    metrics:
+      endpoint: http://otel-collector:4318/v1/metrics
+    logs:
+      endpoint: http://otel-collector:4318/v1/logs
+
+otel:
+  resource:
+    attributes:
+      deployment.environment: prod
+  traces:
+    sampler.arg: 0.1  # 10% sampling in production
+
+logging:
+  level:
+    org.springframework.web: WARN
+    org.springframework.jdbc.datasource: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: WARN
+    com.zaxxer.hikari: WARN
+    io.opentelemetry: WARN
+    io.micrometer: WARN
+    com.abada.engine: DEBUG
