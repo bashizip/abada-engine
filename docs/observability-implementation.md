@@ -1,7 +1,12 @@
 # Observability Setup
 
 ## Overview
-This document describes the observability setup for the Abada Engine, including metrics collection, tracing, and monitoring dashboards. The implementation uses OpenTelemetry for instrumentation, Prometheus for metrics collection, and Grafana for visualization.
+This document describes the observability setup for the Abada Engine, including metrics collection, distributed tracing, and log aggregation. The implementation uses OpenTelemetry for instrumentation, Prometheus for metrics collection, Jaeger for distributed tracing, Loki for log aggregation, and Grafana for unified visualization.
+
+The observability stack implements the **three pillars of observability**:
+- **Metrics**: Prometheus + Micrometer
+- **Traces**: Jaeger + OpenTelemetry
+- **Logs**: Loki + OpenTelemetry Logback Appender
 
 ## Metrics Implementation
 
@@ -85,6 +90,99 @@ The engine uses OpenTelemetry for distributed tracing and metrics collection:
 
 Metrics are exposed via a Prometheus endpoint at `/actuator/prometheus`. The metrics follow the Prometheus naming conventions and include appropriate labels for aggregation and filtering.
 
+## Log Aggregation with Loki
+
+### Overview
+Loki is integrated as the centralized log aggregation system, receiving logs from the application via the OpenTelemetry Collector. This provides:
+- Centralized log storage and querying
+- Automatic correlation between logs and traces using trace IDs
+- Efficient log storage with label-based indexing
+- Seamless integration with Grafana for log visualization
+
+### Architecture
+```
+Spring Boot App → OpenTelemetry Logback Appender → OTel Collector → Loki → Grafana
+```
+
+### Configuration
+
+#### Application Configuration
+The application uses the OpenTelemetry Logback Appender to send logs via OTLP:
+
+**logback-spring.xml**:
+```xml
+<appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+    <captureExperimentalAttributes>true</captureExperimentalAttributes>
+    <captureCodeAttributes>true</captureCodeAttributes>
+    <captureMdcAttributes>*</captureMdcAttributes>
+</appender>
+```
+
+**application.yaml**:
+```yaml
+management:
+  otlp:
+    logs:
+      endpoint: http://otel-collector:4318/v1/logs
+```
+
+#### OpenTelemetry Collector
+The OTel Collector receives logs via OTLP and forwards them to Loki:
+
+```yaml
+exporters:
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlphttp/loki, debug]
+```
+
+#### Loki Configuration
+Loki is configured with:
+- **Development**: In-memory ring for single-node operation
+- **Production**: Consul-based ring for distributed coordination
+- BoltDB shipper for index storage
+- Filesystem storage for chunks
+- 14-day retention period
+
+### Querying Logs
+
+#### Via Grafana Explore
+1. Navigate to Grafana Explore view
+2. Select Loki as the data source
+3. Use LogQL queries:
+   ```
+   {service_name="abada-engine"}
+   {service_name="abada-engine"} |= "error"
+   {service_name="abada-engine"} | json | level="ERROR"
+   ```
+
+#### Via API
+```bash
+curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={service_name="abada-engine"}' \
+  --data-urlencode "start=$(date -d '5 minutes ago' +%s)000000000" \
+  --data-urlencode "end=$(date +%s)000000000"
+```
+
+### Trace-to-Logs Correlation
+Logs automatically include `traceId` and `spanId` from the MDC context, enabling:
+- Jump from traces in Jaeger to related logs in Loki
+- Filter logs by specific trace IDs
+- Correlate distributed operations across services
+
+Example LogQL query for a specific trace:
+```
+{service_name="abada-engine"} | json | traceId="abc123def456"
+```
+
 ## Dashboard Setup
 
 To use the provided dashboards:
@@ -120,13 +218,20 @@ To use the provided dashboards:
    - Event processing details
    - Error analysis dashboard
    - Resource utilization metrics
+   - Log analytics dashboard with common queries
 
 2. Alerting
    - Configure alerts for critical metrics
    - Set up notification channels
    - Define SLOs and SLIs
+   - Log-based alerting rules
 
 3. Extended Metrics
    - Database operation metrics
    - External service call metrics
    - Resource pool metrics
+
+4. Advanced Log Features
+   - Log sampling for high-volume scenarios
+   - Structured logging enhancements
+   - Log-based metrics derivation

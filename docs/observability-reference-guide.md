@@ -8,7 +8,7 @@ The Abada Engine is fully instrumented with OpenTelemetry to provide comprehensi
 
 - **Distributed Tracing**: Track requests across the entire BPMN process execution
 - **Metrics**: Monitor performance, throughput, and system health
-- **Logging**: Structured logs with trace correlation
+- **Logging**: Structured logs with trace correlation and centralized aggregation
 
 ## Architecture
 
@@ -34,6 +34,7 @@ Application → OpenTelemetry SDK → OTLP Exporter → Observability Backend
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
 OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://localhost:4318/v1/metrics
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://localhost:4318/v1/logs
 
 # Service Information
 OTEL_SERVICE_NAME=abada-engine
@@ -57,6 +58,8 @@ management:
       endpoint: http://localhost:4318/v1/traces
     metrics:
       endpoint: http://localhost:4318/v1/metrics
+    logs:
+      endpoint: http://localhost:4318/v1/logs
 
 otel:
   service:
@@ -171,6 +174,106 @@ Where:
 | `org.springframework.web` | INFO | HTTP request/response |
 | `org.hibernate.SQL` | DEBUG | SQL queries |
 
+## Log Aggregation with Loki
+
+### Overview
+
+Loki provides centralized log aggregation for the Abada Engine with:
+- **Unified Pipeline**: Logs flow through OpenTelemetry Collector alongside traces and metrics
+- **Trace Correlation**: Automatic linking between logs and distributed traces via trace IDs
+- **Efficient Storage**: Label-based indexing for fast queries without full-text indexing
+- **Grafana Integration**: Seamless log visualization and exploration
+
+### Architecture
+
+```
+Spring Boot → OTel Logback Appender → OTel Collector → Loki → Grafana
+```
+
+### Configuration
+
+#### Logback Configuration
+
+```xml
+<!-- OpenTelemetry Appender -->
+<appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+    <captureExperimentalAttributes>true</captureExperimentalAttributes>
+    <captureCodeAttributes>true</captureCodeAttributes>
+    <captureMdcAttributes>*</captureMdcAttributes>
+</appender>
+
+<!-- Add to loggers -->
+<logger name="com.abada.engine" level="DEBUG">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="OTEL"/>
+</logger>
+```
+
+#### OpenTelemetry Collector
+
+```yaml
+exporters:
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlphttp/loki]
+```
+
+### Querying Logs
+
+#### LogQL Examples
+
+```logql
+# All logs from abada-engine
+{service_name="abada-engine"}
+
+# Filter by log level
+{service_name="abada-engine"} | json | level="ERROR"
+
+# Search for specific text
+{service_name="abada-engine"} |= "process instance"
+
+# Logs for a specific trace
+{service_name="abada-engine"} | json | traceId="abc123def456"
+
+# Logs from a specific component
+{service_name="abada-engine"} | json | logger=~"com.abada.engine.core.*"
+```
+
+#### API Queries
+
+```bash
+# Query logs from last 5 minutes
+curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={service_name="abada-engine"}' \
+  --data-urlencode "start=$(date -d '5 minutes ago' +%s)000000000" \
+  --data-urlencode "end=$(date +%s)000000000"
+
+# Get available labels
+curl -s http://localhost:3100/loki/api/v1/labels
+
+# Get label values
+curl -s http://localhost:3100/loki/api/v1/label/service_name/values
+```
+
+### Trace-to-Logs Correlation
+
+Logs automatically include trace context from MDC:
+- `traceId`: Links logs to distributed traces
+- `spanId`: Links logs to specific span operations
+
+This enables:
+1. **Trace → Logs**: View logs for a specific trace in Grafana
+2. **Logs → Trace**: Jump from error logs to the full trace
+3. **Debugging**: Correlate application behavior across services
+
 ## Integration Examples
 
 ### Jaeger
@@ -231,6 +334,10 @@ exporters:
       insecure: true
   prometheus:
     endpoint: "0.0.0.0:8889"
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
 
 service:
   pipelines:
@@ -242,6 +349,10 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]
 ```
 
 ## Monitoring Dashboards

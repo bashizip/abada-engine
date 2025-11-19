@@ -10,10 +10,11 @@ For a deep technical overview and deployment architecture, see [`docs/architectu
 
 Abada is designed for the modern cloud-native stack. Observability is not an add-on; it is woven into the core execution engine.
 
-*   **OpenTelemetry Native**: The engine emits rich OTLP traces and metrics out of the box. No sidecars or agents required for basic visibility.
-*   **Full-Stack Visibility**: Trace every process instance from REST API call -> BPMN Element -> Database Query.
-*   **Modern Stack Ready**: Seamlessly integrates with **Jaeger**, **Prometheus**, and **Grafana**.
+*   **OpenTelemetry Native**: The engine emits rich OTLP traces, metrics, and logs out of the box. No sidecars or agents required for basic visibility.
+*   **Full-Stack Visibility**: Trace every process instance from REST API call → BPMN Element → Database Query, with correlated logs at every step.
+*   **Modern Stack Ready**: Seamlessly integrates with **Jaeger** (traces), **Prometheus** (metrics), **Loki** (logs), and **Grafana** (visualization).
 *   **Actionable Metrics**: Pre-configured metrics for process duration, task throughput, and error rates.
+*   **Unified Logging**: Centralized log aggregation with automatic trace correlation for debugging distributed workflows.
 
 👉 **See the [Observability Reference Guide](docs/observability-reference-guide.md) for full configuration details.**
 
