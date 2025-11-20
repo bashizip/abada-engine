@@ -24,7 +24,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:3000")
+                .allowedOriginPatterns("*") // TODO: Restrict to specific origins in production
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
@@ -32,7 +32,9 @@ public class WebConfig implements WebMvcConfigurer {
 
     /**
      * Creates a filter bean to log incoming request details for debugging purposes.
-     * This provides a clear, detailed view of every request, including headers and payload.
+     * This provides a clear, detailed view of every request, including headers and
+     * payload.
+     * 
      * @return The configured logging filter.
      */
     @Bean
