@@ -23,3 +23,6 @@ otel:
       # Disabled due to known compatibility issue with Spring Boot 3.5.6
       # See: root_cause_analysis.md for details
       enabled: false
+  sdk:
+    disabled: false
+  logs:
