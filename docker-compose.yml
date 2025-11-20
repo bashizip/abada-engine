@@ -115,8 +115,8 @@ services:
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning
-      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro,z
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro,z
     ports:
       - "3000:3000"
     networks:
