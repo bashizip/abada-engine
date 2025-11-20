@@ -25,4 +25,3 @@ otel:
       enabled: false
   sdk:
     disabled: false
-  logs:
