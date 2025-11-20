@@ -18,6 +18,7 @@ services:
       - "5601:5601" # Direct access for development
     volumes:
       - ./data:/app/data:z # H2 database persistence (z flag for SELinux)
+      - ./logs:/app/logs:z # Application logs for Promtail
     networks:
       - abada-network
     restart: unless-stopped

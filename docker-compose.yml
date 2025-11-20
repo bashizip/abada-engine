@@ -92,6 +92,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # Promtail for log collection
+  promtail:
+    image: grafana/promtail:2.9.1
+    container_name: promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./docker/promtail-config.yaml:/etc/promtail/config.yml:ro,z
+      - ./logs:/var/log/abada:ro,z
+    networks:
+      - abada-network
+    restart: unless-stopped
+    depends_on:
+      loki:
+        condition: service_healthy
+
   consul:
     image: hashicorp/consul:latest
     container_name: consul
@@ -115,8 +131,8 @@ services:
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./docker/grafana/provisioning:/etc/grafana/provisioning
-      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro,z
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro,z
     ports:
       - "3000:3000"
     networks:

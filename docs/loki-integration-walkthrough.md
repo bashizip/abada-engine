@@ -8,72 +8,41 @@ Successfully integrated Loki as the centralized log aggregation system for the A
 
 ### 1. Infrastructure Configuration
 
-#### Fixed Loki Configuration Files
-- **[loki-config-dev.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/docker/loki-config-dev.yaml)**: Fixed ring configuration to use proper `ingester.lifecycler.ring` structure for in-memory operation
-- **[loki-config-prod.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/docker/loki-config-prod.yaml)**: Fixed ring configuration to use Consul-based coordination for production
+#### Promtail for Log Collection
+- **[promtail-config.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/docker/promtail-config.yaml)**: Created configuration to tail application log files from `/var/log/abada/*.log` and forward them to Loki.
+- **[docker-compose.yml](file:///home/pbashizi/IdeaProjects/abada-engine/docker-compose.yml)**: Added `promtail` service, mounting the `./logs` directory and linking to Loki.
 
-#### OpenTelemetry Collector
-- **[otel-collector-config.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/docker/otel-collector-config.yaml)**:
-  - Added `otlphttp/loki` exporter pointing to `http://loki:3100/otlp`
-  - Added logs pipeline with OTLP receiver, processors, and Loki exporter
-  - Configured proper batching and resource attribution
-
----
-
-### 2. Application Dependencies
-
-#### Maven Dependencies
-- **[pom.xml](file:///home/pbashizi/IdeaProjects/abada-engine/pom.xml)**:
-  - Added `opentelemetry-logback-appender-1.0` (v2.10.0-alpha) for OTLP log export
-  - Added `logstash-logback-encoder` (v8.0) - previously missing dependency
+#### Loki Configuration
+- **[loki-config-dev.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/docker/loki-config-dev.yaml)**: Increased ingestion rate limits to handle log volume:
+  - `ingestion_rate_mb`: 50
+  - `per_stream_rate_limit`: 50MB
 
 ---
 
-### 3. Application Logging Configuration
+### 2. Application Logging Configuration
 
 #### Logback Configuration
 - **[logback-spring.xml](file:///home/pbashizi/IdeaProjects/abada-engine/src/main/resources/logback-spring.xml)**:
-  - Added OpenTelemetry appender (`OTEL`) with full MDC capture
-  - Configured to capture trace IDs, span IDs, and all context attributes
-  - Added OTEL appender to all logger configurations
+  - Configured `RollingFileAppender` to write logs to `logs/abada-engine.log`.
+  - Ensured logs include `traceId` and `spanId` in the pattern for correlation.
 
-#### Application Properties
-- **[application-dev.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/src/main/resources/application-dev.yaml)**: Added `management.otlp.logs.endpoint`
-- **[application-prod.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/src/main/resources/application-prod.yaml)**: Added `management.otlp.logs.endpoint`
+#### Docker Compose
+- **[docker-compose.dev.yml](file:///home/pbashizi/IdeaProjects/abada-engine/docker-compose.dev.yml)**:
+  - Added volume mount `./logs:/app/logs:z` to expose application logs to the host (and Promtail).
 
 ---
 
-### 4. Documentation Updates
-
-#### Observability Implementation Guide
-- **[observability-implementation.md](file:///home/pbashizi/IdeaProjects/abada-engine/docs/observability-implementation.md)**:
-  - Updated overview to include Loki and the three pillars of observability
-  - Added comprehensive "Log Aggregation with Loki" section covering:
-    - Architecture diagram
-    - Application configuration examples
-    - OpenTelemetry Collector configuration
-    - Loki configuration details
-    - LogQL query examples
-    - API query examples
-    - Trace-to-logs correlation explanation
-
-#### README
-- **[README.md](file:///home/pbashizi/IdeaProjects/abada-engine/README.md)**:
-  - Updated observability section to mention Loki
-  - Added unified logging as a key feature
-  - Clarified the modern stack integration (Jaeger, Prometheus, Loki, Grafana)
+### 3. Documentation Updates
 
 #### Observability Reference Guide
 - **[observability-reference-guide.md](file:///home/pbashizi/IdeaProjects/abada-engine/docs/observability-reference-guide.md)**:
-  - Updated overview to include centralized log aggregation
-  - Added logs endpoint to environment variables
-  - Added logs endpoint to application properties
-  - Added comprehensive "Log Aggregation with Loki" section with:
-    - Configuration examples
-    - LogQL query examples
-    - API query examples
-    - Trace-to-logs correlation details
-  - Updated OpenTelemetry Collector integration example to include Loki
+  - Updated architecture to show Promtail integration.
+  - Added Promtail configuration examples.
+  - Removed OpenTelemetry logging configuration.
+
+#### README
+- **[README.md](file:///home/pbashizi/IdeaProjects/abada-engine/README.md)**:
+  - Updated observability section to mention Promtail and Loki.
 
 ---
 
@@ -89,17 +58,17 @@ The complete observability pipeline now follows this flow:
          │
          ├─── Traces ───┐
          ├─── Metrics ──┤
-         └─── Logs ─────┤
-                        │
-                        ▼
-              ┌──────────────────┐
-              │ OpenTelemetry    │
-              │   Collector      │
-              └────────┬─────────┘
-                       │
-         ┌─────────────┼─────────────┐
-         │             │             │
-         ▼             ▼             ▼
+         └─── Logs ─────┼───> [File System]
+                        │          │
+                        ▼          ▼
+              ┌──────────────────┐ ┌──────────┐
+              │ OpenTelemetry    │ │ Promtail │
+              │   Collector      │ └────┬─────┘
+              └────────┬─────────┘      │
+                       │                │
+         ┌─────────────┼─────────────┐  │
+         │             │             │  │
+         ▼             ▼             ▼  ▼
     ┌────────┐   ┌──────────┐   ┌──────┐
     │ Jaeger │   │Prometheus│   │ Loki │
     └────────┘   └──────────┘   └──────┘
