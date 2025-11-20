@@ -174,56 +174,71 @@ Where:
 | `org.springframework.web` | INFO | HTTP request/response |
 | `org.hibernate.SQL` | DEBUG | SQL queries |
 
-## Log Aggregation with Loki
+### Log Aggregation with Loki
 
-### Overview
+#### Overview
 
-Loki provides centralized log aggregation for the Abada Engine with:
-- **Unified Pipeline**: Logs flow through OpenTelemetry Collector alongside traces and metrics
-- **Trace Correlation**: Automatic linking between logs and distributed traces via trace IDs
-- **Efficient Storage**: Label-based indexing for fast queries without full-text indexing
+Loki provides centralized log aggregation for the Abada Engine using Promtail for log collection:
+- **File-based Collection**: Promtail tails application log files
+- **Efficient Storage**: Label-based indexing for fast queries
 - **Grafana Integration**: Seamless log visualization and exploration
 
-### Architecture
+#### Architecture
 
 ```
-Spring Boot → OTel Logback Appender → OTel Collector → Loki → Grafana
+Spring Boot → Logback (File) → Promtail → Loki → Grafana
 ```
 
-### Configuration
+#### Configuration
 
-#### Logback Configuration
+##### Logback Configuration
+
+The application writes logs to files which are then picked up by Promtail.
 
 ```xml
-<!-- OpenTelemetry Appender -->
-<appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
-    <captureExperimentalAttributes>true</captureExperimentalAttributes>
-    <captureCodeAttributes>true</captureCodeAttributes>
-    <captureMdcAttributes>*</captureMdcAttributes>
+<!-- File Appender -->
+<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/abada-engine.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>logs/abada-engine.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+        <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+            <maxFileSize>10MB</maxFileSize>
+        </timeBasedFileNamingAndTriggeringPolicy>
+        <maxHistory>30</maxHistory>
+    </rollingPolicy>
+    <encoder>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n</pattern>
+    </encoder>
 </appender>
-
-<!-- Add to loggers -->
-<logger name="com.abada.engine" level="DEBUG">
-    <appender-ref ref="CONSOLE"/>
-    <appender-ref ref="OTEL"/>
-</logger>
 ```
 
-#### OpenTelemetry Collector
+##### Promtail Configuration
+
+Promtail is configured to scrape the log files and forward them to Loki.
 
 ```yaml
-exporters:
-  otlphttp/loki:
-    endpoint: http://loki:3100/otlp
-    tls:
-      insecure: true
+scrape_configs:
+  - job_name: abada-engine
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: abada-engine
+          service_name: abada-engine
+          __path__: /var/log/abada/*.log
+```
 
-service:
-  pipelines:
-    logs:
-      receivers: [otlp]
-      processors: [memory_limiter, batch, resource]
-      exporters: [otlphttp/loki]
+##### Docker Compose
+
+Promtail mounts the application logs directory:
+
+```yaml
+  promtail:
+    image: grafana/promtail:2.9.1
+    volumes:
+      - ./logs:/var/log/abada:ro
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
 ```
 
 ### Querying Logs
@@ -349,10 +364,6 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
-    logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlphttp/loki]
 ```
 
 ## Monitoring Dashboards
