@@ -21,7 +21,7 @@
   "graphTooltip": 0,
   "id": null,
   "links": [],
-  "liveNow": false,
+  "liveNow": true,
   "panels": [
     {
       "collapsed": false,
@@ -39,7 +39,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -70,7 +70,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -88,7 +90,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -108,7 +110,11 @@
       "id": 3,
       "options": {
         "legend": {
-          "calcs": ["mean", "max", "sum"],
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -150,7 +156,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -180,7 +186,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -198,7 +206,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -218,7 +226,11 @@
       "id": 6,
       "options": {
         "legend": {
-          "calcs": ["mean", "max", "sum"],
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -255,7 +267,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -275,7 +287,11 @@
       "id": 8,
       "options": {
         "legend": {
-          "calcs": ["mean", "max", "sum"],
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -304,7 +320,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "Prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -324,7 +340,11 @@
       "id": 9,
       "options": {
         "legend": {
-          "calcs": ["mean", "max", "sum"],
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -348,7 +368,11 @@
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "tags": ["abada", "bpmn", "process-engine"],
+  "tags": [
+    "abada",
+    "bpmn",
+    "process-engine"
+  ],
   "templating": {
     "list": []
   },
