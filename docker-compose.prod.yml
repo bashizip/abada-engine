@@ -26,7 +26,7 @@ services:
   abada-engine:
     build: .
     image: abada-engine:latest
-    container_name: abada-engine-prod
+
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=5601
