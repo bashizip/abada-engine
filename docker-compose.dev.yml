@@ -3,8 +3,12 @@ version: '3.8'
 services:
   # Abada Engine for development
   abada-engine:
-    build: .
-    image: abada-engine:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USE_LOCAL_JAR: "true"
+    image: abada-engine:dev
     container_name: abada-engine
     environment:
       - SPRING_PROFILES_ACTIVE=dev
@@ -14,6 +18,8 @@ services:
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://otel-collector:4318/v1/traces
       - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=dev
+      - OTEL_SERVICE_NAME=abada-engine-dev
+      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
     ports:
       - "5601:5601" # Direct access for development
     volumes:

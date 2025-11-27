@@ -1,4 +1,5 @@
-target/
+target/*
+!target/abada-engine-*.jar
 .git/
 build/
 .idea/
@@ -12,3 +13,4 @@ HELP.md
 .gitignore
 README.md
 Dockerfile
+logs/
