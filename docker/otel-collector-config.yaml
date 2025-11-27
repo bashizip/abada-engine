@@ -21,7 +21,7 @@ processors:
 
 exporters:
   otlphttp/jaeger:
-    endpoint: http://jaeger:4318/v1/traces
+    endpoint: http://jaeger:4318
   
   prometheus:
     endpoint: "0.0.0.0:8889"
