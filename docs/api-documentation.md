@@ -37,6 +37,7 @@ Deploys a new BPMN process definition from an XML file.
 - **Request Type**: `multipart/form-data`
   - `file`: The BPMN 2.0 XML file.
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "status": "Deployed"
@@ -49,6 +50,7 @@ Retrieves a list of all deployed process definitions.
 
 - **Method & URL**: `GET /v1/processes`
 - **Success Response** (`200 OK`):
+
   ```json
   [
     {
@@ -59,6 +61,21 @@ Retrieves a list of all deployed process definitions.
   ]
   ```
 
+**Notes:**
+
+- Process definitions may include `candidateStarterGroups` and `candidateStarterUsers` attributes in their BPMN XML
+- These attributes define authorization rules for who can start the process
+- Example in BPMN:
+
+  ```xml
+  <bpmn:process id="recipe-cook" 
+                camunda:candidateStarterGroups="customers,managers"
+                camunda:candidateStarterUsers="alice,bob">
+  ```
+
+- These values are parsed during deployment and stored in the database
+- Client applications can use these values to control process start authorization in their UI
+
 ### Start a Process Instance
 
 Starts a new instance of a deployed process.
@@ -66,13 +83,17 @@ Starts a new instance of a deployed process.
 - **Method & URL**: `POST /v1/processes/start`
 - **Query Parameters**:
   - `processId` (string, required): The ID of the process to start. Example: `/v1/processes/start?processId=recipe-cook`
+  - **`username` (string, optional)**: The username of the person starting the process. If not provided, defaults to `"system"`. Example: `/v1/processes/start?processId=recipe-cook&username=alice`
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "processInstanceId": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
   }
   ```
+
 - **Error Response** (`400 Bad Request`):
+
   ```json
   {
     "status": 400,
@@ -81,19 +102,31 @@ Starts a new instance of a deployed process.
   }
   ```
 
+**Notes:**
+
+- The `username` parameter enables audit tracking of who started each process instance
+- The value is stored in the `startedBy` field of the process instance
+- If omitted, the process is marked as started by `"system"`
+
 ### List All Process Instances
 
 Retrieves a list of all process instances.
 
 - **Method & URL**: `GET /v1/processes/instances`
 - **Success Response** (`200 OK`):
+
   ```json
   [
     {
       "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "processDefinitionId": "recipe-cook",
+      "processDefinitionName": "Recipe Cook Process",
+      "currentActivityId": "cook-recipe",
       "status": "RUNNING",
       "startDate": "2024-01-01T12:00:00Z",
-      "endDate": null
+      "endDate": null,
+      "startedBy": "alice",
+      "variables": {}
     }
   ]
   ```
@@ -106,17 +139,34 @@ Retrieves a specific process instance by its ID.
 - **Path Parameters**:
   - `{id}` (string, required): The unique ID of the process instance. **This must be part of the URL path.**
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "processDefinitionId": "recipe-cook",
+    "processDefinitionName": "Recipe Cook Process",
+    "currentActivityId": "cook-recipe",
     "status": "RUNNING",
+    "startDate": "2024-01-01T12:00:00Z",
+    "endDate": null,
+    "startedBy": "alice",
     "variables": {
       "orderId": "order_456"
-    },
-    "startDate": "2024-01-01T12:00:00Z",
-    "endDate": null
+    }
   }
   ```
+
+**Response Fields:**
+
+- `id`: Unique identifier for the process instance
+- `processDefinitionId`: ID of the process definition this instance is based on
+- `processDefinitionName`: Human-readable name of the process definition
+- `currentActivityId`: ID of the current activity (task/event) where the process is waiting
+- `status`: Current status of the process instance (`RUNNING`, `COMPLETED`, `FAILED`)
+- `startDate`: Timestamp when the process instance was started (ISO 8601 format)
+- `endDate`: Timestamp when the process instance completed (null if still running)
+- **`startedBy`**: Username of the person who started the process (or `"system"` for automated starts)
+- `variables`: Key-value pairs of process variables
 
 ### Fail a Process Instance
 
@@ -126,6 +176,7 @@ Marks a running process instance as FAILED.
 - **Path Parameters**:
   - `{id}` (string, required): The unique ID of the process instance to fail. **This must be part of the URL path.**
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "status": "Failed",
@@ -141,6 +192,7 @@ Retrieves a specific process definition by its ID.
 - **Path Parameters**:
   - `{id}` (string, required): The ID of the process definition. **This must be part of the URL path.**
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "id": "recipe-cook",
@@ -162,6 +214,7 @@ Retrieves a list of tasks visible to the current user.
 - **Query Parameters**:
   - `status` (string, optional): Filters tasks by their current status. (e.g., `AVAILABLE`, `CLAIMED`).
 - **Success Response** (`200 OK`):
+
   ```json
   [
     {
@@ -183,6 +236,7 @@ Retrieves the details of a specific task by its ID.
 - **Path Parameters**:
   - `{id}` (string, required): The unique ID of the task. **This must be part of the URL path.**
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "id": "task_789",
@@ -205,6 +259,7 @@ Claims an unassigned task for the current user.
 - **Query Parameters**:
   - `taskId` (string, required): The ID of the task to claim. Example: `/v1/tasks/claim?taskId=task_789`
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "status": "Claimed",
@@ -220,20 +275,25 @@ Completes a task currently assigned to the user.
 - **Query Parameters**:
   - `taskId` (string, required): The ID of the task to complete.
 - **Request Body** (JSON, optional):
+
   ```json
   {
     "approved": true,
     "comments": "Looks good."
   }
   ```
+
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "status": "Completed",
     "taskId": "task_789"
   }
   ```
+
 - **Error Response** (`400 Bad Request`):
+
   ```json
   {
     "status": 400,
@@ -250,6 +310,7 @@ Marks a task as FAILED.
 - **Query Parameters**:
   - `taskId` (string, required): The ID of the task to fail.
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "status": "Failed",
@@ -263,6 +324,7 @@ Retrieves comprehensive statistics and activity data for the current user.
 
 - **Method & URL**: `GET /v1/tasks/user-stats`
 - **Success Response** (`200 OK`):
+
   ```json
   {
     "quickStats": {
@@ -371,6 +433,7 @@ Retrieves comprehensive statistics and activity data for the current user.
 
 - **Method & URL**: `POST /v1/events/messages`
 - **Request Body** (JSON, required):
+
   ```json
   {
     "messageName": "order_shipped",
@@ -378,8 +441,10 @@ Retrieves comprehensive statistics and activity data for the current user.
     "variables": {}
   }
   ```
+
 - **Success Response**: `202 Accepted` (No response body)
 - **Error Response** (`400 Bad Request`):
+
   ```json
   {
     "status": 400,
@@ -392,10 +457,12 @@ Retrieves comprehensive statistics and activity data for the current user.
 
 - **Method & URL**: `POST /v1/events/signals`
 - **Request Body** (JSON, required):
+
   ```json
   {
     "signalName": "system_maintenance",
     "variables": {}
   }
   ```
+
 - **Success Response**: `202 Accepted` (No response body)
