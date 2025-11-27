@@ -5,7 +5,7 @@ services:
   abada-engine:
     build: .
     image: abada-engine:test
-    container_name: abada-engine-test
+    container_name: abada-engine
     environment:
       - SPRING_PROFILES_ACTIVE=test
       - SERVER_PORT=5601
@@ -18,9 +18,9 @@ services:
       - "5601:5601"
     networks:
       - abada-network
-    restart: "no"  # No restart for tests
+    restart: "no" # No restart for tests
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health" ]
       interval: 10s
       timeout: 5s
       retries: 3

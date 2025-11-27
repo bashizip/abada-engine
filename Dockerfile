@@ -1,9 +1,33 @@
 # Stage 1: Build with Maven
 FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
+# Build argument to control whether to use local jar or build from source
+ARG USE_LOCAL_JAR=false
+
 WORKDIR /app
-COPY . .
-RUN mvn clean package spring-boot:repackage -DskipTests
+
+# Copy only pom.xml first to leverage Docker layer caching for dependencies
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
+
+# Download dependencies (this layer will be cached unless pom.xml changes)
+RUN if [ "$USE_LOCAL_JAR" = "false" ]; then \
+    ./mvnw dependency:go-offline -B; \
+    fi
+
+# Copy source code
+COPY src ./src
+
+# Build the application (skip if using local jar)
+RUN if [ "$USE_LOCAL_JAR" = "false" ]; then \
+    ./mvnw clean package spring-boot:repackage -DskipTests; \
+    else \
+    mkdir -p target; \
+    fi
+
+# Copy local jar if USE_LOCAL_JAR is true (will be in context if .dockerignore allows it)
+COPY target/ ./target/
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-alpine

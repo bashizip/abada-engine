@@ -17,7 +17,7 @@ services:
       - abada-network
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U abada -d abada_engine"]
+      test: [ "CMD-SHELL", "pg_isready -U abada -d abada_engine" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -26,7 +26,7 @@ services:
   abada-engine:
     build: .
     image: abada-engine:latest
-    container_name: abada-engine-prod
+
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=5601
@@ -39,6 +39,8 @@ services:
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://otel-collector:4318/v1/traces
       - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=prod
+      - OTEL_SERVICE_NAME=abada-engine-prod
+      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
     deploy:
       replicas: ${ABADA_ENGINE_REPLICAS:-3}
       resources:
@@ -52,7 +54,7 @@ services:
       - abada-network
     restart: always
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

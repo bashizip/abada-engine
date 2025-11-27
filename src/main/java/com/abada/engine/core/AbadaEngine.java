@@ -53,7 +53,9 @@ public class AbadaEngine {
     private final Map<String, ProcessInstance> instances = new HashMap<>();
 
     @Autowired
-    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, EventManager eventManager, @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om, EngineMetrics engineMetrics, Tracer tracer) {
+    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, @Lazy EventManager eventManager,
+            @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om,
+            EngineMetrics engineMetrics, Tracer tracer) {
         this.persistenceService = persistenceService;
         this.parser = new BpmnParser();
         this.taskManager = taskManager;
@@ -77,11 +79,11 @@ public class AbadaEngine {
             ParsedProcessDefinition definition = parser.parse(bpmnXml);
             processDefinitions.put(definition.getId(), definition);
             saveProcessDefinition(definition);
-            
+
             span.setAttribute("process.definition.id", definition.getId());
             span.setAttribute("process.definition.name", definition.getName());
             span.setAttribute("process.definition.version", "1.0");
-            
+
             log.info("Deployed process definition: {}", definition.getId());
         } catch (Exception e) {
             span.recordException(e);
@@ -107,7 +109,7 @@ public class AbadaEngine {
     public ProcessInstance startProcess(@SpanTag("process.definition.id") String processDefinitionId) {
         Timer.Sample sample = engineMetrics.startProcessTimer();
         Span span = tracer.spanBuilder("abada.process.start").startSpan();
-        
+
         try (var scope = span.makeCurrent()) {
             ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
             if (definition == null) {
@@ -116,11 +118,11 @@ public class AbadaEngine {
 
             ProcessInstance instance = new ProcessInstance(definition);
             instances.put(instance.getId(), instance);
-            
+
             span.setAttribute("process.instance.id", instance.getId());
             span.setAttribute("process.definition.id", processDefinitionId);
             span.setAttribute("process.definition.name", definition.getName());
-            
+
             engineMetrics.recordProcessStarted(processDefinitionId);
             log.info("Started process instance: {} of definition: {}", instance.getId(), processDefinitionId);
 
@@ -158,7 +160,6 @@ public class AbadaEngine {
         taskManager.getTask(taskId)
                 .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
     }
-
 
     public void completeTask(String taskId, String user, List<String> groups, Map<String, Object> variables) {
         log.info("Completing task {} with variables: {}", taskId, variables);
@@ -206,7 +207,8 @@ public class AbadaEngine {
 
     public boolean failProcess(String processInstanceId) {
         ProcessInstance instance = instances.get(processInstanceId);
-        if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED || instance.getStatus() == ProcessStatus.FAILED) {
+        if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED
+                || instance.getStatus() == ProcessStatus.FAILED) {
             log.warn("Process instance {} not found or already in a terminal state.", processInstanceId);
             return false;
         }
@@ -218,7 +220,7 @@ public class AbadaEngine {
 
         // Record metrics for process failure
         engineMetrics.recordProcessFailed(instance.getDefinition().getId());
-        
+
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
         return true;
     }
@@ -249,22 +251,22 @@ public class AbadaEngine {
         createExternalTaskJobs(instance);
     }
 
-
     public void rehydrateProcessInstance(ProcessInstanceEntity entity) {
         ParsedProcessDefinition def = processDefinitions.get(entity.getProcessDefinitionId());
         if (def == null) {
-            throw new IllegalStateException("No deployed process definition found for ID: " + entity.getProcessDefinitionId());
+            throw new IllegalStateException(
+                    "No deployed process definition found for ID: " + entity.getProcessDefinitionId());
         }
 
-        List<String> activeTokens = entity.getCurrentActivityId() != null ? List.of(entity.getCurrentActivityId()) : Collections.emptyList();
+        List<String> activeTokens = entity.getCurrentActivityId() != null ? List.of(entity.getCurrentActivityId())
+                : Collections.emptyList();
 
         ProcessInstance instance = new ProcessInstance(
                 entity.getId(),
                 def,
                 activeTokens,
                 entity.getStartDate(),
-                entity.getEndDate()
-        );
+                entity.getEndDate());
         instance.setStatus(entity.getStatus());
         instance.putAllVariables(readMap(entity.getVariablesJson()));
         instances.put(instance.getId(), instance);
@@ -293,8 +295,7 @@ public class AbadaEngine {
                 processInstanceId,
                 task.assignee(),
                 task.candidateUsers(),
-                task.candidateGroups()
-        );
+                task.candidateGroups());
         taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), processInstanceId)
                 .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
     }
@@ -310,7 +311,8 @@ public class AbadaEngine {
                         Instant executionTime = Instant.now().plus(duration);
                         jobScheduler.scheduleJob(instance.getId(), tokenId, executionTime);
                     } catch (Exception e) {
-                        log.error("Failed to parse timer duration '{}' for event {}", eventMeta.definitionRef(), tokenId, e);
+                        log.error("Failed to parse timer duration '{}' for event {}", eventMeta.definitionRef(),
+                                tokenId, e);
                     }
                 }
             }
@@ -323,14 +325,15 @@ public class AbadaEngine {
             if (definition.isServiceTask(tokenId)) {
                 ServiceTaskMeta serviceTaskMeta = definition.getServiceTask(tokenId);
                 if (serviceTaskMeta != null && serviceTaskMeta.topicName() != null) {
-                    ExternalTaskEntity externalTask = new ExternalTaskEntity(instance.getId(), serviceTaskMeta.topicName());
+                    ExternalTaskEntity externalTask = new ExternalTaskEntity(instance.getId(),
+                            serviceTaskMeta.topicName());
                     externalTaskRepository.save(externalTask);
-                    log.info("Created external task {} for topic {}", externalTask.getId(), serviceTaskMeta.topicName());
+                    log.info("Created external task {} for topic {}", externalTask.getId(),
+                            serviceTaskMeta.topicName());
                 }
             }
         }
     }
-
 
     private ProcessInstanceEntity convertToEntity(ProcessInstance instance) {
         ProcessInstanceEntity entity = new ProcessInstanceEntity();
@@ -367,7 +370,6 @@ public class AbadaEngine {
 
         return entity;
     }
-
 
     public void clearMemory() {
         instances.clear();
@@ -407,14 +409,23 @@ public class AbadaEngine {
         persistenceService.saveProcessDefinition(entity);
     }
 
-    private Map<String,Object> readMap(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try { return om.readValue(json, new TypeReference<>() {}); }
-        catch (IOException ex) { throw new IllegalStateException("Bad variables_json", ex); }
+    private Map<String, Object> readMap(String json) {
+        if (json == null || json.isBlank())
+            return new HashMap<>();
+        try {
+            return om.readValue(json, new TypeReference<>() {
+            });
+        } catch (IOException ex) {
+            throw new IllegalStateException("Bad variables_json", ex);
+        }
     }
-    private String writeMap(Map<String,Object> m) {
-        try { return om.writeValueAsString(m == null ? Map.of() : m); }
-        catch (JsonProcessingException ex) { throw new IllegalStateException("Serialize variables failed", ex); }
+
+    private String writeMap(Map<String, Object> m) {
+        try {
+            return om.writeValueAsString(m == null ? Map.of() : m);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Serialize variables failed", ex);
+        }
     }
 
 }

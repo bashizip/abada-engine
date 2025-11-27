@@ -27,8 +27,11 @@ import org.springframework.context.annotation.Profile;
 @ConditionalOnProperty(name = "management.tracing.enabled", matchIfMissing = true)
 public class ObservabilityConfig {
 
-    @Value("${app.version:unknown}")
+    @Value("${spring.application.version:0.8.3-alpha}")
     private String appVersion;
+
+    @Value("${app.project:abada}")
+    private String project;
 
     @Value("${spring.application.name:abada-engine}")
     private String serviceName;
@@ -45,6 +48,9 @@ public class ObservabilityConfig {
     @Value("${management.otlp.metrics.endpoint:http://otel-collector:4318/v1/metrics}")
     private String otlpMetricsEndpoint;
 
+    @Value("${management.otlp.tracing.endpoint:http://otel-collector:4318/v1/traces}")
+    private String otlpTracingEndpoint;
+
     /**
      * Configures the OpenTelemetry SDK with resource attributes and sampling.
      */
@@ -52,22 +58,29 @@ public class ObservabilityConfig {
     @Primary
     public OpenTelemetry openTelemetry() {
         Resource resource = Resource.getDefault()
-            .merge(Resource.create(Attributes.builder()
-                .put("service.name", serviceName)
-                .put("service.version", appVersion)
-                .put("deployment.environment", environment)
-                .put("service.namespace", "com.abada")
-                .build()));
+                .merge(Resource.create(Attributes.builder()
+                        .put("service.name", serviceName)
+                        .put("service.version", appVersion)
+                        .put("deployment.environment", environment)
+                        .put("service.namespace", "abada")
+                        .put("project", project)
+                        .build()));
+
+        io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter spanExporter = io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter
+                .builder()
+                .setEndpoint(otlpTracingEndpoint)
+                .build();
 
         SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
-            .setResource(resource)
-            .setSampler(Sampler.traceIdRatioBased(samplingProbability))
-            .build();
+                .setResource(resource)
+                .setSampler(Sampler.traceIdRatioBased(samplingProbability))
+                .addSpanProcessor(io.opentelemetry.sdk.trace.export.BatchSpanProcessor.builder(spanExporter).build())
+                .build();
 
         return OpenTelemetrySdk.builder()
-            .setTracerProvider(tracerProvider)
-            .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-            .buildAndRegisterGlobal();
+                .setTracerProvider(tracerProvider)
+                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                .buildAndRegisterGlobal();
     }
 
     /**
