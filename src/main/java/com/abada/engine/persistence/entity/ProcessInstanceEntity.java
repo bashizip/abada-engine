@@ -32,6 +32,9 @@ public class ProcessInstanceEntity {
     @Column(name = "variables_json", nullable = false)
     private String variablesJson; // Jackson-serialized Map
 
+    @Column(name = "suspended", nullable = false)
+    private boolean suspended = false;
+
     // Constructors
     public ProcessInstanceEntity() {
     }
@@ -107,5 +110,13 @@ public class ProcessInstanceEntity {
 
     public void setStartedBy(String startedBy) {
         this.startedBy = startedBy;
+    }
+
+    public boolean isSuspended() {
+        return suspended;
+    }
+
+    public void setSuspended(boolean suspended) {
+        this.suspended = suspended;
     }
 }

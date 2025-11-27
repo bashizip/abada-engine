@@ -5,6 +5,12 @@ import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.dto.Mapper;
 import com.abada.engine.dto.ProcessInstanceDTO;
+import com.abada.engine.dto.VariablePatchRequest;
+import com.abada.engine.dto.VariableValue;
+import com.abada.engine.dto.CancelRequest;
+import com.abada.engine.dto.SuspensionRequest;
+import com.abada.engine.dto.ActivityInstanceTree;
+import com.abada.engine.dto.ChildActivityInstance;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +26,7 @@ import java.util.stream.Collectors;
 /**
  * REST controller for managing BPMN process definitions and instances.
  * Provides endpoints to deploy, list, and start processes, as well as query
- * their status.
+ * their status and manage process variables.
  */
 @RestController
 @RequestMapping("/v1/processes")
@@ -49,53 +55,48 @@ public class ProcessController {
 
     /**
      * Lists all currently deployed process definitions.
+     * Each item includes 'id', 'name', 'documentation', and 'bpmnXml'.
      *
-     * @return A list of maps, where each map contains the 'id', 'name', and
-     *         'documentation' of a deployed process.
+     * @return A list of all process definitions.
      */
     @GetMapping
-    public ResponseEntity<List<Map<String, String>>> listDeployedProcesses() {
-        List<ProcessDefinitionEntity> definitions = engine.getDeployedProcesses();
-
-        List<Map<String, String>> result = definitions.stream()
-                .map(def -> {
-                    Map<String, String> map = new HashMap<>();
-                    map.put("id", def.getId());
-                    map.put("name", def.getName());
-                    map.put("documentation", def.getDocumentation()); // Safely handles null
-                    return map;
-                })
-                .toList();
-
-        return ResponseEntity.ok(result);
+    public List<ProcessDefinitionEntity> listProcesses() {
+        return engine.getDeployedProcesses();
     }
 
     /**
-     * Starts a new instance of a previously deployed process definition.
+     * Starts a new instance of a specified process definition.
+     * Optionally accepts a username parameter to track who initiated the process.
      *
-     * @param processId The ID of the process definition to start (as defined in the
-     *                  BPMN file).
-     * @param username  Optional username of the person starting the process.
-     *                  Defaults to "system" if not provided.
-     * @return A JSON object containing the unique ID of the new process instance.
+     * @param processId    The ID of the process definition to start.
+     * @param username     Optional username who starts the process (defaults to
+     *                     "system")
+     * @param variablesMap Optional initial process variables
+     * @return A JSON object with the new process instance ID.
      */
-    @PostMapping("/start")
-    public ResponseEntity<Map<String, String>> start(
-            @RequestParam("processId") String processId,
-            @RequestParam(value = "username", required = false) String username) {
+    @PostMapping("/start/{processId}")
+    public ResponseEntity<Map<String, String>> startProcess(
+            @PathVariable String processId,
+            @RequestParam(required = false) String username,
+            @RequestBody(required = false) Map<String, Object> variablesMap) {
+
         ProcessInstance instance = engine.startProcess(processId, username);
-        Map<String, String> response = Map.of("processInstanceId", instance.getId());
-        return ResponseEntity.ok(response);
+
+        if (variablesMap != null && !variablesMap.isEmpty()) {
+            instance.putAllVariables(variablesMap);
+        }
+
+        return ResponseEntity.ok(Map.of("processInstanceId", instance.getId()));
     }
 
     /**
-     * Retrieves a list of all process instances, both active and completed.
+     * Lists all process instances across all process definitions.
+     * Returns full ProcessInstanceDTO records including status and metadata.
      *
-     * @return A list of {@link ProcessInstanceDTO} objects representing the process
-     *         instances.
+     * @return A list of all active and completed process instances.
      */
     @GetMapping("/instances")
-    public ResponseEntity<List<ProcessInstanceDTO>> getAllProcessInstances() {
+    public ResponseEntity<List<ProcessInstanceDTO>> listAllProcessInstances() {
         List<ProcessInstanceDTO> instances = engine.getAllProcessInstances().stream()
                 .map(Mapper.ProcessInstanceMapper::toDto)
                 .collect(Collectors.toList());
@@ -103,18 +104,112 @@ public class ProcessController {
     }
 
     /**
-     * Retrieves a single process instance by its unique ID.
+     * Retrieves the details of a specific process instance by ID.
+     * Returns a ProcessInstanceDTO with status, dates, and metadata.
      *
-     * @param id The UUID of the process instance.
-     * @return A {@link ProcessInstanceDTO} with the instance details, or a 404 Not
-     *         Found if no instance matches the ID.
+     * @param instanceId The ID of the process instance.
+     * @return The process instance details, or 404 if not found.
      */
-    @GetMapping("/instance/{id}")
-    public ResponseEntity<ProcessInstanceDTO> getProcessInstanceById(@PathVariable String id) {
-        ProcessInstance pi = engine.getProcessInstanceById(id);
-        if (pi == null)
+    @GetMapping("/instances/{instanceId}")
+    public ResponseEntity<ProcessInstanceDTO> getProcessInstance(@PathVariable String instanceId) {
+        ProcessInstance instance = engine.getProcessInstanceById(instanceId);
+        if (instance == null) {
             return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(pi));
+        }
+        return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(instance));
+    }
+
+    /**
+     * Gets all variables for a specific process instance.
+     * Used by Orun for the "Data Surgery" feature to view current state.
+     *
+     * @param instanceId The ID of the process instance.
+     * @return A map of variable names to their typed values.
+     */
+    @GetMapping("/api/v1/process-instances/{instanceId}/variables")
+    public ResponseEntity<Map<String, VariableValue>> getProcessVariables(@PathVariable String instanceId) {
+        ProcessInstance instance = engine.getProcessInstanceById(instanceId);
+        if (instance == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Map<String, VariableValue> typedVariables = instance.getVariables().entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> VariableValue.from(entry.getValue())));
+
+        return ResponseEntity.ok(typedVariables);
+    }
+
+    /**
+     * Modifies variables for a specific process instance.
+     * Used by Orun for the "Data Surgery" feature to fix incorrect state.
+     *
+     * @param instanceId The ID of the process instance.
+     * @param request    The variable modifications to apply.
+     * @return Empty response on success.
+     */
+    @PatchMapping("/api/v1/process-instances/{instanceId}/variables")
+    public ResponseEntity<Void> patchProcessVariables(
+            @PathVariable String instanceId,
+            @RequestBody VariablePatchRequest request) {
+
+        ProcessInstance instance = engine.getProcessInstanceById(instanceId);
+        if (instance == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Apply the variable modifications
+        Map<String, Object> modifications = request.modifications().entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().toObject()));
+
+        instance.putAllVariables(modifications);
+
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Cancels a running process instance.
+     * The instance status will be set to CANCELLED and execution will stop.
+     *
+     * @param id      The ID of the process instance.
+     * @param request Optional request body containing the cancellation reason.
+     * @return Empty response on success.
+     */
+    @DeleteMapping("/api/v1/process-instances/{id}")
+    public ResponseEntity<Void> cancelProcess(@PathVariable String id,
+            @RequestBody(required = false) CancelRequest request) {
+        String reason = request != null ? request.reason() : "Cancelled via API";
+        try {
+            engine.cancelProcessInstance(id, reason);
+            return ResponseEntity.noContent().build();
+        } catch (com.abada.engine.core.exception.ProcessEngineException e) {
+            if (e.getMessage().contains("not found")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * Suspends or activates a process instance.
+     * A suspended process cannot advance or complete tasks.
+     *
+     * @param id      The ID of the process instance.
+     * @param request The suspension request containing the new state.
+     * @return Empty response on success.
+     */
+    @PutMapping("/api/v1/process-instances/{id}/suspension")
+    public ResponseEntity<Void> setSuspension(@PathVariable String id,
+            @RequestBody SuspensionRequest request) {
+        try {
+            engine.suspendProcessInstance(id, request.suspended());
+            return ResponseEntity.ok().build();
+        } catch (com.abada.engine.core.exception.ProcessEngineException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**
@@ -136,7 +231,35 @@ public class ProcessController {
     }
 
     /**
-     * Retrieves the details of a specific process definition by its ID.
+     * Retrieves the active activity instances for a process instance.
+     * Used by Orun for visual BPMN highlighting.
+     *
+     * @param id The ID of the process instance.
+     * @return The activity instance tree containing active tokens.
+     */
+    @GetMapping("/api/v1/process-instances/{id}/activity-instances")
+    public ResponseEntity<ActivityInstanceTree> getActivityInstances(@PathVariable String id) {
+        ProcessInstance instance = engine.getProcessInstanceById(id);
+        if (instance == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        List<ChildActivityInstance> children = instance.getActiveTokens().stream()
+                .map(activityId -> {
+                    String name = instance.getDefinition().getActivityName(activityId);
+                    return new ChildActivityInstance(
+                            activityId,
+                            name,
+                            "exec-" + id // Simplified execution ID
+                    );
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(new ActivityInstanceTree(id, children));
+    }
+
+    /**
+     * Retrieves a specific process definition by its ID.
      *
      * @param id The ID of the process definition (as defined in the BPMN file).
      * @return A map containing the definition's 'id', 'name', 'documentation', and
