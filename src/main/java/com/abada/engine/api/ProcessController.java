@@ -19,7 +19,8 @@ import java.util.stream.Collectors;
 
 /**
  * REST controller for managing BPMN process definitions and instances.
- * Provides endpoints to deploy, list, and start processes, as well as query their status.
+ * Provides endpoints to deploy, list, and start processes, as well as query
+ * their status.
  */
 @RestController
 @RequestMapping("/v1/processes")
@@ -49,7 +50,8 @@ public class ProcessController {
     /**
      * Lists all currently deployed process definitions.
      *
-     * @return A list of maps, where each map contains the 'id', 'name', and 'documentation' of a deployed process.
+     * @return A list of maps, where each map contains the 'id', 'name', and
+     *         'documentation' of a deployed process.
      */
     @GetMapping
     public ResponseEntity<List<Map<String, String>>> listDeployedProcesses() {
@@ -71,12 +73,17 @@ public class ProcessController {
     /**
      * Starts a new instance of a previously deployed process definition.
      *
-     * @param processId The ID of the process definition to start (as defined in the BPMN file).
+     * @param processId The ID of the process definition to start (as defined in the
+     *                  BPMN file).
+     * @param username  Optional username of the person starting the process.
+     *                  Defaults to "system" if not provided.
      * @return A JSON object containing the unique ID of the new process instance.
      */
     @PostMapping("/start")
-    public ResponseEntity<Map<String, String>> start(@RequestParam("processId") String processId) {
-        ProcessInstance instance = engine.startProcess(processId);
+    public ResponseEntity<Map<String, String>> start(
+            @RequestParam("processId") String processId,
+            @RequestParam(value = "username", required = false) String username) {
+        ProcessInstance instance = engine.startProcess(processId, username);
         Map<String, String> response = Map.of("processInstanceId", instance.getId());
         return ResponseEntity.ok(response);
     }
@@ -84,7 +91,8 @@ public class ProcessController {
     /**
      * Retrieves a list of all process instances, both active and completed.
      *
-     * @return A list of {@link ProcessInstanceDTO} objects representing the process instances.
+     * @return A list of {@link ProcessInstanceDTO} objects representing the process
+     *         instances.
      */
     @GetMapping("/instances")
     public ResponseEntity<List<ProcessInstanceDTO>> getAllProcessInstances() {
@@ -98,12 +106,14 @@ public class ProcessController {
      * Retrieves a single process instance by its unique ID.
      *
      * @param id The UUID of the process instance.
-     * @return A {@link ProcessInstanceDTO} with the instance details, or a 404 Not Found if no instance matches the ID.
+     * @return A {@link ProcessInstanceDTO} with the instance details, or a 404 Not
+     *         Found if no instance matches the ID.
      */
     @GetMapping("/instance/{id}")
     public ResponseEntity<ProcessInstanceDTO> getProcessInstanceById(@PathVariable String id) {
         ProcessInstance pi = engine.getProcessInstanceById(id);
-        if (pi == null) return ResponseEntity.notFound().build();
+        if (pi == null)
+            return ResponseEntity.notFound().build();
         return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(pi));
     }
 
@@ -120,7 +130,8 @@ public class ProcessController {
         if (failed) {
             return ResponseEntity.ok(Map.of("status", "Failed", "processInstanceId", id));
         } else {
-            return ResponseEntity.badRequest().body(Map.of("error", "Cannot fail process instance", "processInstanceId", id));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Cannot fail process instance", "processInstanceId", id));
         }
     }
 
@@ -128,7 +139,8 @@ public class ProcessController {
      * Retrieves the details of a specific process definition by its ID.
      *
      * @param id The ID of the process definition (as defined in the BPMN file).
-     * @return A map containing the definition's 'id', 'name', 'documentation', and the full 'bpmnXml'. Returns 404 Not Found if the ID is not found.
+     * @return A map containing the definition's 'id', 'name', 'documentation', and
+     *         the full 'bpmnXml'. Returns 404 Not Found if the ID is not found.
      */
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, String>> getProcessById(@PathVariable String id) {

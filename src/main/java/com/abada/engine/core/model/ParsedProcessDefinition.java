@@ -17,22 +17,31 @@ public class ParsedProcessDefinition implements Serializable {
     private final Map<String, EventMeta> events;
     private final Map<String, Object> endEvents;
     private final String rawXml;
+    private final List<String> candidateStarterGroups;
+    private final List<String> candidateStarterUsers;
     private final Map<String, List<SequenceFlow>> outgoingBySource = new HashMap<>();
     private final Map<String, List<SequenceFlow>> incomingByTarget = new HashMap<>();
 
     private final Map<String, List<String>> flowGraph = new HashMap<>();
-    public List<SequenceFlow> getOutgoing(String sourceId) { return outgoingBySource.getOrDefault(sourceId, List.of()); }
-    public List<SequenceFlow> getIncoming(String targetId) { return incomingByTarget.getOrDefault(targetId, List.of()); }
 
+    public List<SequenceFlow> getOutgoing(String sourceId) {
+        return outgoingBySource.getOrDefault(sourceId, List.of());
+    }
+
+    public List<SequenceFlow> getIncoming(String targetId) {
+        return incomingByTarget.getOrDefault(targetId, List.of());
+    }
 
     public ParsedProcessDefinition(String id, String name, String documentation, String startEventId,
-                                   Map<String, TaskMeta> userTasks,
-                                   Map<String, ServiceTaskMeta> serviceTasks,
-                                   List<SequenceFlow> sequenceFlows,
-                                   Map<String, GatewayMeta> gateways,
-                                   Map<String, EventMeta> events,
-                                   Map<String, Object> endEvents,
-                                   String rawXml) {
+            Map<String, TaskMeta> userTasks,
+            Map<String, ServiceTaskMeta> serviceTasks,
+            List<SequenceFlow> sequenceFlows,
+            Map<String, GatewayMeta> gateways,
+            Map<String, EventMeta> events,
+            Map<String, Object> endEvents,
+            String rawXml,
+            List<String> candidateStarterGroups,
+            List<String> candidateStarterUsers) {
         this.id = id;
         this.name = name;
         this.documentation = documentation;
@@ -44,6 +53,11 @@ public class ParsedProcessDefinition implements Serializable {
         this.events = Collections.unmodifiableMap(new HashMap<>(events));
         this.endEvents = Collections.unmodifiableMap(new HashMap<>(endEvents));
         this.rawXml = rawXml;
+        this.candidateStarterGroups = candidateStarterGroups != null
+                ? Collections.unmodifiableList(candidateStarterGroups)
+                : List.of();
+        this.candidateStarterUsers = candidateStarterUsers != null ? Collections.unmodifiableList(candidateStarterUsers)
+                : List.of();
         buildFlowGraph();
     }
 
@@ -216,5 +230,13 @@ public class ParsedProcessDefinition implements Serializable {
     public List<String> getCandidateGroups(String taskId) {
         TaskMeta meta = userTasks.get(taskId);
         return meta != null ? meta.getCandidateGroups() : List.of();
+    }
+
+    public List<String> getCandidateStarterGroups() {
+        return candidateStarterGroups;
+    }
+
+    public List<String> getCandidateStarterUsers() {
+        return candidateStarterUsers;
     }
 }

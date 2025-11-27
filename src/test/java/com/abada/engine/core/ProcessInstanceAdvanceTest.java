@@ -18,10 +18,10 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * Notes:
  * - We explicitly register outgoing flows via a reflective call to
- *   ParsedProcessDefinition.addOutgoing(sourceId, flow) when available.
- *   If your constructor already builds the outgoing index, this is a no‑op.
+ * ParsedProcessDefinition.addOutgoing(sourceId, flow) when available.
+ * If your constructor already builds the outgoing index, this is a no‑op.
  * - Conditions use simple JS expressions (e.g., "x > 5"), which the engine
- *   evaluates via ConditionEvaluator.
+ * evaluates via ConditionEvaluator.
  */
 public class ProcessInstanceAdvanceTest {
 
@@ -56,7 +56,9 @@ public class ProcessInstanceAdvanceTest {
                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
                 Collections.emptyMap(), // events
                 Collections.emptyMap(), // endEvents
-                "<xml/>"
+                "<xml/>",
+                null, // candidateStarterGroups
+                null // candidateStarterUsers
         );
         registerOutgoing(def, f1, f2, f3);
 
@@ -99,7 +101,9 @@ public class ProcessInstanceAdvanceTest {
                 Map.of("gateway1", new GatewayMeta("gateway1", GatewayMeta.Type.EXCLUSIVE, "flow3")),
                 Collections.emptyMap(), // events
                 Collections.emptyMap(), // endEvents
-                "<xml/>"
+                "<xml/>",
+                null, // candidateStarterGroups
+                null // candidateStarterUsers
         );
         registerOutgoing(def, f1, f2, f3);
 
@@ -114,7 +118,8 @@ public class ProcessInstanceAdvanceTest {
     }
 
     // ---------------------------------------------------------------------
-    // Direct user task: start -> taskA (no gateway), ensures we stop on first user task
+    // Direct user task: start -> taskA (no gateway), ensures we stop on first user
+    // task
     // ---------------------------------------------------------------------
     @Test
     @DisplayName("advance(): stops at the first encountered user task")
@@ -135,7 +140,9 @@ public class ProcessInstanceAdvanceTest {
                 Collections.emptyMap(), // gateways
                 Collections.emptyMap(), // events
                 Collections.emptyMap(), // endEvents
-                "<xml/>"
+                "<xml/>",
+                null, // candidateStarterGroups
+                null // candidateStarterUsers
         );
         registerOutgoing(def, f1);
 
