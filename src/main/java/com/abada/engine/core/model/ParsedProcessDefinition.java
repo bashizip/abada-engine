@@ -239,4 +239,17 @@ public class ParsedProcessDefinition implements Serializable {
     public List<String> getCandidateStarterUsers() {
         return candidateStarterUsers;
     }
+
+    public String getActivityName(String id) {
+        if (userTasks.containsKey(id)) {
+            return userTasks.get(id).getName();
+        }
+        if (serviceTasks.containsKey(id)) {
+            return serviceTasks.get(id).name();
+        }
+        if (events.containsKey(id)) {
+            return events.get(id).name();
+        }
+        return null;
+    }
 }
