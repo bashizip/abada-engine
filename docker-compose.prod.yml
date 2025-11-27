@@ -39,6 +39,8 @@ services:
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://otel-collector:4318/v1/traces
       - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=prod
+      - OTEL_SERVICE_NAME=abada-engine-prod
+      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
     deploy:
       replicas: ${ABADA_ENGINE_REPLICAS:-3}
       resources:
