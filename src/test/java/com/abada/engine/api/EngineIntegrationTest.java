@@ -1,6 +1,7 @@
 package com.abada.engine.api;
 
 import com.abada.engine.core.AbadaEngine;
+import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.dto.TaskDetailsDto;
 import com.abada.engine.util.BpmnTestUtils;
@@ -79,7 +80,7 @@ public class EngineIntegrationTest {
         HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
         // Correctly expect a Map from the /start endpoint
         ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start", startRequest, Map.class);
-        
+
         assertNotNull(response.getBody());
         // Correctly extract the processInstanceId from the JSON response
         return (String) response.getBody().get("processInstanceId");
@@ -90,8 +91,8 @@ public class EngineIntegrationTest {
         // Alice's turn
         HttpEntity<Void> aliceRequest = new HttpEntity<>(aliceHeaders);
         ResponseEntity<List<TaskDetailsDto>> taskResponse1 = restTemplate.exchange(
-                "/v1/tasks", HttpMethod.GET, aliceRequest, new ParameterizedTypeReference<>() {}
-        );
+                "/v1/tasks", HttpMethod.GET, aliceRequest, new ParameterizedTypeReference<>() {
+                });
         List<TaskDetailsDto> tasksForAlice = taskResponse1.getBody();
         assertNotNull(tasksForAlice);
         assertFalse(tasksForAlice.isEmpty());
@@ -109,8 +110,8 @@ public class EngineIntegrationTest {
         // Bob's turn
         HttpEntity<Void> bobRequest = new HttpEntity<>(bobHeaders);
         ResponseEntity<List<TaskDetailsDto>> taskResponse2 = restTemplate.exchange(
-                "/v1/tasks", HttpMethod.GET, bobRequest, new ParameterizedTypeReference<>() {}
-        );
+                "/v1/tasks", HttpMethod.GET, bobRequest, new ParameterizedTypeReference<>() {
+                });
         List<TaskDetailsDto> tasksForBob = taskResponse2.getBody();
         assertNotNull(tasksForBob);
         assertFalse(tasksForBob.isEmpty());
@@ -127,17 +128,16 @@ public class EngineIntegrationTest {
 
         // Final check
         ResponseEntity<List<TaskDetailsDto>> finalTasks = restTemplate.exchange(
-                "/v1/tasks", HttpMethod.GET, bobRequest, new ParameterizedTypeReference<>() {}
-        );
+                "/v1/tasks", HttpMethod.GET, bobRequest, new ParameterizedTypeReference<>() {
+                });
         List<TaskDetailsDto> remainingTasks = finalTasks.getBody();
         assertNotNull(remainingTasks);
         assertEquals(0, remainingTasks.size());
 
         // Correctly provide the instanceId as a variable for the URL template
         ResponseEntity<ProcessInstanceDTO> instanceResponse = restTemplate.exchange(
-                "/v1/processes/instance/{id}", HttpMethod.GET, bobRequest, ProcessInstanceDTO.class, instanceId
-        );
+                "/v1/processes/instance/{id}", HttpMethod.GET, bobRequest, ProcessInstanceDTO.class, instanceId);
         assertNotNull(instanceResponse.getBody());
-        assertTrue(instanceResponse.getBody().isCompleted());
+        assertEquals(ProcessStatus.COMPLETED, instanceResponse.getBody().status());
     }
 }

@@ -18,16 +18,14 @@ public class ProcessDefinitionTest {
 
     @BeforeEach
     void setup() {
-        Map<String,TaskMeta> tasks = Map.of(
+        Map<String, TaskMeta> tasks = Map.of(
                 "taskA", taskMeta("Review", "alice", List.of("bob"), List.of("team")),
-                "taskB", taskMeta("Approve", null, List.of("carol"), List.of("qa"))
-        );
+                "taskB", taskMeta("Approve", null, List.of("carol"), List.of("qa")));
 
         List<SequenceFlow> flows = List.of(
                 new SequenceFlow("f1", "startEvent1", "taskA", null, null, false),
                 new SequenceFlow("f2", "taskA", "taskB", null, null, false),
-                new SequenceFlow("f3", "taskB", "endEvent1", null, null, false)
-        );
+                new SequenceFlow("f3", "taskB", "endEvent1", null, null, false));
 
         definition = new ParsedProcessDefinition(
                 "demoProc",
@@ -40,12 +38,14 @@ public class ProcessDefinitionTest {
                 Collections.emptyMap(), // gateways
                 Collections.emptyMap(), // events
                 Collections.emptyMap(), // endEvents
-                "<bpmn>...</bpmn>"
+                "<bpmn>...</bpmn>",
+                null, // candidateStarterGroups
+                null // candidateStarterUsers
         );
     }
 
     private TaskMeta taskMeta(String name, String assignee, List<String> users, List<String> groups) {
-        
+
         TaskMeta meta = new TaskMeta();
         meta.setName(name);
         meta.setAssignee(assignee);

@@ -18,6 +18,12 @@ public class ProcessDefinitionEntity {
     @Column(columnDefinition = "TEXT")
     private String bpmnXml;
 
+    @Column(name = "candidate_starter_groups")
+    private String candidateStarterGroups;
+
+    @Column(name = "candidate_starter_users")
+    private String candidateStarterUsers;
+
     public String getId() {
         return id;
     }
@@ -48,6 +54,22 @@ public class ProcessDefinitionEntity {
 
     public void setBpmnXml(String bpmnXml) {
         this.bpmnXml = bpmnXml;
+    }
+
+    public String getCandidateStarterGroups() {
+        return candidateStarterGroups;
+    }
+
+    public void setCandidateStarterGroups(String candidateStarterGroups) {
+        this.candidateStarterGroups = candidateStarterGroups;
+    }
+
+    public String getCandidateStarterUsers() {
+        return candidateStarterUsers;
+    }
+
+    public void setCandidateStarterUsers(String candidateStarterUsers) {
+        this.candidateStarterUsers = candidateStarterUsers;
     }
 
 }

@@ -25,6 +25,9 @@ public class ProcessInstanceEntity {
     @Column(name = "end_date")
     private Instant endDate;
 
+    @Column(name = "started_by", nullable = false)
+    private String startedBy = "system";
+
     @Lob
     @Column(name = "variables_json", nullable = false)
     private String variablesJson; // Jackson-serialized Map
@@ -33,13 +36,13 @@ public class ProcessInstanceEntity {
     public ProcessInstanceEntity() {
     }
 
-    public ProcessInstanceEntity(String id, String processDefinitionId, String currentActivityId, ProcessStatus status) {
+    public ProcessInstanceEntity(String id, String processDefinitionId, String currentActivityId,
+            ProcessStatus status) {
         this.id = id;
         this.processDefinitionId = processDefinitionId;
         this.currentActivityId = currentActivityId;
         this.status = status;
     }
-
 
     public String getVariablesJson() {
         return variablesJson;
@@ -78,7 +81,6 @@ public class ProcessInstanceEntity {
         return status;
     }
 
-
     public void setStatus(ProcessStatus status) {
         this.status = status;
     }
@@ -97,5 +99,13 @@ public class ProcessInstanceEntity {
 
     public void setEndDate(Instant endDate) {
         this.endDate = endDate;
+    }
+
+    public String getStartedBy() {
+        return startedBy;
+    }
+
+    public void setStartedBy(String startedBy) {
+        this.startedBy = startedBy;
     }
 }

@@ -55,7 +55,7 @@ public class BpmnParser {
 
                 String groups = userTask.getCamundaCandidateGroups();
                 if (groups != null && !groups.isBlank()) {
-                    meta.setCandidateGroups( Arrays.asList(groups.split("\\s*,\\s*")));
+                    meta.setCandidateGroups(Arrays.asList(groups.split("\\s*,\\s*")));
                 }
                 userTasks.put(userTask.getId(), meta);
             }
@@ -66,28 +66,34 @@ public class BpmnParser {
                 String topicName = serviceTask.getCamundaTopic();
 
                 if (className != null && !className.isBlank()) {
-                    serviceTasks.put(serviceTask.getId(), new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), className, null));
+                    serviceTasks.put(serviceTask.getId(),
+                            new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), className, null));
                 } else if (topicName != null && !topicName.isBlank()) {
-                    serviceTasks.put(serviceTask.getId(), new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), null, topicName));
+                    serviceTasks.put(serviceTask.getId(),
+                            new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), null, topicName));
                 }
             }
 
             List<SequenceFlow> flows = new ArrayList<>();
-            for (org.camunda.bpm.model.bpmn.instance.SequenceFlow flow : model.getModelElementsByType(org.camunda.bpm.model.bpmn.instance.SequenceFlow.class)) {
+            for (org.camunda.bpm.model.bpmn.instance.SequenceFlow flow : model
+                    .getModelElementsByType(org.camunda.bpm.model.bpmn.instance.SequenceFlow.class)) {
                 flows.add(new SequenceFlow(
                         flow.getId(),
                         flow.getSource().getId(),
-                        flow.getTarget().getId(),flow.getName(),
-                        flow.getConditionExpression() != null ? flow.getConditionExpression().getRawTextContent() : null,
+                        flow.getTarget().getId(), flow.getName(),
+                        flow.getConditionExpression() != null ? flow.getConditionExpression().getRawTextContent()
+                                : null,
                         flow.isImmediate()));
             }
 
             Map<String, GatewayMeta> gateways = new HashMap<>();
             for (ExclusiveGateway gateway : model.getModelElementsByType(ExclusiveGateway.class)) {
-                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE, gateway.getDefault() != null ? gateway.getDefault().getId() : null));
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.EXCLUSIVE,
+                        gateway.getDefault() != null ? gateway.getDefault().getId() : null));
             }
             for (InclusiveGateway gateway : model.getModelElementsByType(InclusiveGateway.class)) {
-                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.INCLUSIVE, gateway.getDefault() != null ? gateway.getDefault().getId() : null));
+                gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.INCLUSIVE,
+                        gateway.getDefault() != null ? gateway.getDefault().getId() : null));
             }
             for (ParallelGateway gateway : model.getModelElementsByType(ParallelGateway.class)) {
                 gateways.put(gateway.getId(), new GatewayMeta(gateway.getId(), GatewayMeta.Type.PARALLEL, null));
@@ -101,27 +107,48 @@ public class BpmnParser {
                     if (eventDefinition instanceof MessageEventDefinition) {
                         MessageEventDefinition messageEventDef = (MessageEventDefinition) eventDefinition;
                         String messageName = messageEventDef.getMessage().getName();
-                        events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.MESSAGE, messageName));
+                        events.put(event.getId(), new EventMeta(event.getId(), event.getName(),
+                                EventMeta.EventType.MESSAGE, messageName));
                     } else if (eventDefinition instanceof TimerEventDefinition) {
                         TimerEventDefinition timerEventDef = (TimerEventDefinition) eventDefinition;
                         if (timerEventDef.getTimeDuration() != null) {
                             String duration = timerEventDef.getTimeDuration().getTextContent();
-                            events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.TIMER, duration));
+                            events.put(event.getId(),
+                                    new EventMeta(event.getId(), event.getName(), EventMeta.EventType.TIMER, duration));
                         }
                     } else if (eventDefinition instanceof SignalEventDefinition) {
                         SignalEventDefinition signalEventDef = (SignalEventDefinition) eventDefinition;
                         String signalName = signalEventDef.getSignal().getName();
-                        events.put(event.getId(), new EventMeta(event.getId(), event.getName(), EventMeta.EventType.SIGNAL, signalName));
+                        events.put(event.getId(),
+                                new EventMeta(event.getId(), event.getName(), EventMeta.EventType.SIGNAL, signalName));
                     }
                 }
             }
 
             Map<String, Object> endEvents = new HashMap<>();
             for (EndEvent endEvent : model.getModelElementsByType(EndEvent.class)) {
-                endEvents.put(endEvent.getId(), null);
+                endEvents.put(endEvent.getId(), endEvent);
             }
 
-            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, documentation, startEventId, userTasks, serviceTasks, flows, gateways, events, endEvents, rawXml);
+            // Extract candidate starter groups and users from the process element
+            List<String> candidateStarterGroups = null;
+            List<String> candidateStarterUsers = null;
+
+            String starterGroups = process.getAttributeValueNs("http://camunda.org/schema/1.0/bpmn",
+                    "candidateStarterGroups");
+            if (starterGroups != null && !starterGroups.isBlank()) {
+                candidateStarterGroups = Arrays.asList(starterGroups.split("\\s*,\\s*"));
+            }
+
+            String starterUsers = process.getAttributeValueNs("http://camunda.org/schema/1.0/bpmn",
+                    "candidateStarterUsers");
+            if (starterUsers != null && !starterUsers.isBlank()) {
+                candidateStarterUsers = Arrays.asList(starterUsers.split("\\s*,\\s*"));
+            }
+
+            ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, documentation, startEventId,
+                    userTasks, serviceTasks, flows, gateways, events, endEvents, rawXml, candidateStarterGroups,
+                    candidateStarterUsers);
             for (SequenceFlow flow : flows) {
                 definition.addOutgoing(flow.getSourceRef(), flow);
             }
