@@ -73,13 +73,10 @@ public class EngineIntegrationTest {
         // Correctly expect a Map from the /deploy endpoint
         restTemplate.postForEntity("/v1/processes/deploy", request, Map.class);
 
-        HttpHeaders startHeaders = new HttpHeaders();
-        startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        startHeaders.addAll(aliceHeaders);
-
-        HttpEntity<String> startRequest = new HttpEntity<>("processId=recipe-cook", startHeaders);
+        HttpEntity<Void> startRequest = new HttpEntity<>(aliceHeaders);
         // Correctly expect a Map from the /start endpoint
-        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start", startRequest, Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start?processId=recipe-cook",
+                startRequest, Map.class);
 
         assertNotNull(response.getBody());
         // Correctly extract the processInstanceId from the JSON response
@@ -136,7 +133,7 @@ public class EngineIntegrationTest {
 
         // Correctly provide the instanceId as a variable for the URL template
         ResponseEntity<ProcessInstanceDTO> instanceResponse = restTemplate.exchange(
-                "/v1/processes/instance/{id}", HttpMethod.GET, bobRequest, ProcessInstanceDTO.class, instanceId);
+                "/v1/processes/instances/{id}", HttpMethod.GET, bobRequest, ProcessInstanceDTO.class, instanceId);
         assertNotNull(instanceResponse.getBody());
         assertEquals(ProcessStatus.COMPLETED, instanceResponse.getBody().status());
     }

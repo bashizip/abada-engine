@@ -74,9 +74,9 @@ public class ProcessController {
      * @param variablesMap Optional initial process variables
      * @return A JSON object with the new process instance ID.
      */
-    @PostMapping("/start/{processId}")
+    @PostMapping("/start")
     public ResponseEntity<Map<String, String>> startProcess(
-            @PathVariable String processId,
+            @RequestParam String processId,
             @RequestParam(required = false) String username,
             @RequestBody(required = false) Map<String, Object> variablesMap) {
 

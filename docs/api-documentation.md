@@ -135,7 +135,7 @@ Retrieves a list of all process instances.
 
 Retrieves a specific process instance by its ID.
 
-- **Method & URL**: `GET /v1/processes/instance/{id}`
+- **Method & URL**: `GET /v1/processes/instances/{id}`
 - **Path Parameters**:
   - `{id}` (string, required): The unique ID of the process instance. **This must be part of the URL path.**
 - **Success Response** (`200 OK`):

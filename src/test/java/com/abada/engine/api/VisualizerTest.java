@@ -15,7 +15,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,12 +62,9 @@ public class VisualizerTest {
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, deployHeaders);
         restTemplate.postForEntity("/v1/processes/deploy", request, Map.class);
 
-        HttpHeaders startHeaders = new HttpHeaders();
-        startHeaders.setContentType(MediaType.APPLICATION_JSON);
-        startHeaders.addAll(aliceHeaders);
-
-        HttpEntity<Map<String, Object>> startRequest = new HttpEntity<>(Collections.emptyMap(), startHeaders);
-        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start/recipe-cook", startRequest,
+        HttpEntity<Void> startRequest = new HttpEntity<>(aliceHeaders);
+        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start?processId=recipe-cook",
+                startRequest,
                 Map.class);
 
         assertNotNull(response.getBody());
