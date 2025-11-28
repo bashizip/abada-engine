@@ -6,6 +6,7 @@ import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.ProcessStatus;
+import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.observability.EngineMetrics;
 import com.abada.engine.parser.BpmnParser;
@@ -322,6 +323,11 @@ public class AbadaEngine {
         instance.setSuspended(entity.isSuspended());
         instance.putAllVariables(readMap(entity.getVariablesJson()));
         instances.put(instance.getId(), instance);
+
+        // Restore metrics for active processes
+        if (instance.getStatus() == ProcessStatus.RUNNING || instance.getStatus() == ProcessStatus.SUSPENDED) {
+            engineMetrics.restoreActiveProcess(instance.getDefinition().getId());
+        }
     }
 
     public void rehydrateTaskInstance(TaskEntity entity) {
@@ -338,6 +344,11 @@ public class AbadaEngine {
         task.setEndDate(entity.getEndDate());
 
         taskManager.addTask(task);
+
+        // Restore metrics for active tasks
+        if (task.getStatus() == TaskStatus.AVAILABLE || task.getStatus() == TaskStatus.CLAIMED) {
+            engineMetrics.restoreActiveTask(task.getTaskDefinitionKey());
+        }
     }
 
     private void createAndPersistTask(UserTaskPayload task, String processInstanceId) {
