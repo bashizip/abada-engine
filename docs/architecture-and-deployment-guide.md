@@ -95,6 +95,7 @@ graph TB
 #### 1. Abada Engine Core
 
 **Technology Stack:**
+
 - Spring Boot 3.2+
 - Java 21
 - Hibernate/JPA
@@ -102,6 +103,7 @@ graph TB
 - OpenTelemetry (Tracing)
 
 **Key Modules:**
+
 ```
 com.abada.engine/
 ├── api/                 # REST API controllers
@@ -125,6 +127,7 @@ management:
 #### 2. Process Execution Engine
 
 **Process Lifecycle:**
+
 1. **Deployment**: BPMN process definitions are parsed and validated
 2. **Instantiation**: Process instances are created from definitions
 3. **Execution**: Tokens flow through the process according to BPMN rules
@@ -133,6 +136,7 @@ management:
 6. **Completion**: Process instances complete or terminate
 
 **State Management:**
+
 - Process instances are persisted to database
 - Each engine instance maintains its own connection pool
 - Shared state through database transactions
@@ -141,6 +145,7 @@ management:
 #### 3. Task Management System
 
 **Task Lifecycle:**
+
 ```mermaid
 stateDiagram-v2
     [*] --> Created: Task Created
@@ -152,6 +157,7 @@ stateDiagram-v2
 ```
 
 **Task Types:**
+
 - **User Tasks**: Human-interactive tasks
 - **Service Tasks**: Automated service calls
 - **Script Tasks**: JavaScript/Java script execution
@@ -162,6 +168,7 @@ stateDiagram-v2
 ### Abada Engine Core Classes
 
 #### AbadaEngine.java
+
 ```java
 @Component
 public class AbadaEngine {
@@ -180,6 +187,7 @@ public class AbadaEngine {
 ```
 
 #### TaskManager.java
+
 ```java
 @Component
 public class TaskManager {
@@ -192,6 +200,7 @@ public class TaskManager {
 ```
 
 #### EventManager.java
+
 ```java
 @Component
 public class EventManager {
@@ -211,14 +220,16 @@ public class EventManager {
 ### REST API Endpoints
 
 #### Process Management
+
 ```
-POST   /abada/api/processes/{id}/start
-GET    /abada/api/processes/{id}/instances
-GET    /abada/api/processes/{id}/instances/{instanceId}
-DELETE /abada/api/processes/{id}/instances/{instanceId}
+POST   /v1/processes/start?processId={id}
+GET    /v1/processes/{id}/instances
+GET    /v1/processes/instances/{instanceId}
+DELETE /v1/processes/instances/{instanceId}
 ```
 
 #### Task Management
+
 ```
 GET    /abada/api/tasks
 POST   /abada/api/tasks/{id}/claim
@@ -227,6 +238,7 @@ POST   /abada/api/tasks/{id}/fail
 ```
 
 #### Event Management
+
 ```
 POST   /abada/api/events/messages
 POST   /abada/api/events/signals
@@ -295,6 +307,7 @@ graph TD
 **Purpose**: Local development with full observability and debug capabilities
 
 **Configuration:**
+
 ```yaml
 # docker-compose.dev.yml
 services:
@@ -309,6 +322,7 @@ services:
 ```
 
 **Features:**
+
 - H2 embedded database with console access
 - 100% trace sampling for debugging
 - Verbose logging (DEBUG level)
@@ -316,21 +330,24 @@ services:
 - Hot reloading support
 
 **Service Dependencies:**
+
 - `abada-engine` depends on `otel-collector` with `condition: service_started`
 - OTEL Collector healthcheck is disabled (minimal container image lacks standard tools, but service is functional)
 - All services connect via Docker network `abada-network` for service discovery
 
 **Access URLs:**
-- Engine: http://localhost:5601/abada/api
-- H2 Console: http://localhost:5601/abada/api/h2-console
-- Grafana: http://localhost:3000
-- Jaeger: http://localhost:16686
+
+- Engine: <http://localhost:5601/abada/api>
+- H2 Console: <http://localhost:5601/abada/api/h2-console>
+- Grafana: <http://localhost:3000>
+- Jaeger: <http://localhost:16686>
 
 ### Test Environment
 
 **Purpose**: Automated testing with reduced resource usage
 
 **Configuration:**
+
 ```yaml
 # docker-compose.test.yml
 services:
@@ -342,6 +359,7 @@ services:
 ```
 
 **Features:**
+
 - H2 in-memory database (no persistence)
 - 50% trace sampling
 - Minimal logging
@@ -353,6 +371,7 @@ services:
 **Purpose**: High-availability production deployment
 
 **Configuration:**
+
 ```yaml
 # docker-compose.prod.yml
 services:
@@ -381,6 +400,7 @@ services:
 ```
 
 **Features:**
+
 - PostgreSQL database with connection pooling
 - Multiple engine instances (3+ replicas)
 - Traefik load balancing
@@ -393,6 +413,7 @@ services:
 ### OpenTelemetry Integration
 
 #### Metrics Flow
+
 ```mermaid
 graph LR
     AE[Abada Engine] --> OC[OTEL Collector]
@@ -401,6 +422,7 @@ graph LR
 ```
 
 **Key Metrics:**
+
 - `abada.process.instances.started` (Prometheus: `abada_process_instances_started`) - Process creation rate
 - `abada.process.instances.completed` (Prometheus: `abada_process_instances_completed`) - Process completion rate
 - `abada.process.instances.failed` (Prometheus: `abada_process_instances_failed`) - Process failure rate
@@ -417,6 +439,7 @@ graph LR
 **Note:** Micrometer uses dot notation internally, but Prometheus automatically converts dots to underscores when scraping metrics.
 
 #### Traces Flow
+
 ```mermaid
 graph LR
     T[Traefik] --> OC[OTEL Collector]
@@ -426,6 +449,7 @@ graph LR
 ```
 
 **Trace Spans:**
+
 - `abada.process.start` - Process instance creation
 - `abada.task.create` - Task creation
 - `abada.task.complete` - Task completion
@@ -490,6 +514,7 @@ service:
 ```
 
 **Key Configuration Notes:**
+
 - **Jaeger Exporter**: Uses `otlphttp/jaeger` (HTTP OTLP protocol) instead of the deprecated `jaeger` exporter
 - **Memory Limiter**: Requires `check_interval` parameter (set to 1s)
 - **Resource Processor**: Adds service namespace attribute to all telemetry data
@@ -512,12 +537,14 @@ scrape_configs:
 ### Grafana Dashboards
 
 #### Abada Engine Overview Dashboard
+
 - Process instance metrics (started, completed, failed)
 - Task metrics (created, completed, failed)
 - Event metrics (published, consumed, correlated)
 - System health indicators
 
 #### Task Details Dashboard
+
 - Task waiting time distributions (p50, p95, p99)
 - Task processing time distributions
 - Task completion rates by type
@@ -528,6 +555,7 @@ scrape_configs:
 ### Development Database (H2)
 
 **Configuration:**
+
 ```yaml
 spring:
   datasource:
@@ -540,6 +568,7 @@ spring:
 ```
 
 **Features:**
+
 - File-based persistence
 - H2 console access
 - Automatic schema creation
@@ -548,6 +577,7 @@ spring:
 ### Production Database (PostgreSQL)
 
 **Configuration:**
+
 ```yaml
 spring:
   datasource:
@@ -564,6 +594,7 @@ spring:
 ```
 
 **Connection Pooling:**
+
 - Each engine instance maintains its own HikariCP pool
 - 10 connections per instance (configurable)
 - Connection timeout: 30 seconds
@@ -573,6 +604,7 @@ spring:
 ### Database Schema
 
 **Core Tables:**
+
 ```sql
 -- Process definitions
 CREATE TABLE process_definition (
@@ -616,6 +648,7 @@ CREATE TABLE task_instance (
 **Load Balancing Algorithm:** Round-robin
 
 **Health Checks:**
+
 ```yaml
 labels:
   - "traefik.http.services.abada.loadbalancer.healthcheck.path=/abada/api/actuator/health"
@@ -623,6 +656,7 @@ labels:
 ```
 
 **Routing Rules:**
+
 ```yaml
 labels:
   - "traefik.enable=true"
@@ -631,6 +665,7 @@ labels:
 ```
 
 **Tracing Configuration:**
+
 ```yaml
 # docker/traefik/traefik.yml
 tracing:
@@ -646,6 +681,7 @@ Traefik sends distributed traces to the OTEL Collector using OTLP protocol, whic
 ### Scaling Strategy
 
 **Horizontal Scaling:**
+
 ```bash
 # Scale to 5 instances
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale abada-engine=5
@@ -655,6 +691,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale ab
 ```
 
 **Stateless Design:**
+
 - No session affinity required
 - Shared database state
 - Any instance can handle any request
@@ -665,6 +702,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale ab
 ### Network Security
 
 **Docker Networks:**
+
 ```yaml
 networks:
   abada-network:
@@ -673,17 +711,20 @@ networks:
 ```
 
 **Port Exposure:**
+
 - **Development**: Direct port exposure for debugging
 - **Production**: Only Traefik exposed, internal service communication
 
 ### Authentication & Authorization
 
 **Current Implementation:**
+
 - Basic authentication for REST API
 - User context for task assignment
 - Role-based access control (planned)
 
 **Security Headers:**
+
 ```yaml
 # Traefik security headers
 labels:
@@ -694,12 +735,14 @@ labels:
 ### Data Security
 
 **Database Security:**
+
 - Encrypted connections (TLS)
 - Strong passwords via environment variables
 - Connection pooling limits
 - Query parameterization
 
 **Secrets Management:**
+
 ```bash
 # Use Docker secrets in production
 echo "your_secure_password" | docker secret create postgres_password -
@@ -710,6 +753,7 @@ echo "your_secure_password" | docker secret create postgres_password -
 ### Vertical Scaling
 
 **Resource Limits:**
+
 ```yaml
 deploy:
   resources:
@@ -722,6 +766,7 @@ deploy:
 ```
 
 **JVM Tuning:**
+
 ```bash
 # Add to docker-compose environment
 JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:+UseStringDeduplication
@@ -730,11 +775,13 @@ JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:+UseStringDeduplication
 ### Horizontal Scaling
 
 **Database Scaling:**
+
 - Read replicas for query distribution
 - Connection pooling per instance
 - Database connection limits
 
 **Application Scaling:**
+
 - Stateless design enables unlimited scaling
 - Load balancer distributes requests
 - Health checks ensure availability
@@ -742,6 +789,7 @@ JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:+UseStringDeduplication
 ### Auto-Scaling (Kubernetes)
 
 **HPA Configuration:**
+
 ```yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -768,18 +816,21 @@ spec:
 ### Key Metrics to Monitor
 
 **Process Metrics:**
+
 - Process instance creation rate
 - Process completion rate
 - Process failure rate
 - Average process duration
 
 **Task Metrics:**
+
 - Task creation rate
 - Task completion rate
 - Task waiting time (p95, p99)
 - Task processing time (p95, p99)
 
 **System Metrics:**
+
 - CPU utilization
 - Memory usage
 - Database connection pool usage
@@ -788,6 +839,7 @@ spec:
 ### Alert Rules
 
 **Prometheus Alert Rules:**
+
 ```yaml
 groups:
 - name: abada-engine
@@ -820,6 +872,7 @@ groups:
 ### Grafana Dashboards
 
 **Pre-configured Dashboards:**
+
 1. **Abada Engine Overview**
    - Process metrics overview
    - Task metrics overview
@@ -842,11 +895,13 @@ groups:
 #### 1. High Memory Usage
 
 **Symptoms:**
+
 - Container memory limit exceeded
 - OutOfMemoryError in logs
 - Slow response times
 
 **Diagnosis:**
+
 ```bash
 # Check container memory usage
 docker stats abada-engine
@@ -856,6 +911,7 @@ curl http://localhost:5601/abada/api/actuator/metrics/jvm.memory.used
 ```
 
 **Solutions:**
+
 - Increase memory limits in docker-compose
 - Tune JVM heap settings
 - Check for memory leaks in application
@@ -863,11 +919,13 @@ curl http://localhost:5601/abada/api/actuator/metrics/jvm.memory.used
 #### 2. Database Connection Issues
 
 **Symptoms:**
+
 - Connection timeout errors
 - Database unavailable errors
 - Slow database queries
 
 **Diagnosis:**
+
 ```bash
 # Check database connectivity
 docker compose exec postgres pg_isready -U abada
@@ -877,6 +935,7 @@ curl http://localhost:5601/abada/api/actuator/metrics/hikaricp.connections.activ
 ```
 
 **Solutions:**
+
 - Increase connection pool size
 - Check database resource limits
 - Optimize database queries
@@ -884,11 +943,13 @@ curl http://localhost:5601/abada/api/actuator/metrics/hikaricp.connections.activ
 #### 3. Load Balancer Issues
 
 **Symptoms:**
+
 - 502 Bad Gateway errors
 - Uneven load distribution
 - Health check failures
 
 **Diagnosis:**
+
 ```bash
 # Check Traefik logs
 docker compose logs traefik
@@ -898,6 +959,7 @@ curl http://localhost:8080/api/http/services
 ```
 
 **Solutions:**
+
 - Verify health check endpoints
 - Check service labels
 - Restart unhealthy services
@@ -905,6 +967,7 @@ curl http://localhost:8080/api/http/services
 ### Debug Commands
 
 **Container Management:**
+
 ```bash
 # View all containers
 docker compose ps
@@ -919,6 +982,7 @@ docker compose exec postgres psql -U abada -d abada_engine
 ```
 
 **Health Checks:**
+
 ```bash
 # Check service health
 curl http://localhost:5601/abada/api/actuator/health
@@ -931,6 +995,7 @@ curl http://localhost:16686/api/services
 ```
 
 **Database Operations:**
+
 ```bash
 # Backup database
 docker compose exec postgres pg_dump -U abada abada_engine > backup.sql
@@ -947,30 +1012,35 @@ docker compose exec postgres psql -U abada -d abada_engine -c "SELECT pg_size_pr
 ### Local Development Setup
 
 1. **Clone Repository:**
+
 ```bash
 git clone <repository-url>
 cd abada-engine
 ```
 
 2. **Environment Setup:**
+
 ```bash
 cp env.example .env
 # Edit .env with your preferences
 ```
 
 3. **Start Development Environment:**
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 ```
 
 4. **Access Services:**
-- Engine: http://localhost:5601/abada/api
-- Grafana: http://localhost:3000
-- Jaeger: http://localhost:16686
+
+- Engine: <http://localhost:5601/abada/api>
+- Grafana: <http://localhost:3000>
+- Jaeger: <http://localhost:16686>
 
 ### Code Development
 
 **Project Structure:**
+
 ```
 src/main/java/com/abada/engine/
 ├── api/                 # REST controllers
@@ -981,6 +1051,7 @@ src/main/java/com/abada/engine/
 ```
 
 **Key Development Commands:**
+
 ```bash
 # Run tests
 mvn test
@@ -998,16 +1069,19 @@ mvn spring-boot:run
 ### Testing Strategy
 
 **Unit Tests:**
+
 - Test individual components in isolation
 - Mock external dependencies
 - Use `@Profile("test")` for test-specific configurations
 
 **Integration Tests:**
+
 - Test component interactions
 - Use test containers for database testing
 - Verify observability metrics
 
 **End-to-End Tests:**
+
 - Test complete process flows
 - Use Docker Compose test environment
 - Verify load balancing behavior
@@ -1015,6 +1089,7 @@ mvn spring-boot:run
 ### Code Quality
 
 **Linting:**
+
 ```bash
 # Check code style
 mvn checkstyle:check
@@ -1024,6 +1099,7 @@ mvn checkstyle:checkstyle
 ```
 
 **Security Scanning:**
+
 ```bash
 # Dependency vulnerability scan
 mvn org.owasp:dependency-check-maven:check
@@ -1044,6 +1120,7 @@ mvn org.owasp:dependency-check-maven:check
 ### Deployment Steps
 
 1. **Prepare Environment:**
+
 ```bash
 # Copy environment template
 cp env.example .env
@@ -1054,6 +1131,7 @@ export GRAFANA_ADMIN_PASSWORD=your_secure_password
 ```
 
 2. **Deploy Services:**
+
 ```bash
 # Deploy production stack
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
@@ -1063,6 +1141,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
 3. **Verify Health:**
+
 ```bash
 # Check all services are healthy
 curl http://localhost/abada/api/actuator/health
@@ -1071,6 +1150,7 @@ curl http://localhost:16686/api/services
 ```
 
 4. **Monitor Deployment:**
+
 - Check Grafana dashboards
 - Verify metrics collection
 - Test load balancing
@@ -1079,6 +1159,7 @@ curl http://localhost:16686/api/services
 ### Scaling in Production
 
 **Manual Scaling:**
+
 ```bash
 # Scale to 5 instances
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale abada-engine=5
@@ -1088,6 +1169,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
 **Auto-Scaling (Kubernetes):**
+
 ```yaml
 # Deploy with HPA
 kubectl apply -f k8s/hpa.yaml
@@ -1099,6 +1181,7 @@ kubectl get hpa abada-engine-hpa
 ### Backup and Recovery
 
 **Database Backup:**
+
 ```bash
 # Create backup
 docker compose exec postgres pg_dump -U abada abada_engine > backup-$(date +%Y%m%d-%H%M%S).sql
@@ -1108,6 +1191,7 @@ docker compose exec -T postgres psql -U abada abada_engine < backup-20240101-120
 ```
 
 **Configuration Backup:**
+
 ```bash
 # Backup all configurations
 tar -czf abada-config-backup-$(date +%Y%m%d).tar.gz docker/ *.yml .env
@@ -1116,6 +1200,7 @@ tar -czf abada-config-backup-$(date +%Y%m%d).tar.gz docker/ *.yml .env
 ### Maintenance
 
 **Regular Maintenance Tasks:**
+
 - Monitor resource usage
 - Review and rotate logs
 - Update dependencies
@@ -1123,6 +1208,7 @@ tar -czf abada-config-backup-$(date +%Y%m%d).tar.gz docker/ *.yml .env
 - Review security patches
 
 **Update Deployment:**
+
 ```bash
 # Pull latest images
 docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
@@ -1138,6 +1224,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 This architecture and deployment guide provides comprehensive information for developers working with the Abada Engine. The system is designed for scalability, observability, and maintainability, with clear separation between development, test, and production environments.
 
 For additional support or questions, refer to:
+
 - Project documentation in `/docs`
 - API documentation at `/abada/api/docs`
 - Monitoring dashboards in Grafana

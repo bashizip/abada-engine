@@ -15,6 +15,7 @@ public class Mapper {
                     pi.getDefinition().getName(),
                     currentToken,
                     pi.getStatus(),
+                    pi.isSuspended(),
                     pi.getStartDate(),
                     pi.getEndDate(),
                     "system", // This will be populated from the database entity in the future

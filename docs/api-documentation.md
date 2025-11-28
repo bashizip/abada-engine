@@ -135,7 +135,7 @@ Retrieves a list of all process instances.
 
 Retrieves a specific process instance by its ID.
 
-- **Method & URL**: `GET /v1/processes/instance/{id}`
+- **Method & URL**: `GET /v1/processes/instances/{id}`
 - **Path Parameters**:
   - `{id}` (string, required): The unique ID of the process instance. **This must be part of the URL path.**
 - **Success Response** (`200 OK`):
@@ -466,3 +466,239 @@ Retrieves comprehensive statistics and activity data for the current user.
   ```
 
 - **Success Response**: `202 Accepted` (No response body)
+
+---
+
+## Operations Cockpit API
+
+The following endpoints support the "Orun Active Operations Cockpit" for managing and troubleshooting running processes.
+
+### Job Management ("Fix It" Endpoints)
+
+#### List Failed Jobs
+
+Lists all failed jobs (external tasks) that require attention.
+
+- **Method & URL**: `GET /api/v1/jobs`
+- **Query Parameters**:
+  - `withException` (boolean, optional, default: `true`): Filter to include only jobs with exception information
+  - `active` (boolean, optional, default: `true`): Filter to include only jobs that can be retried
+- **Success Response** (`200 OK`):
+
+  ```json
+  [
+    {
+      "id": "job-123",
+      "processInstanceId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "activityId": "send-email-task",
+      "exceptionMessage": "SMTP connection failed",
+      "retries": 2
+    }
+  ]
+  ```
+
+**Use Case**: Orun displays this list in the "Attention Required" panel to show operators which jobs need intervention.
+
+#### Retry a Failed Job
+
+Sets the retry count for a failed job, allowing it to be re-executed.
+
+- **Method & URL**: `POST /api/v1/jobs/{jobId}/retries`
+- **Path Parameters**:
+  - `{jobId}` (string, required): The ID of the failed job
+- **Request Body**:
+
+  ```json
+  {
+    "retries": 3
+  }
+  ```
+
+- **Success Response** (`200 OK`): Empty response
+- **Error Response** (`404 Not Found`): Job not found
+
+**Use Case**: Operators use the "Retry" button in Orun to give a failed job another chance to execute.
+
+#### Get Job Stack Trace
+
+Retrieves the full stack trace of a failed job for debugging.
+
+- **Method & URL**: `GET /api/v1/jobs/{jobId}/stacktrace`
+- **Path Parameters**:
+  - `{jobId}` (string, required): The ID of the failed job
+- **Success Response** (`200 OK`):
+
+  ```
+  java.net.ConnectException: Connection refused
+      at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+      at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:672)
+      ...
+  ```
+
+  **Content-Type**: `text/plain`
+
+- **Error Response** (`404 Not Found`): Job not found
+
+**Use Case**: When operators click "Show Error" in Orun, they can view the detailed stack trace to diagnose the root cause.
+
+### Variable Management ("Data Surgery" Endpoints)
+
+#### List Process Variables
+
+Gets all variables for a specific process instance with type information.
+
+- **Method & URL**: `GET /api/v1/process-instances/{instanceId}/variables`
+- **Path Parameters**:
+  - `{instanceId}` (string, required): The ID of the process instance
+- **Success Response** (`200 OK`):
+
+  ```json
+  {
+    "orderId": {
+      "value": 12345,
+      "type": "Integer"
+    },
+    "customerName": {
+      "value": "Alice Smith",
+      "type": "String"
+    },
+    "approved": {
+      "value": true,
+      "type": "Boolean"
+    },
+    "totalAmount": {
+      "value": 299.99,
+      "type": "Double"
+    }
+  }
+  ```
+
+- **Error Response** (`404 Not Found`): Process instance not found
+
+**Use Case**: Orun displays the current state of all process variables, allowing operators to inspect the data before making corrections.
+
+#### Modify Process Variables
+
+Patches (modifies) variables for a specific process instance.
+
+- **Method & URL**: `PATCH /api/v1/process-instances/{instanceId}/variables`
+- **Path Parameters**:
+  - `{instanceId}` (string, required): The ID of the process instance
+- **Request Body**:
+
+  ```json
+  {
+    "modifications": {
+      "approved": {
+        "value": false,
+        "type": "Boolean"
+      },
+      "totalAmount": {
+        "value": 399.99,
+        "type": "Double"
+      }
+    }
+  }
+  ```
+
+- **Success Response** (`200 OK`): Empty response
+- **Error Response** (`404 Not Found`): Process instance not found
+
+**Use Case**: When a process is stuck due to incorrect variable values, operators can use Orun's "Data Surgery" feature to fix the state and unblock execution.
+
+**Supported Types**:
+
+- `Integer`
+- `Long`
+- `Double`
+- `Float`
+- `Boolean`
+- `String`
+
+- `Boolean`
+- `String`
+
+### Instance Management ("Control Room" Endpoints)
+
+#### Cancel Process Instance
+
+Terminates a running process instance immediately. The status changes to `CANCELLED`.
+
+- **Method & URL**: `DELETE /api/v1/process-instances/{id}`
+- **Path Parameters**:
+  - `{id}` (string, required): The ID of the process instance
+- **Request Body** (JSON, optional):
+
+  ```json
+  {
+    "reason": "Customer cancelled the order"
+  }
+  ```
+
+- **Success Response** (`204 No Content`): Empty response
+- **Error Response** (`404 Not Found`): Process instance not found
+
+**Use Case**: When a process needs to be stopped permanently (e.g., duplicate order, business decision).
+
+#### Suspend/Activate Process Instance
+
+Suspends (pauses) or activates (resumes) a process instance. A suspended process cannot advance or complete tasks.
+
+- **Method & URL**: `PUT /api/v1/process-instances/{id}/suspension`
+- **Path Parameters**:
+  - `{id}` (string, required): The ID of the process instance
+- **Request Body** (JSON, required):
+
+  ```json
+  {
+    "suspended": true
+  }
+  ```
+
+- **Success Response** (`200 OK`): Empty response
+- **Error Response** (`404 Not Found`): Process instance not found
+
+**Use Case**: Temporarily pausing a process to investigate issues or wait for external conditions without terminating it.
+
+### Visualizer Endpoint
+
+#### Get Active Activity Instances
+
+Retrieves the currently active activity instances (tokens) for BPMN visualization.
+
+- **Method & URL**: `GET /api/v1/process-instances/{id}/activity-instances`
+- **Path Parameters**:
+  - `{id}` (string, required): The ID of the process instance
+- **Success Response** (`200 OK`):
+
+  ```json
+  {
+    "instanceId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "childActivityInstances": [
+      {
+        "activityId": "UserTask_1",
+        "activityName": "Review Order",
+        "executionId": "exec-a1b2c3d4..."
+      }
+    ]
+  }
+  ```
+
+- **Error Response** (`404 Not Found`): Process instance not found
+
+**Use Case**: Orun uses this to highlight the current position of the token on the BPMN diagram.
+
+---
+
+## Summary
+
+The Abada Engine API provides comprehensive endpoints for:
+
+- Deploying and managing BPMN process definitions
+- Starting and tracking process instances
+- Managing user tasks and assignments
+- External task worker patterns
+- Event-based process coordination (messages, signals, timers)
+- **Operations management** (job recovery, variable surgery)
+
+All endpoints follow RESTful conventions and return structured JSON responses for easy integration with client applications like Orun.

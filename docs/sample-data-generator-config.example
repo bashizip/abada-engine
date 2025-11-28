@@ -1,0 +1,47 @@
+# Sample Data Generator Configuration Example
+# 
+# This file shows how to enable the sample data generator in different environments.
+# Copy the relevant configuration to your application.properties or application-{profile}.properties
+
+# ============================================
+# Enable Sample Data Generation
+# ============================================
+
+# Set this to true to generate sample data on application startup
+abada.generate-sample-data=true
+
+# ============================================
+# Example: Development Profile
+# ============================================
+# File: application-dev.properties
+#
+# abada.generate-sample-data=true
+# spring.datasource.url=jdbc:postgresql://localhost:5432/abada_dev
+# spring.datasource.username=abada
+# spring.datasource.password=abada
+
+# ============================================
+# Example: Demo Profile
+# ============================================
+# File: application-demo.properties
+#
+# abada.generate-sample-data=true
+# spring.datasource.url=jdbc:postgresql://localhost:5432/abada_demo
+# spring.jpa.hibernate.ddl-auto=create-drop
+
+# ============================================
+# Example: Production Profile (DISABLED)
+# ============================================
+# File: application-prod.properties
+#
+# abada.generate-sample-data=false
+# spring.datasource.url=jdbc:postgresql://prod-db:5432/abada_prod
+
+# ============================================
+# Notes
+# ============================================
+# - The generator only runs when abada.generate-sample-data=true
+# - It runs as a CommandLineRunner on application startup
+# - Sample data is persisted to the configured database
+# - For production environments, keep this disabled (false)
+# - The generator creates 6 process instances with various states

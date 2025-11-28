@@ -96,6 +96,36 @@ Generates HTTP traffic for testing observability (Jaeger traces, metrics).
 
 ---
 
+### `generate-sample-data.sh`
+
+Generates sample process instances to preload the engine with test data.
+
+**Usage:**
+
+```bash
+./scripts/generate-sample-data.sh
+```
+
+**What it does:**
+
+- Starts the Abada Engine with sample data generation enabled
+- Deploys `recipe-cook.bpmn` and `parallel-gateway-test.bpmn`
+- Creates 6 process instances in various states:
+  - Completed processes
+  - In-progress processes at different stages
+  - Processes with different variable values
+  - Failed/looped scenarios
+
+**When to use:**
+
+- Setting up demo environments
+- Testing UI with realistic data
+- Development and testing
+
+See [docs/sample-data-generator.md](../docs/sample-data-generator.md) for detailed documentation.
+
+---
+
 ## Docker Build Architecture
 
 The single `Dockerfile` supports both dev and prod builds via the `USE_LOCAL_JAR` build argument.

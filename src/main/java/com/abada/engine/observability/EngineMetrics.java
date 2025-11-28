@@ -13,7 +13,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Centralized metrics management for the Abada Engine.
- * Provides counters, histograms, and gauges for process execution, task management,
+ * Provides counters, histograms, and gauges for process execution, task
+ * management,
  * event processing, and job scheduling.
  */
 @Component
@@ -34,7 +35,7 @@ public class EngineMetrics {
     private final Counter processInstancesFailed;
     private final Timer processDuration;
     private final AtomicLong activeProcessInstances = new AtomicLong(0);
-    
+
     // Cached counters for tagged metrics
     private final ConcurrentHashMap<String, Counter> processStartedCounters = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Counter> processCompletedCounters = new ConcurrentHashMap<>();
@@ -154,13 +155,13 @@ public class EngineMetrics {
     public void recordProcessStarted(String processDefinitionId) {
         // Record global and per-process metrics
         processInstancesStarted.increment();
-        processStartedCounters.computeIfAbsent(processDefinitionId, id ->
-            Counter.builder("abada.process.instances.started")
-                  .tag(TAG_PROCESS_DEFINITION_ID, id)
-                  .description("Process instances started by definition")
-                  .register(meterRegistry)
-        ).increment();
-        
+        processStartedCounters.computeIfAbsent(processDefinitionId,
+                id -> Counter.builder("abada.process.instances.started")
+                        .tag(TAG_PROCESS_DEFINITION_ID, id)
+                        .description("Process instances started by definition")
+                        .register(meterRegistry))
+                .increment();
+
         // Track active process
         activeProcessInstances.incrementAndGet();
     }
@@ -168,13 +169,13 @@ public class EngineMetrics {
     public void recordProcessCompleted(String processDefinitionId) {
         // Record completion metrics
         processInstancesCompleted.increment();
-        processCompletedCounters.computeIfAbsent(processDefinitionId, id ->
-            Counter.builder("abada.process.instances.completed")
-                  .tag(TAG_PROCESS_DEFINITION_ID, id)
-                  .description("Process instances completed by definition")
-                  .register(meterRegistry)
-        ).increment();
-        
+        processCompletedCounters.computeIfAbsent(processDefinitionId,
+                id -> Counter.builder("abada.process.instances.completed")
+                        .tag(TAG_PROCESS_DEFINITION_ID, id)
+                        .description("Process instances completed by definition")
+                        .register(meterRegistry))
+                .increment();
+
         // Clean up active tracking
         processStartedCounters.remove(processDefinitionId);
         activeProcessInstances.decrementAndGet();
@@ -183,13 +184,13 @@ public class EngineMetrics {
     public void recordProcessFailed(String processDefinitionId) {
         // Record failure metrics
         processInstancesFailed.increment();
-        processFailedCounters.computeIfAbsent(processDefinitionId, id ->
-            Counter.builder("abada.process.instances.failed")
-                  .tag(TAG_PROCESS_DEFINITION_ID, id)
-                  .description("Process instances failed by definition")
-                  .register(meterRegistry)
-        ).increment();
-        
+        processFailedCounters.computeIfAbsent(processDefinitionId,
+                id -> Counter.builder("abada.process.instances.failed")
+                        .tag(TAG_PROCESS_DEFINITION_ID, id)
+                        .description("Process instances failed by definition")
+                        .register(meterRegistry))
+                .increment();
+
         // Clean up active tracking
         processStartedCounters.remove(processDefinitionId);
         activeProcessInstances.decrementAndGet();
@@ -201,12 +202,22 @@ public class EngineMetrics {
 
     public void recordProcessDuration(Timer.Sample sample, String processDefinitionId) {
         sample.stop(processDuration);
-        sample.stop(processTimers.computeIfAbsent(processDefinitionId, id ->
-            Timer.builder("abada.process.duration")
-                 .tag(TAG_PROCESS_DEFINITION_ID, id)
-                 .description("Process execution duration by definition")
-                 .register(meterRegistry)
-        ));
+        sample.stop(processTimers.computeIfAbsent(processDefinitionId, id -> Timer.builder("abada.process.duration")
+                .tag(TAG_PROCESS_DEFINITION_ID, id)
+                .description("Process execution duration by definition")
+                .register(meterRegistry)));
+    }
+
+    public void restoreActiveProcess(String processDefinitionId) {
+        // Increment active count
+        activeProcessInstances.incrementAndGet();
+
+        // Ensure the counter exists in the map so completion metrics work later
+        processStartedCounters.computeIfAbsent(processDefinitionId,
+                id -> Counter.builder("abada.process.instances.started")
+                        .tag(TAG_PROCESS_DEFINITION_ID, id)
+                        .description("Process instances started by definition")
+                        .register(meterRegistry));
     }
 
     // Task Metrics Methods
@@ -220,13 +231,11 @@ public class EngineMetrics {
     public void recordTaskCreated(String taskDefinitionKey) {
         // Record global and per-task metrics
         tasksCreated.increment();
-        taskCreatedCounters.computeIfAbsent(taskDefinitionKey, key ->
-            Counter.builder("abada.tasks.created")
-                  .tag(TAG_TASK_DEFINITION_KEY, key)
-                  .description("Tasks created by definition key")
-                  .register(meterRegistry)
-        ).increment();
-        
+        taskCreatedCounters.computeIfAbsent(taskDefinitionKey, key -> Counter.builder("abada.tasks.created")
+                .tag(TAG_TASK_DEFINITION_KEY, key)
+                .description("Tasks created by definition key")
+                .register(meterRegistry)).increment();
+
         // Track active task
         activeTasks.incrementAndGet();
     }
@@ -234,24 +243,20 @@ public class EngineMetrics {
     public void recordTaskClaimed(String taskDefinitionKey) {
         // Record claim metrics
         tasksClaimed.increment();
-        taskClaimedCounters.computeIfAbsent(taskDefinitionKey, key ->
-            Counter.builder("abada.tasks.claimed")
-                  .tag(TAG_TASK_DEFINITION_KEY, key)
-                  .description("Tasks claimed by definition key")
-                  .register(meterRegistry)
-        ).increment();
+        taskClaimedCounters.computeIfAbsent(taskDefinitionKey, key -> Counter.builder("abada.tasks.claimed")
+                .tag(TAG_TASK_DEFINITION_KEY, key)
+                .description("Tasks claimed by definition key")
+                .register(meterRegistry)).increment();
     }
 
     public void recordTaskCompleted(String taskDefinitionKey) {
         // Record completion metrics
         tasksCompleted.increment();
-        taskCompletedCounters.computeIfAbsent(taskDefinitionKey, key ->
-            Counter.builder("abada.tasks.completed")
-                  .tag(TAG_TASK_DEFINITION_KEY, key)
-                  .description("Tasks completed by definition key")
-                  .register(meterRegistry)
-        ).increment();
-        
+        taskCompletedCounters.computeIfAbsent(taskDefinitionKey, key -> Counter.builder("abada.tasks.completed")
+                .tag(TAG_TASK_DEFINITION_KEY, key)
+                .description("Tasks completed by definition key")
+                .register(meterRegistry)).increment();
+
         // Clean up active tracking
         taskCreatedCounters.remove(taskDefinitionKey);
         activeTasks.decrementAndGet();
@@ -260,13 +265,11 @@ public class EngineMetrics {
     public void recordTaskFailed(String taskDefinitionKey) {
         // Record failure metrics
         tasksFailed.increment();
-        taskFailedCounters.computeIfAbsent(taskDefinitionKey, key ->
-            Counter.builder("abada.tasks.failed")
-                  .tag(TAG_TASK_DEFINITION_KEY, key)
-                  .description("Tasks failed by definition key")
-                  .register(meterRegistry)
-        ).increment();
-        
+        taskFailedCounters.computeIfAbsent(taskDefinitionKey, key -> Counter.builder("abada.tasks.failed")
+                .tag(TAG_TASK_DEFINITION_KEY, key)
+                .description("Tasks failed by definition key")
+                .register(meterRegistry)).increment();
+
         // Clean up active tracking
         taskCreatedCounters.remove(taskDefinitionKey);
         activeTasks.decrementAndGet();
@@ -278,12 +281,10 @@ public class EngineMetrics {
 
     public void recordTaskWaitingTime(Timer.Sample sample, String taskDefinitionKey) {
         sample.stop(taskWaitingTime);
-        sample.stop(taskWaitingTimers.computeIfAbsent(taskDefinitionKey, key ->
-            Timer.builder("abada.task.waiting_time")
-                 .tag(TAG_TASK_DEFINITION_KEY, key)
-                 .description("Task waiting time by definition key")
-                 .register(meterRegistry)
-        ));
+        sample.stop(taskWaitingTimers.computeIfAbsent(taskDefinitionKey, key -> Timer.builder("abada.task.waiting_time")
+                .tag(TAG_TASK_DEFINITION_KEY, key)
+                .description("Task waiting time by definition key")
+                .register(meterRegistry)));
     }
 
     public Timer.Sample startTaskProcessingTimer() {
@@ -292,12 +293,22 @@ public class EngineMetrics {
 
     public void recordTaskProcessingTime(Timer.Sample sample, String taskDefinitionKey) {
         sample.stop(taskProcessingTime);
-        sample.stop(taskProcessingTimers.computeIfAbsent(taskDefinitionKey, key ->
-            Timer.builder("abada.task.processing_time")
-                 .tag(TAG_TASK_DEFINITION_KEY, key)
-                 .description("Task processing time by definition key")
-                 .register(meterRegistry)
-        ));
+        sample.stop(taskProcessingTimers.computeIfAbsent(taskDefinitionKey,
+                key -> Timer.builder("abada.task.processing_time")
+                        .tag(TAG_TASK_DEFINITION_KEY, key)
+                        .description("Task processing time by definition key")
+                        .register(meterRegistry)));
+    }
+
+    public void restoreActiveTask(String taskDefinitionKey) {
+        // Increment active count
+        activeTasks.incrementAndGet();
+
+        // Ensure the counter exists in the map so completion metrics work later
+        taskCreatedCounters.computeIfAbsent(taskDefinitionKey, key -> Counter.builder("abada.tasks.created")
+                .tag(TAG_TASK_DEFINITION_KEY, key)
+                .description("Tasks created by definition key")
+                .register(meterRegistry));
     }
 
     // Event Metrics Methods
@@ -309,37 +320,31 @@ public class EngineMetrics {
     public void recordEventPublished(String eventType, String eventName) {
         eventsPublished.increment();
         String key = eventType + ":" + eventName;
-        eventPublishedCounters.computeIfAbsent(key, k ->
-            Counter.builder("abada.events.published")
-                  .tag(TAG_EVENT_TYPE, eventType)
-                  .tag(TAG_EVENT_NAME, eventName)
-                  .description("Events published by type and name")
-                  .register(meterRegistry)
-        ).increment();
+        eventPublishedCounters.computeIfAbsent(key, k -> Counter.builder("abada.events.published")
+                .tag(TAG_EVENT_TYPE, eventType)
+                .tag(TAG_EVENT_NAME, eventName)
+                .description("Events published by type and name")
+                .register(meterRegistry)).increment();
     }
 
     public void recordEventConsumed(String eventType, String eventName) {
         eventsConsumed.increment();
         String key = eventType + ":" + eventName;
-        eventConsumedCounters.computeIfAbsent(key, k ->
-            Counter.builder("abada.events.consumed")
-                  .tag(TAG_EVENT_TYPE, eventType)
-                  .tag(TAG_EVENT_NAME, eventName)
-                  .description("Events consumed by type and name")
-                  .register(meterRegistry)
-        ).increment();
+        eventConsumedCounters.computeIfAbsent(key, k -> Counter.builder("abada.events.consumed")
+                .tag(TAG_EVENT_TYPE, eventType)
+                .tag(TAG_EVENT_NAME, eventName)
+                .description("Events consumed by type and name")
+                .register(meterRegistry)).increment();
     }
 
     public void recordEventCorrelated(String eventType, String eventName) {
         eventsCorrelated.increment();
         String key = eventType + ":" + eventName;
-        eventCorrelatedCounters.computeIfAbsent(key, k ->
-            Counter.builder("abada.events.correlated")
-                  .tag(TAG_EVENT_TYPE, eventType)
-                  .tag(TAG_EVENT_NAME, eventName)
-                  .description("Events correlated by type and name")
-                  .register(meterRegistry)
-        ).increment();
+        eventCorrelatedCounters.computeIfAbsent(key, k -> Counter.builder("abada.events.correlated")
+                .tag(TAG_EVENT_TYPE, eventType)
+                .tag(TAG_EVENT_NAME, eventName)
+                .description("Events correlated by type and name")
+                .register(meterRegistry)).increment();
     }
 
     public Timer.Sample startEventProcessingTimer() {
@@ -349,17 +354,16 @@ public class EngineMetrics {
     public void recordEventProcessingLatency(Timer.Sample sample, String eventType, String eventName) {
         // Stop the global timer and get the duration
         long durationNanos = sample.stop(eventProcessingLatency);
-        
+
         // Record the same duration to the tagged timer
         String key = eventType + ":" + eventName;
-        Timer taggedTimer = eventProcessingLatencyTimers.computeIfAbsent(key, k ->
-            Timer.builder("abada.event.processing_latency")
-                 .tag(TAG_EVENT_TYPE, eventType)
-                 .tag(TAG_EVENT_NAME, eventName)
-                 .description("Event processing latency by type and name")
-                 .register(meterRegistry)
-        );
-        
+        Timer taggedTimer = eventProcessingLatencyTimers.computeIfAbsent(key,
+                k -> Timer.builder("abada.event.processing_latency")
+                        .tag(TAG_EVENT_TYPE, eventType)
+                        .tag(TAG_EVENT_NAME, eventName)
+                        .description("Event processing latency by type and name")
+                        .register(meterRegistry));
+
         // Record the duration to the tagged timer
         taggedTimer.record(durationNanos, java.util.concurrent.TimeUnit.NANOSECONDS);
     }
@@ -383,22 +387,18 @@ public class EngineMetrics {
 
     public void recordJobExecuted(String jobType) {
         jobsExecuted.increment();
-        jobExecutedCounters.computeIfAbsent(jobType, type ->
-            Counter.builder("abada.jobs.executed")
-                  .tag(TAG_JOB_TYPE, type)
-                  .description("Jobs executed by type")
-                  .register(meterRegistry)
-        ).increment();
+        jobExecutedCounters.computeIfAbsent(jobType, type -> Counter.builder("abada.jobs.executed")
+                .tag(TAG_JOB_TYPE, type)
+                .description("Jobs executed by type")
+                .register(meterRegistry)).increment();
     }
 
     public void recordJobFailed(String jobType) {
         jobsFailed.increment();
-        jobFailedCounters.computeIfAbsent(jobType, type ->
-            Counter.builder("abada.jobs.failed")
-                  .tag(TAG_JOB_TYPE, type)
-                  .description("Jobs failed by type")
-                  .register(meterRegistry)
-        ).increment();
+        jobFailedCounters.computeIfAbsent(jobType, type -> Counter.builder("abada.jobs.failed")
+                .tag(TAG_JOB_TYPE, type)
+                .description("Jobs failed by type")
+                .register(meterRegistry)).increment();
     }
 
     public Timer.Sample startJobExecutionTimer() {
@@ -407,12 +407,10 @@ public class EngineMetrics {
 
     public void recordJobExecutionTime(Timer.Sample sample, String jobType) {
         sample.stop(jobExecutionTime);
-        sample.stop(jobExecutionTimers.computeIfAbsent(jobType, type ->
-            Timer.builder("abada.job.execution_time")
-                 .tag(TAG_JOB_TYPE, type)
-                 .description("Job execution time by type")
-                 .register(meterRegistry)
-        ));
+        sample.stop(jobExecutionTimers.computeIfAbsent(jobType, type -> Timer.builder("abada.job.execution_time")
+                .tag(TAG_JOB_TYPE, type)
+                .description("Job execution time by type")
+                .register(meterRegistry)));
     }
 
     // Gauge Methods
@@ -428,15 +426,16 @@ public class EngineMetrics {
      * Cleans up cached metrics that haven't been used recently.
      * This helps prevent memory leaks from discontinued processes, tasks, or jobs.
      * 
-     * @param maxAgeMinutes Maximum age in minutes for cached metrics before they're removed
+     * @param maxAgeMinutes Maximum age in minutes for cached metrics before they're
+     *                      removed
      */
     public void cleanupStaleMetrics(long maxAgeMinutes) {
         long cutoffTime = System.currentTimeMillis() - (maxAgeMinutes * 60 * 1000);
-        
+
         // Reset active process counters if they have no completion/failure
         processStartedCounters.forEach((processId, counter) -> {
-            if (!processCompletedCounters.containsKey(processId) && 
-                !processFailedCounters.containsKey(processId)) {
+            if (!processCompletedCounters.containsKey(processId) &&
+                    !processFailedCounters.containsKey(processId)) {
                 processStartedCounters.remove(processId);
                 // Reset active instance count
                 activeProcessInstances.set(0);
@@ -445,8 +444,8 @@ public class EngineMetrics {
 
         // Reset active task counters if they have no completion/failure
         taskCreatedCounters.forEach((taskId, counter) -> {
-            if (!taskCompletedCounters.containsKey(taskId) && 
-                !taskFailedCounters.containsKey(taskId)) {
+            if (!taskCompletedCounters.containsKey(taskId) &&
+                    !taskFailedCounters.containsKey(taskId)) {
                 taskCreatedCounters.remove(taskId);
                 // Reset active task count
                 activeTasks.set(0);
@@ -480,18 +479,20 @@ public class EngineMetrics {
      * Removes metrics that haven't recorded any activity (count = 0).
      */
     private <T> void cleanupMetricCache(ConcurrentHashMap<String, T> cache, long cutoffTime) {
-        if (cache == null) return;
-        
+        if (cache == null)
+            return;
+
         // First pass: clean up metrics for incomplete/inactive items
         List<String> keysToRemove = new ArrayList<>();
-        
+
         cache.forEach((key, value) -> {
             if (value instanceof Counter || value instanceof Timer) {
-                // Remove from cache but leave in registry since Micrometer manages metric lifecycle
+                // Remove from cache but leave in registry since Micrometer manages metric
+                // lifecycle
                 keysToRemove.add(key);
             }
         });
-        
+
         keysToRemove.forEach(cache::remove);
 
         // Apply size limit if needed
@@ -508,7 +509,7 @@ public class EngineMetrics {
                 }
                 return 0;
             });
-            
+
             // Remove oldest 20% from cache
             int toRemove = keys.size() / 5;
             for (int i = 0; i < toRemove && i < keys.size(); i++) {
@@ -524,11 +525,10 @@ public class EngineMetrics {
     public void scheduleMetricsCleanup() {
         // Schedule cleanup every hour, removing metrics older than 24 hours
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
-            .scheduleAtFixedRate(
-                () -> cleanupStaleMetrics(24 * 60), // 24 hours in minutes
-                1, // Initial delay
-                60, // Period
-                java.util.concurrent.TimeUnit.MINUTES
-            );
+                .scheduleAtFixedRate(
+                        () -> cleanupStaleMetrics(24 * 60), // 24 hours in minutes
+                        1, // Initial delay
+                        60, // Period
+                        java.util.concurrent.TimeUnit.MINUTES);
     }
 }

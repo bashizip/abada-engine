@@ -17,5 +17,18 @@ public enum ProcessStatus {
     /**
      * The process instance was terminated due to an unrecoverable error.
      */
-    FAILED
+    /**
+     * The process instance was terminated due to an unrecoverable error.
+     */
+    FAILED,
+
+    /**
+     * The process instance is temporarily suspended.
+     */
+    SUSPENDED,
+
+    /**
+     * The process instance was manually cancelled.
+     */
+    CANCELLED
 }
