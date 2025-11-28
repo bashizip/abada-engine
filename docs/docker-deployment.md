@@ -5,6 +5,7 @@ This guide covers deploying the Abada Engine with a complete observability stack
 ## Architecture Overview
 
 The deployment includes:
+
 - **Abada Engine**: BPMN process engine (scalable instances)
 - **OpenTelemetry Collector**: Receives and routes telemetry data
 - **Jaeger**: Distributed tracing visualization
@@ -24,11 +25,13 @@ The deployment includes:
 ### Environment Setup
 
 1. Copy the environment template:
+
 ```bash
 cp env.example .env
 ```
 
 2. Edit `.env` with your preferred settings:
+
 ```bash
 # For development
 SPRING_PROFILES_ACTIVE=dev
@@ -47,11 +50,14 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
 **Access URLs:**
-- Abada Engine: http://localhost:5601/abada/api
-- H2 Console: http://localhost:5601/abada/api/h2-console
-- Grafana: http://localhost:3000 (admin/admin123)
-- Jaeger: http://localhost:16686
-- Prometheus: http://localhost:9090
+
+- Abada Engine: <http://localhost:5601/abada/api>
+- Abada Tenda: <http://localhost:5602>
+- Abada Orun: <http://localhost:5603>
+- H2 Console: <http://localhost:5601/abada/api/h2-console>
+- Grafana: <http://localhost:3000> (admin/admin123)
+- Jaeger: <http://localhost:16686>
+- Prometheus: <http://localhost:9090>
 
 ### Test Environment
 
@@ -70,11 +76,12 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 **Access URLs:**
-- Abada Engine: http://localhost/abada/api (via Traefik)
-- Traefik Dashboard: http://localhost:8080
-- Grafana: http://localhost:3000
-- Jaeger: http://localhost:16686
-- Prometheus: http://localhost:9090
+
+- Abada Engine: <http://localhost/abada/api> (via Traefik)
+- Traefik Dashboard: <http://localhost:8080>
+- Grafana: <http://localhost:3000>
+- Jaeger: <http://localhost:16686>
+- Prometheus: <http://localhost:9090>
 
 ## Scaling
 
@@ -120,17 +127,20 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ### Dashboards
 
 Pre-configured dashboards available in Grafana:
+
 - **Abada Engine Overview**: High-level process and task metrics
 - **Task Details**: Detailed task performance and timing
 
 ## Database Configuration
 
 ### Development/Test
+
 - Uses embedded H2 database
 - Data persisted in `./data` directory
 - H2 console available at `/h2-console`
 
 ### Production
+
 - Uses PostgreSQL 15
 - Connection pooling: 10 connections per instance
 - Database: `abada_engine`
@@ -142,6 +152,7 @@ Pre-configured dashboards available in Grafana:
 ### Traefik Configuration
 
 Production environment uses Traefik for load balancing:
+
 - **Strategy**: Round-robin
 - **Health Checks**: `/abada/api/actuator/health`
 - **Path**: `/abada` prefix
@@ -150,6 +161,7 @@ Production environment uses Traefik for load balancing:
 ### Health Checks
 
 All services include health checks:
+
 - **Abada Engine**: HTTP health endpoint
 - **PostgreSQL**: `pg_isready` command
 - **OTEL Collector**: Internal health extension
@@ -160,6 +172,7 @@ All services include health checks:
 ### Common Issues
 
 #### 1. Port Conflicts
+
 ```bash
 # Check which ports are in use
 netstat -tulpn | grep :5601
@@ -167,6 +180,7 @@ netstat -tulpn | grep :5601
 ```
 
 #### 2. Database Connection Issues
+
 ```bash
 # Check PostgreSQL logs
 docker-compose logs postgres
@@ -176,6 +190,7 @@ docker-compose logs abada-engine
 ```
 
 #### 3. Memory Issues
+
 ```bash
 # Check Docker memory usage
 docker stats
@@ -184,6 +199,7 @@ docker stats
 ```
 
 #### 4. Telemetry Not Appearing
+
 ```bash
 # Check OTEL Collector logs
 docker-compose logs otel-collector
@@ -195,6 +211,7 @@ curl http://localhost:4318/v1/metrics
 ### Logs
 
 View logs for specific services:
+
 ```bash
 # All services
 docker-compose logs
@@ -208,6 +225,7 @@ docker-compose logs prometheus
 ### Debug Mode
 
 Enable debug logging for development:
+
 ```bash
 # Set in .env file
 MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
@@ -229,6 +247,7 @@ MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0
 ### Production Deployment
 
 1. **Change Default Passwords**:
+
    ```bash
    POSTGRES_PASSWORD=your_secure_password
    GRAFANA_ADMIN_PASSWORD=your_secure_password
@@ -277,6 +296,7 @@ tar -czf abada-config-backup.tar.gz docker/ *.yml env.example
 ### JVM Tuning
 
 Add JVM options to Dockerfile or docker-compose:
+
 ```yaml
 environment:
   - JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC
@@ -313,6 +333,7 @@ curl http://localhost:5601/abada/api/actuator/health
 ## Support
 
 For issues and questions:
+
 1. Check the troubleshooting section above
 2. Review service logs
 3. Check the project documentation

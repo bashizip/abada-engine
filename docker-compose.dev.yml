@@ -56,8 +56,8 @@ services:
       retries: 3
 
   abada-tenda:
-    image: abada-tenda:latest
-    container_name: abada-tenda:dev
+    image: abada-tenda:dev
+    container_name: abada-tenda
     ports:
       - "5602:5602"
     restart: unless-stopped
@@ -65,3 +65,20 @@ services:
       - NODE_ENV=dev
     networks:
       - abada-network
+    depends_on:
+      abada-engine:
+        condition: service_started
+
+  abada-orun:
+    image: abada-orun:dev
+    container_name: abada-orun
+    ports:
+      - "5603:5603"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=dev
+    networks:
+      - abada-network
+    depends_on:
+      abada-engine:
+        condition: service_started
