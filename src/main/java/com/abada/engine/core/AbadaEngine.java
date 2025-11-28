@@ -57,10 +57,6 @@ public class AbadaEngine {
     public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, @Lazy EventManager eventManager,
             @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om,
             EngineMetrics engineMetrics, Tracer tracer) {
-
-    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, @Lazy EventManager eventManager,
-            @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om,
-            EngineMetrics engineMetrics, Tracer tracer) {
         this.persistenceService = persistenceService;
         this.parser = new BpmnParser();
         this.taskManager = taskManager;
