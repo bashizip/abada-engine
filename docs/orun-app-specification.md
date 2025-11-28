@@ -392,14 +392,59 @@ Home > Instances > recipe-cook-instance-123
 - Sidebar for filters (on list pages)
 - Main content area
 
-**Color Scheme:**
+**Color Scheme (Dark Theme Only):**
 
-- Primary: Navy blue (#1e3a8a) - represents "divine oversight"
-- Secondary: Golden yellow (#fbbf24) - represents "illumination"
-- Success: Green (#10b981)
-- Warning: Yellow (#f59e0b)
-- Error: Red (#ef4444)
-- Neutral: Gray (#6b7280)
+Orun uses an **exclusive dark theme** with Navy Blue as the foundation, creating a professional operations center aesthetic.
+
+**Background Colors:**
+
+- Primary Background: Deep Navy (#0f172a) - main app background
+- Secondary Background: Dark Navy (#1e293b) - cards, panels, modals
+- Elevated Background: Slate (#334155) - hover states, active elements
+
+**Accent Colors:**
+
+- Primary Accent: Navy Blue (#3b82f6) - buttons, links, highlights
+- Secondary Accent: Golden Yellow (#fbbf24) - important alerts, accents
+- Success: Emerald (#10b981) - completed processes, success states
+- Warning: Amber (#f59e0b) - suspended processes, warnings
+- Error: Red (#ef4444) - failed jobs, errors
+- Info: Sky Blue (#0ea5e9) - informational messages
+
+**Text Colors:**
+
+- Primary Text: Slate 100 (#f1f5f9) - main content
+- Secondary Text: Slate 400 (#94a3b8) - labels, metadata
+- Muted Text: Slate 500 (#64748b) - timestamps, secondary info
+
+**Border Colors:**
+
+- Default Border: Slate 700 (#334155)
+- Hover Border: Slate 600 (#475569)
+- Focus Border: Blue 500 (#3b82f6)
+
+**Dark Theme Design Principles:**
+
+1. **High Contrast** - Ensure text readability with minimum 4.5:1 contrast ratio
+2. **Subtle Depth** - Use subtle shadows and borders to create visual hierarchy
+3. **Blue-tinted Grays** - All grays have a slight blue tint to match Navy theme
+4. **Glowing Accents** - Use subtle glows on interactive elements (buttons, cards)
+5. **Reduced Brightness** - Avoid pure white (#ffffff), use Slate 100 (#f1f5f9) instead
+
+**Visual Effects:**
+
+- Card shadows: `shadow-xl shadow-navy-900/50`
+- Button glows: `ring-2 ring-blue-500/20`
+- Hover states: Lighten background by one shade
+- Active states: Add blue glow effect
+
+**Status Indicators:**
+
+- Use colored badges with dark backgrounds
+- RUNNING: Blue badge on dark navy background
+- COMPLETED: Green badge on dark emerald background
+- FAILED: Red badge on dark red background
+- SUSPENDED: Amber badge on dark amber background
 
 **Typography:**
 
@@ -454,10 +499,35 @@ Instances List → Click instance → Instance Detail → History Tab → Review
 - Next.js 14+ (App Router)
 - React 18+
 - TypeScript
-- TailwindCSS (styling)
-- shadcn/ui (component library)
-- bpmn-js (BPMN rendering)
-- Recharts or Chart.js (metrics charts)
+- TailwindCSS (styling with custom dark theme)
+- shadcn/ui (component library with dark mode variants)
+- bpmn-js (BPMN rendering with dark theme)
+- Recharts or Chart.js (metrics charts with dark color schemes)
+
+**Dark Theme Configuration (tailwind.config.js):**
+
+```javascript
+{
+  darkMode: 'class', // Always enabled
+  theme: {
+    extend: {
+      colors: {
+        navy: {
+          900: '#0f172a', // Primary background
+          800: '#1e293b', // Secondary background
+          700: '#334155', // Elevated elements
+        }
+      }
+    }
+  }
+}
+```
+
+**Component Styling:**
+
+- All components use `dark:` variants
+- Base HTML has `class="dark"` applied by default
+- No light mode toggle (dark mode only)
 
 **State Management:**
 
@@ -529,14 +599,14 @@ Instances List → Click instance → Instance Detail → History Tab → Review
 
 ### Operations Cockpit
 
-- `GET /api/v1/jobs` - List failed jobs
-- `POST /api/v1/jobs/{jobId}/retries` - Retry failed job
-- `GET /api/v1/jobs/{jobId}/stacktrace` - Get job stack trace
-- `GET /api/v1/process-instances/{id}/variables` - Get process variables
-- `PATCH /api/v1/process-instances/{id}/variables` - Modify process variables
-- `DELETE /api/v1/process-instances/{id}` - Cancel process instance
-- `PUT /api/v1/process-instances/{id}/suspension` - Suspend/resume process
-- `GET /api/v1/process-instances/{id}/activity-instances` - Get active tokens for BPMN visualization
+- `GET /v1/jobs` - List failed jobs
+- `POST /v1/jobs/{jobId}/retries` - Retry failed job
+- `GET /v1/jobs/{jobId}/stacktrace` - Get job stack trace
+- `GET /v1/process-instances/{id}/variables` - Get process variables
+- `PATCH /v1/process-instances/{id}/variables` - Modify process variables
+- `DELETE /v1/process-instances/{id}` - Cancel process instance
+- `PUT /v1/process-instances/{id}/suspension` - Suspend/resume process
+- `GET /v1/process-instances/{id}/activity-instances` - Get active tokens for BPMN visualization
 
 ---
 
