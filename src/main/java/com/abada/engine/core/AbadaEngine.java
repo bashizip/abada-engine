@@ -269,7 +269,22 @@ public class AbadaEngine {
             throw new ProcessEngineException("Process instance not found: " + processInstanceId);
         }
 
-        instance.setSuspended(suspended);
+        if (suspended) {
+            // Only suspend if not already in a terminal state
+            if (instance.getStatus() != ProcessStatus.COMPLETED
+                    && instance.getStatus() != ProcessStatus.FAILED
+                    && instance.getStatus() != ProcessStatus.CANCELLED) {
+                instance.setSuspended(true);
+                instance.setStatus(ProcessStatus.SUSPENDED);
+            }
+        } else {
+            // Resume: restore to RUNNING if currently SUSPENDED
+            if (instance.getStatus() == ProcessStatus.SUSPENDED) {
+                instance.setSuspended(false);
+                instance.setStatus(ProcessStatus.RUNNING);
+            }
+        }
+
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
     }
 
