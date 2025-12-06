@@ -473,13 +473,21 @@ Retrieves comprehensive statistics and activity data for the current user.
 
 The following endpoints support the "Orun Active Operations Cockpit" for managing and troubleshooting running processes.
 
+**Controller Organization:**
+
+- **Process Management** endpoints are handled by `ProcessController` under `/v1/processes`
+- **Operations Cockpit** endpoints are handled by `CockpitController` under `/v1/process-instances`
+- **Job Management** endpoints are handled by `JobController` under `/v1/jobs`
+
+This separation provides clear organization between core process operations and operational/troubleshooting features.
+
 ### Job Management ("Fix It" Endpoints)
 
 #### List Failed Jobs
 
 Lists all failed jobs (external tasks) that require attention.
 
-- **Method & URL**: `GET /api/v1/jobs`
+- **Method & URL**: `GET /v1/jobs`
 - **Query Parameters**:
   - `withException` (boolean, optional, default: `true`): Filter to include only jobs with exception information
   - `active` (boolean, optional, default: `true`): Filter to include only jobs that can be retried
@@ -503,7 +511,7 @@ Lists all failed jobs (external tasks) that require attention.
 
 Sets the retry count for a failed job, allowing it to be re-executed.
 
-- **Method & URL**: `POST /api/v1/jobs/{jobId}/retries`
+- **Method & URL**: `POST /v1/jobs/{jobId}/retries`
 - **Path Parameters**:
   - `{jobId}` (string, required): The ID of the failed job
 - **Request Body**:
@@ -523,7 +531,7 @@ Sets the retry count for a failed job, allowing it to be re-executed.
 
 Retrieves the full stack trace of a failed job for debugging.
 
-- **Method & URL**: `GET /api/v1/jobs/{jobId}/stacktrace`
+- **Method & URL**: `GET /v1/jobs/{jobId}/stacktrace`
 - **Path Parameters**:
   - `{jobId}` (string, required): The ID of the failed job
 - **Success Response** (`200 OK`):
@@ -547,7 +555,7 @@ Retrieves the full stack trace of a failed job for debugging.
 
 Gets all variables for a specific process instance with type information.
 
-- **Method & URL**: `GET /api/v1/process-instances/{instanceId}/variables`
+- **Method & URL**: `GET /v1/process-instances/{instanceId}/variables`
 - **Path Parameters**:
   - `{instanceId}` (string, required): The ID of the process instance
 - **Success Response** (`200 OK`):
@@ -581,7 +589,7 @@ Gets all variables for a specific process instance with type information.
 
 Patches (modifies) variables for a specific process instance.
 
-- **Method & URL**: `PATCH /api/v1/process-instances/{instanceId}/variables`
+- **Method & URL**: `PATCH /v1/process-instances/{instanceId}/variables`
 - **Path Parameters**:
   - `{instanceId}` (string, required): The ID of the process instance
 - **Request Body**:
@@ -615,16 +623,13 @@ Patches (modifies) variables for a specific process instance.
 - `Boolean`
 - `String`
 
-- `Boolean`
-- `String`
-
 ### Instance Management ("Control Room" Endpoints)
 
 #### Cancel Process Instance
 
 Terminates a running process instance immediately. The status changes to `CANCELLED`.
 
-- **Method & URL**: `DELETE /api/v1/process-instances/{id}`
+- **Method & URL**: `DELETE /v1/process-instances/{id}`
 - **Path Parameters**:
   - `{id}` (string, required): The ID of the process instance
 - **Request Body** (JSON, optional):
@@ -644,7 +649,7 @@ Terminates a running process instance immediately. The status changes to `CANCEL
 
 Suspends (pauses) or activates (resumes) a process instance. A suspended process cannot advance or complete tasks.
 
-- **Method & URL**: `PUT /api/v1/process-instances/{id}/suspension`
+- **Method & URL**: `PUT /v1/process-instances/{id}/suspension`
 - **Path Parameters**:
   - `{id}` (string, required): The ID of the process instance
 - **Request Body** (JSON, required):
@@ -666,7 +671,7 @@ Suspends (pauses) or activates (resumes) a process instance. A suspended process
 
 Retrieves the currently active activity instances (tokens) for BPMN visualization.
 
-- **Method & URL**: `GET /api/v1/process-instances/{id}/activity-instances`
+- **Method & URL**: `GET /v1/process-instances/{id}/activity-instances`
 - **Path Parameters**:
   - `{id}` (string, required): The ID of the process instance
 - **Success Response** (`200 OK`):
@@ -702,3 +707,69 @@ The Abada Engine API provides comprehensive endpoints for:
 - **Operations management** (job recovery, variable surgery)
 
 All endpoints follow RESTful conventions and return structured JSON responses for easy integration with client applications like Orun.
+
+---
+
+## Complete API Endpoint Reference
+
+### ProcessController (`/v1/processes`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/processes/deploy` | Deploy a BPMN process definition |
+| GET | `/v1/processes` | List all deployed process definitions |
+| GET | `/v1/processes/{id}` | Get a specific process definition by ID |
+| POST | `/v1/processes/start` | Start a new process instance |
+| GET | `/v1/processes/instances` | List all process instances |
+| GET | `/v1/processes/instances/{id}` | Get a specific process instance by ID |
+| POST | `/v1/processes/instance/{id}/fail` | Mark a process instance as FAILED |
+
+### CockpitController (`/v1/process-instances`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/process-instances/{id}/variables` | Get all variables for a process instance |
+| PATCH | `/v1/process-instances/{id}/variables` | Modify variables for a process instance (Data Surgery) |
+| DELETE | `/v1/process-instances/{id}` | Cancel a process instance |
+| PUT | `/v1/process-instances/{id}/suspension` | Suspend or activate a process instance |
+| GET | `/v1/process-instances/{id}/activity-instances` | Get active activity instances for BPMN visualization |
+
+### JobController (`/v1/jobs`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/jobs` | List failed jobs (with filters) |
+| POST | `/v1/jobs/{jobId}/retries` | Set retry count for a failed job |
+| GET | `/v1/jobs/{jobId}/stacktrace` | Get stack trace for a failed job |
+
+### TaskController (`/v1/tasks`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/tasks` | List visible tasks for current user |
+| GET | `/v1/tasks/{id}` | Get task details by ID |
+| POST | `/v1/tasks/claim` | Claim a task |
+| POST | `/v1/tasks/complete` | Complete a task |
+| POST | `/v1/tasks/fail` | Mark a task as FAILED |
+| GET | `/v1/tasks/user-stats` | Get user statistics and activity data |
+
+### EventController (`/v1/events`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/events/messages` | Correlate a message event |
+| POST | `/v1/events/signals` | Broadcast a signal event |
+
+---
+
+## Controller Architecture
+
+The Abada Engine API is organized into specialized controllers for better separation of concerns:
+
+- **ProcessController**: Core process lifecycle management (deploy, start, query)
+- **CockpitController**: Operations and troubleshooting features for Orun
+- **JobController**: External task and job management
+- **TaskController**: User task management and assignment
+- **EventController**: Event-based process coordination
+
+This architecture ensures clean separation between business process operations and operational/monitoring capabilities.

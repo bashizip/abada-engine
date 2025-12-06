@@ -46,7 +46,7 @@ Orun serves as the **operations control center** for business process automation
 **Data Source:**
 
 - `GET /v1/processes/instances` (filter by status)
-- `GET /api/v1/jobs?withException=true&active=true`
+- `GET /v1/jobs?withException=true&active=true`
 
 ##### Recent Activity Feed
 
@@ -63,7 +63,7 @@ Orun serves as the **operations control center** for business process automation
 - Actions: "Retry", "View Stack Trace", "Go to Instance"
 - Auto-refresh every 30 seconds
 
-**Data Source:** `GET /api/v1/jobs?withException=true&active=true`
+**Data Source:** `GET /v1/jobs?withException=true&active=true`
 
 ---
 
@@ -148,7 +148,7 @@ Orun serves as the **operations control center** for business process automation
 
 3. **BPMN Diagram Tab**
    - Visual BPMN diagram with active tokens highlighted
-   - Uses `GET /api/v1/process-instances/{id}/activity-instances`
+   - Uses `GET /v1/process-instances/{id}/activity-instances`
    - Highlights current activities in yellow/orange
    - Shows completed activities in green (optional)
 
@@ -160,8 +160,8 @@ Orun serves as the **operations control center** for business process automation
 **Data Sources:**
 
 - `GET /v1/processes/instances/{id}`
-- `GET /api/v1/process-instances/{id}/variables`
-- `GET /api/v1/process-instances/{id}/activity-instances`
+- `GET /v1/process-instances/{id}/variables`
+- `GET /v1/process-instances/{id}/activity-instances`
 
 ---
 
@@ -194,17 +194,17 @@ Orun serves as the **operations control center** for business process automation
 
 - Input field: Number of retries (default: 3)
 - Confirm button
-- Calls `POST /api/v1/jobs/{jobId}/retries`
+- Calls `POST /v1/jobs/{jobId}/retries`
 
 **Stack Trace Modal:**
 
 - Full-screen modal with monospace font
 - Copy to clipboard button
-- Calls `GET /api/v1/jobs/{jobId}/stacktrace`
+- Calls `GET /v1/jobs/{jobId}/stacktrace`
 
 **Auto-refresh:** Every 30 seconds
 
-**Data Source:** `GET /api/v1/jobs?withException=true&active=true`
+**Data Source:** `GET /v1/jobs?withException=true&active=true`
 
 ---
 
@@ -237,7 +237,7 @@ Orun serves as the **operations control center** for business process automation
 3. User modifies values in "New Value" column
 4. User clicks "Save Changes"
 5. Confirmation dialog: "Are you sure? This will modify the process state."
-6. On confirm, calls `PATCH /api/v1/process-instances/{instanceId}/variables`
+6. On confirm, calls `PATCH /v1/process-instances/{instanceId}/variables`
 7. Success message and modal closes
 8. Instance detail page refreshes
 
@@ -249,8 +249,8 @@ Orun serves as the **operations control center** for business process automation
 
 **Data Sources:**
 
-- `GET /api/v1/process-instances/{instanceId}/variables`
-- `PATCH /api/v1/process-instances/{instanceId}/variables`
+- `GET /v1/process-instances/{instanceId}/variables`
+- `PATCH /v1/process-instances/{instanceId}/variables`
 
 ---
 
@@ -264,7 +264,7 @@ Orun serves as the **operations control center** for business process automation
 
 1. User clicks "Suspend" or "Resume" button
 2. Confirmation dialog
-3. Calls `PUT /api/v1/process-instances/{id}/suspension`
+3. Calls `PUT /v1/process-instances/{id}/suspension`
 4. Success message
 5. UI updates to reflect new state
 
@@ -283,7 +283,7 @@ Orun serves as the **operations control center** for business process automation
 2. Dialog opens with reason input field (optional)
 3. User enters cancellation reason
 4. User clicks "Confirm Cancel"
-5. Calls `DELETE /api/v1/process-instances/{id}` with reason in body
+5. Calls `DELETE /v1/process-instances/{id}` with reason in body
 6. Success message
 7. Redirect to instances list or update status to CANCELLED
 
@@ -310,7 +310,7 @@ Orun serves as the **operations control center** for business process automation
 
 **Active Token Highlighting:**
 
-- Fetch active activity instances: `GET /api/v1/process-instances/{id}/activity-instances`
+- Fetch active activity instances: `GET /v1/process-instances/{id}/activity-instances`
 - Highlight active activities in yellow/orange
 - Show activity name tooltip on hover
 
@@ -323,7 +323,7 @@ Orun serves as the **operations control center** for business process automation
 **Data Sources:**
 
 - `GET /v1/processes/{processDefinitionId}` (for BPMN XML)
-- `GET /api/v1/process-instances/{id}/activity-instances` (for active tokens)
+- `GET /v1/process-instances/{id}/activity-instances` (for active tokens)
 
 ---
 
@@ -537,7 +537,7 @@ Instances List → Click instance → Instance Detail → History Tab → Review
 **API Integration:**
 
 - Axios or Fetch API
-- Base URL: `/api/v1` or `/v1` (configurable)
+- Base URL: `/v1` (configurable)
 - Authentication: JWT tokens in headers
 
 ### Key Components
