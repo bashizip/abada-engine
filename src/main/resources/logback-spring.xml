@@ -13,7 +13,7 @@
     </appender>
 
     <!-- File Appender (disabled during tests) -->
-    <springProfile name="!test">
+    <springProfile name="!test &amp; !integration-persistence">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>logs/abada-engine.log</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
