@@ -84,7 +84,7 @@ public class InstanceManagementTest {
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 HttpEntity<SuspensionRequest> suspendRequest = new HttpEntity<>(new SuspensionRequest(true), headers);
 
-                restTemplate.put("/v1/processes/api/v1/process-instances/" + instanceId + "/suspension",
+                restTemplate.put("/v1/process-instances/" + instanceId + "/suspension",
                                 suspendRequest);
 
                 // Verify it is suspended
@@ -117,7 +117,7 @@ public class InstanceManagementTest {
 
                 // 3. Activate the process
                 HttpEntity<SuspensionRequest> activateRequest = new HttpEntity<>(new SuspensionRequest(false), headers);
-                restTemplate.put("/v1/processes/api/v1/process-instances/" + instanceId + "/suspension",
+                restTemplate.put("/v1/process-instances/" + instanceId + "/suspension",
                                 activateRequest);
 
                 // Verify it is active
@@ -138,7 +138,7 @@ public class InstanceManagementTest {
                 HttpEntity<CancelRequest> cancelRequest = new HttpEntity<>(new CancelRequest("Testing cancellation"),
                                 headers);
 
-                restTemplate.exchange("/v1/processes/api/v1/process-instances/" + instanceId, HttpMethod.DELETE,
+                restTemplate.exchange("/v1/process-instances/" + instanceId, HttpMethod.DELETE,
                                 cancelRequest,
                                 Void.class);
 

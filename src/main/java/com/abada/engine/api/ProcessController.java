@@ -5,12 +5,6 @@ import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.dto.Mapper;
 import com.abada.engine.dto.ProcessInstanceDTO;
-import com.abada.engine.dto.VariablePatchRequest;
-import com.abada.engine.dto.VariableValue;
-import com.abada.engine.dto.CancelRequest;
-import com.abada.engine.dto.SuspensionRequest;
-import com.abada.engine.dto.ActivityInstanceTree;
-import com.abada.engine.dto.ChildActivityInstance;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +20,11 @@ import java.util.stream.Collectors;
 /**
  * REST controller for managing BPMN process definitions and instances.
  * Provides endpoints to deploy, list, and start processes, as well as query
- * their status and manage process variables.
+ * their status.
+ * 
+ * Note: Operations cockpit endpoints (variable management, suspension,
+ * cancellation, etc.)
+ * are now in CockpitController under /v1/process-instances.
  */
 @RestController
 @RequestMapping("/v1/processes")
@@ -120,99 +118,6 @@ public class ProcessController {
     }
 
     /**
-     * Gets all variables for a specific process instance.
-     * Used by Orun for the "Data Surgery" feature to view current state.
-     *
-     * @param instanceId The ID of the process instance.
-     * @return A map of variable names to their typed values.
-     */
-    @GetMapping("/api/v1/process-instances/{instanceId}/variables")
-    public ResponseEntity<Map<String, VariableValue>> getProcessVariables(@PathVariable String instanceId) {
-        ProcessInstance instance = engine.getProcessInstanceById(instanceId);
-        if (instance == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        Map<String, VariableValue> typedVariables = instance.getVariables().entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> VariableValue.from(entry.getValue())));
-
-        return ResponseEntity.ok(typedVariables);
-    }
-
-    /**
-     * Modifies variables for a specific process instance.
-     * Used by Orun for the "Data Surgery" feature to fix incorrect state.
-     *
-     * @param instanceId The ID of the process instance.
-     * @param request    The variable modifications to apply.
-     * @return Empty response on success.
-     */
-    @PatchMapping("/api/v1/process-instances/{instanceId}/variables")
-    public ResponseEntity<Void> patchProcessVariables(
-            @PathVariable String instanceId,
-            @RequestBody VariablePatchRequest request) {
-
-        ProcessInstance instance = engine.getProcessInstanceById(instanceId);
-        if (instance == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        // Apply the variable modifications
-        Map<String, Object> modifications = request.modifications().entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> entry.getValue().toObject()));
-
-        instance.putAllVariables(modifications);
-
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * Cancels a running process instance.
-     * The instance status will be set to CANCELLED and execution will stop.
-     *
-     * @param id      The ID of the process instance.
-     * @param request Optional request body containing the cancellation reason.
-     * @return Empty response on success.
-     */
-    @DeleteMapping("/api/v1/process-instances/{id}")
-    public ResponseEntity<Void> cancelProcess(@PathVariable String id,
-            @RequestBody(required = false) CancelRequest request) {
-        String reason = request != null ? request.reason() : "Cancelled via API";
-        try {
-            engine.cancelProcessInstance(id, reason);
-            return ResponseEntity.noContent().build();
-        } catch (com.abada.engine.core.exception.ProcessEngineException e) {
-            if (e.getMessage().contains("not found")) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Suspends or activates a process instance.
-     * A suspended process cannot advance or complete tasks.
-     *
-     * @param id      The ID of the process instance.
-     * @param request The suspension request containing the new state.
-     * @return Empty response on success.
-     */
-    @PutMapping("/api/v1/process-instances/{id}/suspension")
-    public ResponseEntity<Void> setSuspension(@PathVariable String id,
-            @RequestBody SuspensionRequest request) {
-        try {
-            engine.suspendProcessInstance(id, request.suspended());
-            return ResponseEntity.ok().build();
-        } catch (com.abada.engine.core.exception.ProcessEngineException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    /**
      * Marks a process instance as FAILED.
      * This is a terminal status that stops all execution of the instance.
      *
@@ -228,34 +133,6 @@ public class ProcessController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Cannot fail process instance", "processInstanceId", id));
         }
-    }
-
-    /**
-     * Retrieves the active activity instances for a process instance.
-     * Used by Orun for visual BPMN highlighting.
-     *
-     * @param id The ID of the process instance.
-     * @return The activity instance tree containing active tokens.
-     */
-    @GetMapping("/api/v1/process-instances/{id}/activity-instances")
-    public ResponseEntity<ActivityInstanceTree> getActivityInstances(@PathVariable String id) {
-        ProcessInstance instance = engine.getProcessInstanceById(id);
-        if (instance == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        List<ChildActivityInstance> children = instance.getActiveTokens().stream()
-                .map(activityId -> {
-                    String name = instance.getDefinition().getActivityName(activityId);
-                    return new ChildActivityInstance(
-                            activityId,
-                            name,
-                            "exec-" + id // Simplified execution ID
-                    );
-                })
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(new ActivityInstanceTree(id, children));
     }
 
     /**

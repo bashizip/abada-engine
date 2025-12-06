@@ -75,7 +75,7 @@ public class VisualizerTest {
     void shouldReturnActivityInstances() {
         // Get activity instances
         ResponseEntity<ActivityInstanceTree> response = restTemplate.getForEntity(
-                "/v1/processes/api/v1/process-instances/" + instanceId + "/activity-instances",
+                "/v1/process-instances/" + instanceId + "/activity-instances",
                 ActivityInstanceTree.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
