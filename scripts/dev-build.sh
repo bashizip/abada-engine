@@ -15,10 +15,15 @@ echo -e "${BLUE}=== Abada Engine Dev Build ===${NC}\n"
 echo -e "${YELLOW}Step 1: Building JAR locally...${NC}"
 ./mvnw clean package spring-boot:repackage -DskipTests
 
-echo -e "\n${YELLOW}Step 2: Building and starting Docker containers...${NC}"
+echo -e "\n${YELLOW}Step 2: Cleaning up existing environment...${NC}"
+docker stop abada-engine 2>/dev/null || true
+docker rm abada-engine 2>/dev/null || true
+docker rmi abada-engine:dev 2>/dev/null || true
+
+echo -e "\n${YELLOW}Step 3: Building and starting Docker containers...${NC}"
 docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build abada-engine
 
-echo -e "\n${YELLOW}Step 3: Waiting for application to start...${NC}"
+echo -e "\n${YELLOW}Step 4: Waiting for application to start...${NC}"
 sleep 10
 
 echo -e "\n${GREEN}✓ Build complete!${NC}"
