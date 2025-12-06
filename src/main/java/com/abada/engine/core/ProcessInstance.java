@@ -18,6 +18,7 @@ public class ProcessInstance {
     private Instant startDate;
     private Instant endDate;
     private ProcessStatus status;
+    private boolean suspended = false;
 
     private final List<String> activeTokens = new ArrayList<>();
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
@@ -33,7 +34,8 @@ public class ProcessInstance {
         this.status = ProcessStatus.RUNNING;
     }
 
-    public ProcessInstance(String id, ParsedProcessDefinition definition, List<String> activeTokens, Instant startDate, Instant endDate) {
+    public ProcessInstance(String id, ParsedProcessDefinition definition, List<String> activeTokens, Instant startDate,
+            Instant endDate) {
         this.id = id;
         this.definition = definition;
         this.activeTokens.addAll(activeTokens);
@@ -46,9 +48,18 @@ public class ProcessInstance {
         this.status = ProcessStatus.RUNNING;
     }
 
-    public String getId() { return id; }
-    public ParsedProcessDefinition getDefinition() { return definition; }
-    public List<String> getActiveTokens() { return Collections.unmodifiableList(activeTokens); }
+    public String getId() {
+        return id;
+    }
+
+    public ParsedProcessDefinition getDefinition() {
+        return definition;
+    }
+
+    public List<String> getActiveTokens() {
+        return Collections.unmodifiableList(activeTokens);
+    }
+
     public void setActiveTokens(List<String> tokens) {
         activeTokens.clear();
         activeTokens.addAll(tokens);
@@ -74,11 +85,29 @@ public class ProcessInstance {
         this.status = status;
     }
 
-    public void setVariable(String key, Object value) { variables.put(key, value); }
-    public Object getVariable(String key) { return variables.get(key); }
-    public Map<String, Object> getVariables() { return Collections.unmodifiableMap(variables); }
-    public void putAllVariables(Map<String,Object> newVars) {
-        if (newVars != null) variables.putAll(newVars);
+    public boolean isSuspended() {
+        return suspended;
+    }
+
+    public void setSuspended(boolean suspended) {
+        this.suspended = suspended;
+    }
+
+    public void setVariable(String key, Object value) {
+        variables.put(key, value);
+    }
+
+    public Object getVariable(String key) {
+        return variables.get(key);
+    }
+
+    public Map<String, Object> getVariables() {
+        return Collections.unmodifiableMap(variables);
+    }
+
+    public void putAllVariables(Map<String, Object> newVars) {
+        if (newVars != null)
+            variables.putAll(newVars);
     }
 
     public boolean isWaitingForUserTask() {
@@ -120,7 +149,8 @@ public class ProcessInstance {
 
             while (current != null && !processedInThisRun.contains(current)) {
                 if (++hops > MAX_HOPS) {
-                    throw new IllegalStateException("advance() exceeded max hops; possible cycle without wait state. pi=" + id);
+                    throw new IllegalStateException(
+                            "advance() exceeded max hops; possible cycle without wait state. pi=" + id);
                 }
 
                 String pointer = current;
@@ -139,14 +169,15 @@ public class ProcessInstance {
                         activeTokens.add(pointer);
                         if (definition.isUserTask(pointer)) {
                             TaskMeta ut = definition.getUserTask(pointer);
-                            newUserTasks.add(new UserTaskPayload(ut.getId(), ut.getName(), ut.getAssignee(), ut.getCandidateUsers(), ut.getCandidateGroups()));
+                            newUserTasks.add(new UserTaskPayload(ut.getId(), ut.getName(), ut.getAssignee(),
+                                    ut.getCandidateUsers(), ut.getCandidateGroups()));
                         }
                         current = null;
                     }
-                } 
-                else if (isEmbeddedServiceTask) {
+                } else if (isEmbeddedServiceTask) {
                     try {
-                        JavaDelegate delegate = (JavaDelegate) Class.forName(serviceTaskMeta.className()).getConstructor().newInstance();
+                        JavaDelegate delegate = (JavaDelegate) Class.forName(serviceTaskMeta.className())
+                                .getConstructor().newInstance();
                         delegate.execute(new DelegateExecutionImpl());
                         previousPointer = pointer;
                         List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
@@ -183,7 +214,8 @@ public class ProcessInstance {
                     List<String> chosenFlowIds = selector.chooseInclusive(gw, outgoing, variables);
 
                     for (String flowId : chosenFlowIds) {
-                        queue.add(outgoing.stream().filter(f -> f.getId().equals(flowId)).findFirst().orElseThrow().getTargetRef());
+                        queue.add(outgoing.stream().filter(f -> f.getId().equals(flowId)).findFirst().orElseThrow()
+                                .getTargetRef());
                     }
                     String joinGatewayId = definition.findJoinGateway(pointer, GatewayMeta.Type.INCLUSIVE);
                     if (joinGatewayId != null) {
@@ -191,7 +223,8 @@ public class ProcessInstance {
                         joinArrivedTokens.put(joinGatewayId, new HashSet<>());
                     }
                     current = null;
-                } else if ((definition.isParallelGateway(pointer) || definition.isInclusiveGateway(pointer)) && definition.getIncoming(pointer).size() > 1) {
+                } else if ((definition.isParallelGateway(pointer) || definition.isInclusiveGateway(pointer))
+                        && definition.getIncoming(pointer).size() > 1) {
                     int expected = joinExpectedTokens.getOrDefault(pointer, definition.getIncoming(pointer).size());
                     Set<String> arrived = joinArrivedTokens.computeIfAbsent(pointer, k -> new HashSet<>());
                     arrived.add(previousPointer);

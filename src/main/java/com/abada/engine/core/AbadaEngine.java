@@ -6,6 +6,7 @@ import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.ProcessStatus;
+import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.observability.EngineMetrics;
 import com.abada.engine.parser.BpmnParser;
@@ -53,10 +54,6 @@ public class AbadaEngine {
     private final Map<String, ProcessInstance> instances = new HashMap<>();
 
     @Autowired
-    public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, @Lazy EventManager eventManager,
-            @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om,
-            EngineMetrics engineMetrics, Tracer tracer) {
-
     public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, @Lazy EventManager eventManager,
             @Lazy JobScheduler jobScheduler, ExternalTaskRepository externalTaskRepository, ObjectMapper om,
             EngineMetrics engineMetrics, Tracer tracer) {
@@ -191,6 +188,10 @@ public class AbadaEngine {
             throw new IllegalStateException("No process instance found for id=" + processInstanceId);
         }
 
+        if (instance.isSuspended()) {
+            throw new ProcessEngineException("Process instance is suspended: " + processInstanceId);
+        }
+
         if (variables != null && !variables.isEmpty()) {
             instance.putAllVariables(variables);
         }
@@ -223,9 +224,8 @@ public class AbadaEngine {
     public boolean failProcess(String processInstanceId) {
         ProcessInstance instance = instances.get(processInstanceId);
         if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED
-                || instance.getStatus() == ProcessStatus.FAILED) {
-        if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED
-                || instance.getStatus() == ProcessStatus.FAILED) {
+                || instance.getStatus() == ProcessStatus.FAILED
+                || instance.getStatus() == ProcessStatus.CANCELLED) {
             log.warn("Process instance {} not found or already in a terminal state.", processInstanceId);
             return false;
         }
@@ -238,9 +238,54 @@ public class AbadaEngine {
         // Record metrics for process failure
         engineMetrics.recordProcessFailed(instance.getDefinition().getId());
 
-
         persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
         return true;
+    }
+
+    public void cancelProcessInstance(String processInstanceId, String reason) {
+        log.info("Cancelling process instance {} for reason: {}", processInstanceId, reason);
+        ProcessInstance instance = instances.get(processInstanceId);
+        if (instance == null) {
+            throw new ProcessEngineException("Process instance not found: " + processInstanceId);
+        }
+
+        if (instance.getStatus() == ProcessStatus.COMPLETED || instance.getStatus() == ProcessStatus.FAILED
+                || instance.getStatus() == ProcessStatus.CANCELLED) {
+            throw new ProcessEngineException(
+                    "Process instance is already in a terminal state: " + instance.getStatus());
+        }
+
+        instance.setStatus(ProcessStatus.CANCELLED);
+        instance.setEndDate(Instant.now());
+        instance.setActiveTokens(Collections.emptyList());
+
+        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
+    }
+
+    public void suspendProcessInstance(String processInstanceId, boolean suspended) {
+        log.info("Setting suspension state for process instance {} to {}", processInstanceId, suspended);
+        ProcessInstance instance = instances.get(processInstanceId);
+        if (instance == null) {
+            throw new ProcessEngineException("Process instance not found: " + processInstanceId);
+        }
+
+        if (suspended) {
+            // Only suspend if not already in a terminal state
+            if (instance.getStatus() != ProcessStatus.COMPLETED
+                    && instance.getStatus() != ProcessStatus.FAILED
+                    && instance.getStatus() != ProcessStatus.CANCELLED) {
+                instance.setSuspended(true);
+                instance.setStatus(ProcessStatus.SUSPENDED);
+            }
+        } else {
+            // Resume: restore to RUNNING if currently SUSPENDED
+            if (instance.getStatus() == ProcessStatus.SUSPENDED) {
+                instance.setSuspended(false);
+                instance.setStatus(ProcessStatus.RUNNING);
+            }
+        }
+
+        persistenceService.saveOrUpdateProcessInstance(convertToEntity(instance));
     }
 
     public void resumeFromEvent(String processInstanceId, String eventId, Map<String, Object> variables) {
@@ -248,6 +293,10 @@ public class AbadaEngine {
         ProcessInstance instance = instances.get(processInstanceId);
         if (instance == null) {
             throw new ProcessEngineException("No process instance found for id=" + processInstanceId);
+        }
+
+        if (instance.isSuspended()) {
+            throw new ProcessEngineException("Process instance is suspended: " + processInstanceId);
         }
 
         if (variables != null && !variables.isEmpty()) {
@@ -274,12 +323,8 @@ public class AbadaEngine {
         if (def == null) {
             throw new IllegalStateException(
                     "No deployed process definition found for ID: " + entity.getProcessDefinitionId());
-            throw new IllegalStateException(
-                    "No deployed process definition found for ID: " + entity.getProcessDefinitionId());
         }
 
-        List<String> activeTokens = entity.getCurrentActivityId() != null ? List.of(entity.getCurrentActivityId())
-                : Collections.emptyList();
         List<String> activeTokens = entity.getCurrentActivityId() != null ? List.of(entity.getCurrentActivityId())
                 : Collections.emptyList();
 
@@ -289,10 +334,15 @@ public class AbadaEngine {
                 activeTokens,
                 entity.getStartDate(),
                 entity.getEndDate());
-                entity.getEndDate());
         instance.setStatus(entity.getStatus());
+        instance.setSuspended(entity.isSuspended());
         instance.putAllVariables(readMap(entity.getVariablesJson()));
         instances.put(instance.getId(), instance);
+
+        // Restore metrics for active processes
+        if (instance.getStatus() == ProcessStatus.RUNNING || instance.getStatus() == ProcessStatus.SUSPENDED) {
+            engineMetrics.restoreActiveProcess(instance.getDefinition().getId());
+        }
     }
 
     public void rehydrateTaskInstance(TaskEntity entity) {
@@ -309,6 +359,11 @@ public class AbadaEngine {
         task.setEndDate(entity.getEndDate());
 
         taskManager.addTask(task);
+
+        // Restore metrics for active tasks
+        if (task.getStatus() == TaskStatus.AVAILABLE || task.getStatus() == TaskStatus.CLAIMED) {
+            engineMetrics.restoreActiveTask(task.getTaskDefinitionKey());
+        }
     }
 
     private void createAndPersistTask(UserTaskPayload task, String processInstanceId) {
@@ -318,7 +373,6 @@ public class AbadaEngine {
                 processInstanceId,
                 task.assignee(),
                 task.candidateUsers(),
-                task.candidateGroups());
                 task.candidateGroups());
         taskManager.getTaskByDefinitionKey(task.taskDefinitionKey(), processInstanceId)
                 .ifPresent(taskInstance -> persistenceService.saveTask(convertToEntity(taskInstance)));
@@ -337,8 +391,6 @@ public class AbadaEngine {
                     } catch (Exception e) {
                         log.error("Failed to parse timer duration '{}' for event {}", eventMeta.definitionRef(),
                                 tokenId, e);
-                        log.error("Failed to parse timer duration '{}' for event {}", eventMeta.definitionRef(),
-                                tokenId, e);
                     }
                 }
             }
@@ -353,11 +405,7 @@ public class AbadaEngine {
                 if (serviceTaskMeta != null && serviceTaskMeta.topicName() != null) {
                     ExternalTaskEntity externalTask = new ExternalTaskEntity(instance.getId(),
                             serviceTaskMeta.topicName());
-                    ExternalTaskEntity externalTask = new ExternalTaskEntity(instance.getId(),
-                            serviceTaskMeta.topicName());
                     externalTaskRepository.save(externalTask);
-                    log.info("Created external task {} for topic {}", externalTask.getId(),
-                            serviceTaskMeta.topicName());
                     log.info("Created external task {} for topic {}", externalTask.getId(),
                             serviceTaskMeta.topicName());
                 }
@@ -377,6 +425,7 @@ public class AbadaEngine {
         }
 
         entity.setStatus(instance.getStatus());
+        entity.setSuspended(instance.isSuspended());
 
         entity.setStartDate(instance.getStartDate());
         entity.setEndDate(instance.getEndDate());
@@ -457,24 +506,7 @@ public class AbadaEngine {
         } catch (IOException ex) {
             throw new IllegalStateException("Bad variables_json", ex);
         }
-
-    private Map<String, Object> readMap(String json) {
-        if (json == null || json.isBlank())
-            return new HashMap<>();
-        try {
-            return om.readValue(json, new TypeReference<>() {
-            });
-        } catch (IOException ex) {
-            throw new IllegalStateException("Bad variables_json", ex);
-        }
     }
-
-    private String writeMap(Map<String, Object> m) {
-        try {
-            return om.writeValueAsString(m == null ? Map.of() : m);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Serialize variables failed", ex);
-        }
 
     private String writeMap(Map<String, Object> m) {
         try {

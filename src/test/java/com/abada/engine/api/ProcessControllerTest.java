@@ -53,7 +53,8 @@ public class ProcessControllerTest {
         authHeaders.set("X-Groups", "test-group");
 
         // Deploy the recipe-cook process before each test
-        ByteArrayResource file = new ByteArrayResource(BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
+        ByteArrayResource file = new ByteArrayResource(
+                BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn").readAllBytes()) {
             @Override
             public String getFilename() {
                 return "recipe-cook.bpmn";
@@ -66,37 +67,38 @@ public class ProcessControllerTest {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", file);
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, deployHeaders);
-        ResponseEntity<Map> deployResponse = restTemplate.postForEntity("/v1/processes/deploy", requestEntity, Map.class);
+        ResponseEntity<Map> deployResponse = restTemplate.postForEntity("/v1/processes/deploy", requestEntity,
+                Map.class);
         assertThat(deployResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     /**
-     * Verifies that the GET /v1/processes endpoint correctly lists all deployed process definitions.
+     * Verifies that the GET /v1/processes endpoint correctly lists all deployed
+     * process definitions.
      */
     @Test
     @DisplayName("GET /v1/processes should list deployed processes")
     void shouldListDeployedProcesses() {
         HttpEntity<Void> requestEntity = new HttpEntity<>(authHeaders);
         ResponseEntity<List<Map<String, String>>> response = restTemplate.exchange(
-                "/v1/processes", HttpMethod.GET, requestEntity, new ParameterizedTypeReference<>() {}
-        );
+                "/v1/processes", HttpMethod.GET, requestEntity, new ParameterizedTypeReference<>() {
+                });
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().get(0).get("id")).isEqualTo("recipe-cook");
     }
 
     /**
-     * Verifies that the POST /v1/processes/start endpoint successfully starts a new process instance.
+     * Verifies that the POST /v1/processes/start endpoint successfully starts a new
+     * process instance.
      */
     @Test
     @DisplayName("POST /v1/processes/start should start a process instance and return JSON")
     void shouldStartProcess() {
-        HttpHeaders startHeaders = new HttpHeaders();
-        startHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        startHeaders.addAll(authHeaders);
-        HttpEntity<String> request = new HttpEntity<>("processId=recipe-cook", startHeaders);
+        HttpEntity<Void> request = new HttpEntity<>(authHeaders);
 
-        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start", request, Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity("/v1/processes/start?processId=recipe-cook", request,
+                Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -112,7 +114,8 @@ public class ProcessControllerTest {
 
         // Call the fail endpoint
         HttpEntity<Void> requestEntity = new HttpEntity<>(authHeaders);
-        ResponseEntity<Map> failResponse = restTemplate.exchange("/v1/processes/instance/{id}/fail", HttpMethod.POST, requestEntity, Map.class, instanceId);
+        ResponseEntity<Map> failResponse = restTemplate.exchange("/v1/processes/instance/{id}/fail", HttpMethod.POST,
+                requestEntity, Map.class, instanceId);
         assertThat(failResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(failResponse.getBody().get("status")).isEqualTo("Failed");
 
@@ -123,20 +126,23 @@ public class ProcessControllerTest {
     }
 
     /**
-     * Verifies that the GET /v1/processes/{id} endpoint returns the correct details for a specific process definition.
+     * Verifies that the GET /v1/processes/{id} endpoint returns the correct details
+     * for a specific process definition.
      */
     @Test
     @DisplayName("GET /v1/processes/{id} should return process definition details")
     void shouldReturnProcessDetailsById() {
         HttpEntity<Void> requestEntity = new HttpEntity<>(authHeaders);
-        ResponseEntity<Map> response = restTemplate.exchange("/v1/processes/{id}", HttpMethod.GET, requestEntity, Map.class, "recipe-cook");
+        ResponseEntity<Map> response = restTemplate.exchange("/v1/processes/{id}", HttpMethod.GET, requestEntity,
+                Map.class, "recipe-cook");
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).containsKeys("id", "name", "bpmnXml");
         assertThat(response.getBody().get("id")).isEqualTo("recipe-cook");
     }
 
     /**
-     * Verifies that the GET /v1/processes/instances endpoint returns a list of all active and completed process instances.
+     * Verifies that the GET /v1/processes/instances endpoint returns a list of all
+     * active and completed process instances.
      */
     @Test
     @DisplayName("GET /v1/processes/instances should return all process instances")
@@ -146,21 +152,23 @@ public class ProcessControllerTest {
 
         HttpEntity<Void> requestEntity = new HttpEntity<>(authHeaders);
         ResponseEntity<List<ProcessInstanceDTO>> response = restTemplate.exchange(
-                "/v1/processes/instances", HttpMethod.GET, requestEntity, new ParameterizedTypeReference<>() {}
-        );
+                "/v1/processes/instances", HttpMethod.GET, requestEntity, new ParameterizedTypeReference<>() {
+                });
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull().hasSize(2);
     }
 
     /**
-     * Verifies that the GET /v1/processes/{id} endpoint returns a 404 Not Found status for a process definition that does not exist.
+     * Verifies that the GET /v1/processes/{id} endpoint returns a 404 Not Found
+     * status for a process definition that does not exist.
      */
     @Test
     @DisplayName("GET /v1/processes/{id} should return 404 for a missing process definition")
     void shouldReturnNotFoundForMissingProcessId() {
         HttpEntity<Void> requestEntity = new HttpEntity<>(authHeaders);
-        ResponseEntity<String> response = restTemplate.exchange("/v1/processes/{id}", HttpMethod.GET, requestEntity, String.class, "nonexistent");
+        ResponseEntity<String> response = restTemplate.exchange("/v1/processes/{id}", HttpMethod.GET, requestEntity,
+                String.class, "nonexistent");
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }

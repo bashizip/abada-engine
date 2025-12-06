@@ -21,6 +21,10 @@ import java.util.stream.Collectors;
  * REST controller for managing BPMN process definitions and instances.
  * Provides endpoints to deploy, list, and start processes, as well as query
  * their status.
+ * 
+ * Note: Operations cockpit endpoints (variable management, suspension,
+ * cancellation, etc.)
+ * are now in CockpitController under /v1/process-instances.
  */
 @RestController
 @RequestMapping("/v1/processes")
@@ -49,53 +53,48 @@ public class ProcessController {
 
     /**
      * Lists all currently deployed process definitions.
+     * Each item includes 'id', 'name', 'documentation', and 'bpmnXml'.
      *
-     * @return A list of maps, where each map contains the 'id', 'name', and
-     *         'documentation' of a deployed process.
+     * @return A list of all process definitions.
      */
     @GetMapping
-    public ResponseEntity<List<Map<String, String>>> listDeployedProcesses() {
-        List<ProcessDefinitionEntity> definitions = engine.getDeployedProcesses();
-
-        List<Map<String, String>> result = definitions.stream()
-                .map(def -> {
-                    Map<String, String> map = new HashMap<>();
-                    map.put("id", def.getId());
-                    map.put("name", def.getName());
-                    map.put("documentation", def.getDocumentation()); // Safely handles null
-                    return map;
-                })
-                .toList();
-
-        return ResponseEntity.ok(result);
+    public List<ProcessDefinitionEntity> listProcesses() {
+        return engine.getDeployedProcesses();
     }
 
     /**
-     * Starts a new instance of a previously deployed process definition.
+     * Starts a new instance of a specified process definition.
+     * Optionally accepts a username parameter to track who initiated the process.
      *
-     * @param processId The ID of the process definition to start (as defined in the
-     *                  BPMN file).
-     * @param username  Optional username of the person starting the process.
-     *                  Defaults to "system" if not provided.
-     * @return A JSON object containing the unique ID of the new process instance.
+     * @param processId    The ID of the process definition to start.
+     * @param username     Optional username who starts the process (defaults to
+     *                     "system")
+     * @param variablesMap Optional initial process variables
+     * @return A JSON object with the new process instance ID.
      */
     @PostMapping("/start")
-    public ResponseEntity<Map<String, String>> start(
-            @RequestParam("processId") String processId,
-            @RequestParam(value = "username", required = false) String username) {
+    public ResponseEntity<Map<String, String>> startProcess(
+            @RequestParam String processId,
+            @RequestParam(required = false) String username,
+            @RequestBody(required = false) Map<String, Object> variablesMap) {
+
         ProcessInstance instance = engine.startProcess(processId, username);
-        Map<String, String> response = Map.of("processInstanceId", instance.getId());
-        return ResponseEntity.ok(response);
+
+        if (variablesMap != null && !variablesMap.isEmpty()) {
+            instance.putAllVariables(variablesMap);
+        }
+
+        return ResponseEntity.ok(Map.of("processInstanceId", instance.getId()));
     }
 
     /**
-     * Retrieves a list of all process instances, both active and completed.
+     * Lists all process instances across all process definitions.
+     * Returns full ProcessInstanceDTO records including status and metadata.
      *
-     * @return A list of {@link ProcessInstanceDTO} objects representing the process
-     *         instances.
+     * @return A list of all active and completed process instances.
      */
     @GetMapping("/instances")
-    public ResponseEntity<List<ProcessInstanceDTO>> getAllProcessInstances() {
+    public ResponseEntity<List<ProcessInstanceDTO>> listAllProcessInstances() {
         List<ProcessInstanceDTO> instances = engine.getAllProcessInstances().stream()
                 .map(Mapper.ProcessInstanceMapper::toDto)
                 .collect(Collectors.toList());
@@ -103,18 +102,19 @@ public class ProcessController {
     }
 
     /**
-     * Retrieves a single process instance by its unique ID.
+     * Retrieves the details of a specific process instance by ID.
+     * Returns a ProcessInstanceDTO with status, dates, and metadata.
      *
-     * @param id The UUID of the process instance.
-     * @return A {@link ProcessInstanceDTO} with the instance details, or a 404 Not
-     *         Found if no instance matches the ID.
+     * @param instanceId The ID of the process instance.
+     * @return The process instance details, or 404 if not found.
      */
-    @GetMapping("/instance/{id}")
-    public ResponseEntity<ProcessInstanceDTO> getProcessInstanceById(@PathVariable String id) {
-        ProcessInstance pi = engine.getProcessInstanceById(id);
-        if (pi == null)
+    @GetMapping("/instances/{instanceId}")
+    public ResponseEntity<ProcessInstanceDTO> getProcessInstance(@PathVariable String instanceId) {
+        ProcessInstance instance = engine.getProcessInstanceById(instanceId);
+        if (instance == null) {
             return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(pi));
+        }
+        return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(instance));
     }
 
     /**
@@ -136,7 +136,7 @@ public class ProcessController {
     }
 
     /**
-     * Retrieves the details of a specific process definition by its ID.
+     * Retrieves a specific process definition by its ID.
      *
      * @param id The ID of the process definition (as defined in the BPMN file).
      * @return A map containing the definition's 'id', 'name', 'documentation', and

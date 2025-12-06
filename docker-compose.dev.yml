@@ -54,3 +54,31 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  abada-tenda:
+    image: abada-tenda:dev
+    container_name: abada-tenda
+    ports:
+      - "5602:5602"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=dev
+    networks:
+      - abada-network
+    depends_on:
+      abada-engine:
+        condition: service_started
+
+  abada-orun:
+    image: abada-orun:dev
+    container_name: abada-orun
+    ports:
+      - "5603:5603"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=dev
+    networks:
+      - abada-network
+    depends_on:
+      abada-engine:
+        condition: service_started

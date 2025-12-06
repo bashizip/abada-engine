@@ -23,9 +23,25 @@ public class ExternalTaskEntity {
 
     private Instant lockExpirationTime;
 
+    // Error tracking for incident management
+    @Lob
+    @Column(name = "exception_message")
+    private String exceptionMessage;
+
+    @Lob
+    @Column(name = "exception_stacktrace", columnDefinition = "TEXT")
+    private String exceptionStacktrace;
+
+    @Column(name = "retries")
+    private Integer retries = 3; // Default retry count
+
+    @Column(name = "activity_id")
+    private String activityId; // BPMN element ID for visualization
+
     public enum Status {
         OPEN,
-        LOCKED
+        LOCKED,
+        FAILED // Added for failed jobs tracking
     }
 
     public ExternalTaskEntity() {
@@ -87,5 +103,37 @@ public class ExternalTaskEntity {
 
     public void setLockExpirationTime(Instant lockExpirationTime) {
         this.lockExpirationTime = lockExpirationTime;
+    }
+
+    public String getExceptionMessage() {
+        return exceptionMessage;
+    }
+
+    public void setExceptionMessage(String exceptionMessage) {
+        this.exceptionMessage = exceptionMessage;
+    }
+
+    public String getExceptionStacktrace() {
+        return exceptionStacktrace;
+    }
+
+    public void setExceptionStacktrace(String exceptionStacktrace) {
+        this.exceptionStacktrace = exceptionStacktrace;
+    }
+
+    public Integer getRetries() {
+        return retries;
+    }
+
+    public void setRetries(Integer retries) {
+        this.retries = retries;
+    }
+
+    public String getActivityId() {
+        return activityId;
+    }
+
+    public void setActivityId(String activityId) {
+        this.activityId = activityId;
     }
 }
