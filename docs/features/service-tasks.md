@@ -55,7 +55,7 @@ This pattern is used when the engine is running as a standalone service and the 
 
 #### How it Works
 
-1.  **BPMN Configuration**: In your BPMN diagram, you define a Service Task with a `camunda:topic` attribute. This topic name is like a queue for a specific type of work.
+1. **BPMN Configuration**: In your BPMN diagram, you define a Service Task with a `camunda:topic` attribute. This topic name is like a queue for a specific type of work.
 
     ```xml
     <bpmn:serviceTask
@@ -64,18 +64,19 @@ This pattern is used when the engine is running as a standalone service and the 
         camunda:topic="credit-card-charges" />
     ```
 
-2.  **Engine Behavior**: When the process reaches this task, it pauses and creates a persistent job for the `credit-card-charges` topic in the database.
+2. **Engine Behavior**: When the process reaches this task, it pauses and creates a persistent job for the `credit-card-charges` topic in the database.
 
-3.  **Worker Implementation**: You must build a separate application (the worker) that periodically polls the Abada Engine for jobs.
+3. **Worker Implementation**: You must build a separate application (the worker) that periodically polls the Abada Engine for jobs.
 
 #### The Polling Mechanism: Pull, Don't Push
 
 A crucial aspect of the external task pattern is that the worker **pulls** for work; the engine does not **push** it. The worker is a client that continuously asks the engine if there are any jobs available.
 
 This polling mechanism is used for several key architectural reasons:
--   **Simplicity & Decoupling**: The engine doesn't need to know where workers are or how to contact them. Workers are responsible for initiating communication.
--   **Firewall Friendliness**: The worker only needs to make outbound HTTP requests. The engine never needs to initiate a connection *to* the worker, which is much easier to manage in secure networks.
--   **Scalability**: You can easily scale your workforce by running more instances of your worker application. They will all poll the same endpoints, and the engine will naturally distribute the available jobs among them.
+
+- **Simplicity & Decoupling**: The engine doesn't need to know where workers are or how to contact them. Workers are responsible for initiating communication.
+- **Firewall Friendliness**: The worker only needs to make outbound HTTP requests. The engine never needs to initiate a connection *to* the worker, which is much easier to manage in secure networks.
+- **Scalability**: You can easily scale your workforce by running more instances of your worker application. They will all poll the same endpoints, and the engine will naturally distribute the available jobs among them.
 
 #### Building an External Worker
 
@@ -86,6 +87,7 @@ A worker is a simple, long-running service that executes the following loop:
 The worker makes a `POST` request to the Abada Engine's `/v1/external-tasks/fetch-and-lock` endpoint.
 
 **Request Body:**
+
 ```json
 {
     "workerId": "worker-123",
@@ -95,6 +97,7 @@ The worker makes a `POST` request to the Abada Engine's `/v1/external-tasks/fetc
 ```
 
 **Response (if a job is found):**
+
 ```json
 [
     {
@@ -120,6 +123,7 @@ After the logic is complete, the worker sends a `POST` request to the `/v1/exter
 `/v1/external-tasks/a1b2c3d4-e5f6-7890-1234-567890abcdef/complete`
 
 **Request Body (with new variables):**
+
 ```json
 {
     "paymentTransactionId": "txn_xyz789"
@@ -131,6 +135,27 @@ When the engine receives this call, it deletes the job and resumes the waiting p
 **4. Wait and Repeat**
 
 If no jobs were found, or after completing a job, the worker should wait for a configured interval (e.g., 10 seconds) before polling again.
+
+**5. Handling Failures**
+
+If the business logic fails (e.g., an exception occurs), the worker should report the failure to the engine instead of completing the task. This allows the engine to track incidents and allows operators to intervene.
+
+**Request URL:**
+`/v1/external-tasks/{id}/failure`
+
+**Request Body:**
+
+```json
+{
+    "workerId": "worker-123",
+    "errorMessage": "Connection timeout",
+    "errorDetails": "java.net.ConnectException: Connection timed out...",
+    "retries": 0,
+    "retryTimeout": 1000
+}
+```
+
+- `retries`: If set to `0`, the task is marked as `FAILED` (an incident). If `> 0`, it remains `OPEN` for retry.
 
 #### Example Worker Pseudocode
 
@@ -158,7 +183,8 @@ while (true) {
         }
 
     } catch (Exception e) {
-        // Log errors to avoid crashing the worker
+        // 4. Report failure
+        reportFailure(task.id(), "worker-123", e.getMessage(), 0);
         System.err.println("An error occurred: " + e.getMessage());
     }
 
