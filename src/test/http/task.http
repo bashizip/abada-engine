@@ -1,4 +1,4 @@
-### Send POST request with json body
+## Send POST request with json body
 POST http://localhost:5601/abada/api/v1/tasks/claim?taskId=eea72b83-e1f8-4707-ad6c-f679ca6bb5bb
 Content-Type: application/json
 X-User: alice
@@ -10,3 +10,30 @@ GET http://localhost:5601/abada/api/v1/tasks/
 Content-Type: application/json
 X-User: alice
 X-Groups: customers
+
+## Fetch and Lock External Tasks
+POST http://localhost:5601/abada/api/v1/external-tasks/fetch-and-lock
+Content-Type: application/json
+X-User: worker
+X-Groups: workers
+
+{
+  "workerId": "worker-1",
+  "topicNames": ["test-topic"],
+  "lockDuration": 10000
+}
+
+## Report External Task Failure
+# Replace {id} with the actual task ID from the fetch-and-lock response
+POST http://localhost:5601/abada/api/v1/external-tasks/{id}/failure
+Content-Type: application/json
+X-User: worker
+X-Groups: workers
+
+{
+  "workerId": "worker-1",
+  "errorMessage": "Something went wrong",
+  "errorDetails": "Stack trace details...",
+  "retries": 0,
+  "retryTimeout": 1000
+}
