@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  * 
  * Note: Operations cockpit endpoints (variable management, suspension,
  * cancellation, etc.)
- * are now in CockpitController under /v1/process-instances.
+ * are now in CockpitProcessInstanceController under /v1/process-instances.
  */
 @RestController
 @RequestMapping("/v1/processes")

@@ -22,11 +22,11 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/v1/process-instances")
-public class CockpitController {
+public class CockpitProcessInstanceController {
 
     private final AbadaEngine engine;
 
-    public CockpitController(AbadaEngine engine) {
+    public CockpitProcessInstanceController(AbadaEngine engine) {
         this.engine = engine;
     }
 

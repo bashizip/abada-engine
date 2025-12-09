@@ -469,6 +469,75 @@ Retrieves comprehensive statistics and activity data for the current user.
 
 ---
 
+## External Task Controller
+
+### Fetch and Lock
+
+Fetches and locks external tasks for a specific worker and topics.
+
+- **Method & URL**: `POST /v1/external-tasks/fetch-and-lock`
+- **Request Body**:
+
+  ```json
+  {
+    "workerId": "worker-1",
+    "topics": ["topic-a", "topic-b"],
+    "lockDuration": 10000
+  }
+  ```
+
+- **Success Response** (`200 OK`):
+
+  ```json
+  [
+    {
+      "id": "task-123",
+      "topicName": "topic-a",
+      "variables": { "amount": 100 }
+    }
+  ]
+  ```
+
+### Complete External Task
+
+Completes an external task.
+
+- **Method & URL**: `POST /v1/external-tasks/{id}/complete`
+- **Path Parameters**:
+  - `{id}` (string, required): The ID of the external task.
+- **Request Body** (optional):
+
+  ```json
+  {
+    "resultVariable": "success"
+  }
+  ```
+
+- **Success Response** (`200 OK`): Empty response.
+
+### Report Failure
+
+Reports a failure for an external task.
+
+- **Method & URL**: `POST /v1/external-tasks/{id}/failure`
+- **Path Parameters**:
+  - `{id}` (string, required): The ID of the external task.
+- **Request Body**:
+
+  ```json
+  {
+    "workerId": "worker-1",
+    "errorMessage": "Connection timeout",
+    "errorDetails": "Stack trace...",
+    "retries": 0,
+    "retryTimeout": 1000
+  }
+  ```
+
+- **Success Response** (`200 OK`): Empty response.
+
+---
+
 ## Operations Cockpit API
 
 The following endpoints support the "Orun Active Operations Cockpit" for managing and troubleshooting running processes.
@@ -476,8 +545,8 @@ The following endpoints support the "Orun Active Operations Cockpit" for managin
 **Controller Organization:**
 
 - **Process Management** endpoints are handled by `ProcessController` under `/v1/processes`
-- **Operations Cockpit** endpoints are handled by `CockpitController` under `/v1/process-instances`
-- **Job Management** endpoints are handled by `JobController` under `/v1/jobs`
+- **Operations Cockpit** endpoints are handled by `CockpitProcessInstanceController` under `/v1/process-instances`
+- **Job Management** endpoints are handled by `CockpitJobController` under `/v1/jobs`
 
 This separation provides clear organization between core process operations and operational/troubleshooting features.
 
@@ -548,6 +617,28 @@ Retrieves the full stack trace of a failed job for debugging.
 - **Error Response** (`404 Not Found`): Job not found
 
 **Use Case**: When operators click "Show Error" in Orun, they can view the detailed stack trace to diagnose the root cause.
+
+#### List Active Jobs
+
+Lists all active jobs (locked external tasks, scheduled timers, waiting messages/signals).
+
+- **Method & URL**: `GET /v1/jobs/active`
+- **Success Response** (`200 OK`):
+
+  ```json
+  [
+    {
+      "id": "job-123",
+      "type": "EXTERNAL_TASK",
+      "processInstanceId": "pi-123",
+      "activityId": "ServiceTask_1",
+      "scheduledTime": "2023-10-27T10:00:00Z",
+      "details": "Topic: credit-card-charges, Worker: worker-1"
+    }
+  ]
+  ```
+
+**Use Case**: Monitoring the current workload and waiting states of the engine.
 
 ### Variable Management ("Data Surgery" Endpoints)
 
@@ -724,7 +815,7 @@ All endpoints follow RESTful conventions and return structured JSON responses fo
 | GET | `/v1/processes/instances/{id}` | Get a specific process instance by ID |
 | POST | `/v1/processes/instance/{id}/fail` | Mark a process instance as FAILED |
 
-### CockpitController (`/v1/process-instances`)
+### CockpitProcessInstanceController (`/v1/process-instances`)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -734,13 +825,22 @@ All endpoints follow RESTful conventions and return structured JSON responses fo
 | PUT | `/v1/process-instances/{id}/suspension` | Suspend or activate a process instance |
 | GET | `/v1/process-instances/{id}/activity-instances` | Get active activity instances for BPMN visualization |
 
-### JobController (`/v1/jobs`)
+### CockpitJobController (`/v1/jobs`)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/v1/jobs` | List failed jobs (with filters) |
+| GET | `/v1/jobs/failed` | List failed jobs (with filters) |
+| GET | `/v1/jobs/active` | List active jobs (external, timers, messages) |
 | POST | `/v1/jobs/{jobId}/retries` | Set retry count for a failed job |
 | GET | `/v1/jobs/{jobId}/stacktrace` | Get stack trace for a failed job |
+
+### ExternalTaskController (`/v1/external-tasks`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/external-tasks/fetch-and-lock` | Fetch and lock external tasks |
+| POST | `/v1/external-tasks/{id}/complete` | Complete an external task |
+| POST | `/v1/external-tasks/{id}/failure` | Report failure for an external task |
 
 ### TaskController (`/v1/tasks`)
 
@@ -767,8 +867,9 @@ All endpoints follow RESTful conventions and return structured JSON responses fo
 The Abada Engine API is organized into specialized controllers for better separation of concerns:
 
 - **ProcessController**: Core process lifecycle management (deploy, start, query)
-- **CockpitController**: Operations and troubleshooting features for Orun
-- **JobController**: External task and job management
+- **CockpitProcessInstanceController**: Operations and troubleshooting features for Orun
+- **CockpitJobController**: External task and job management
+- **ExternalTaskController**: External worker interactions
 - **TaskController**: User task management and assignment
 - **EventController**: Event-based process coordination
 
