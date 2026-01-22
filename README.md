@@ -33,14 +33,40 @@ All components are containerized and deploy independently. For design, boundarie
 
 ---
 
-## Quick Start (Docker)
+## Quick Start
 
-Get up and running in minutes with our curated Compose stacks:
+You can start the full stack (Engine, Observability, Database) with a single command using our helper scripts.
 
-- **Development**: Hot-reloading and debug ports exposed.
-- **Production**: Optimized, secure, and scalable.
+### Development Environment
+Hosted with in-memory H2 database, pre-configured users, and full observability tools.
 
-See [`docs/docker-deployment.md`](docs/docker-deployment.md) for commands and [`docs/docker-deployment-plan.md`](docs/docker-deployment-plan.md) for the environment strategy.
+**Option 1: Build & Run (Recommended)**
+Builds the engine locally (fast) and launches the **complete** stack.
+```bash
+./scripts/build-and-run-dev.sh
+```
+
+**Option 2: Start Only**
+Starts the containers if the image is already built.
+```bash
+./scripts/start-dev.sh
+```
+
+**Option 3: Rebuild Engine Only (Fast Iteration)**
+Rebuilds and restarts only the engine service to apply code changes.
+```bash
+./scripts/build-dev.sh
+```
+
+**Services:**
+- **Abada Engine**: [http://localhost:5601/abada/api](http://localhost:5601/abada/api)
+- **Abada Tenda** (Task UI): [http://localhost:5602](http://localhost:5602)
+- **Abada Orun** (Monitoring UI): [http://localhost:5603](http://localhost:5603)
+- **Grafana**: [http://localhost:3000](http://localhost:3000) (admin/admin123)
+- **Jaeger**: [http://localhost:16686](http://localhost:16686)
+- **Traefik Dashboard**: [http://localhost:8080](http://localhost:8080)
+
+For production deployment and manual Docker Compose commands, see the detailed [Docker Deployment Guide](docs/operations/docker-deployment.md).
 
 ---
 
