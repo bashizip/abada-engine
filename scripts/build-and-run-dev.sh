@@ -25,31 +25,22 @@ echo -e "\n${YELLOW}Step 1.5: Checking Sibling Projects...${NC}"
 PROJECT_ROOT=$(pwd)
 PARENT_DIR=$(dirname "$PROJECT_ROOT")
 
-# Build Abada Tenda if available
+# Build Abada Tenda if available (just the image, not the container)
 if [ -d "$PARENT_DIR/abada-tenda" ]; then
-    echo -e "${BLUE}Found ../abada-tenda. Building abada-tenda:dev...${NC}"
-    if [ -f "$PARENT_DIR/abada-tenda/scripts/refresh-container.sh" ]; then
-        # Try to run the script using bash to avoid permission issues
-        (cd "$PARENT_DIR/abada-tenda" && bash scripts/refresh-container.sh)
-    else 
-        (cd "$PARENT_DIR/abada-tenda" && docker build -t abada-tenda:dev .)
-    fi
+    echo -e "${BLUE}Found ../abada-tenda. Building abada-tenda:dev image...${NC}"
+    (cd "$PARENT_DIR/abada-tenda" && docker build -t abada-tenda:dev .)
 else
     echo -e "${YELLOW}../abada-tenda not found. Skipping build.${NC}"
 fi
 
-# Build Abada Orun if available
+# Build Abada Orun if available (just the image, not the container)
 if [ -d "$PARENT_DIR/abada-orun" ]; then
-    echo -e "${BLUE}Found ../abada-orun. Building abada-orun:dev...${NC}"
-    if [ -f "$PARENT_DIR/abada-orun/scripts/refresh-container.sh" ]; then
-          # Try to run the script using bash to avoid permission issues
-        (cd "$PARENT_DIR/abada-orun" && bash scripts/refresh-container.sh)
-    else
-        (cd "$PARENT_DIR/abada-orun" && docker build -t abada-orun:dev .)
-    fi
+    echo -e "${BLUE}Found ../abada-orun. Building abada-orun:dev image...${NC}"
+    (cd "$PARENT_DIR/abada-orun" && docker build -t abada-orun:dev .)
 else
     echo -e "${YELLOW}../abada-orun not found. Skipping build.${NC}"
 fi
+
 
 echo -e "\n${YELLOW}Step 2: Cleaning up existing environment...${NC}"
 # We clean up to ensure fresh state, but we could make this optional
