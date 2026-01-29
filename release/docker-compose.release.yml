@@ -1,0 +1,420 @@
+name: abada-engine
+services:
+  abada-engine:
+    build:
+      context: /Users/pbash/repo/abada-platform/abada-engine
+      dockerfile: Dockerfile.prod
+    depends_on:
+      otel-collector:
+        condition: service_started
+        required: true
+      postgres:
+        condition: service_healthy
+        required: true
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: 1
+          memory: "1073741824"
+        reservations:
+          cpus: 0.5
+          memory: "536870912"
+    environment:
+      MANAGEMENT_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.1"
+      OTEL_RESOURCE_ATTRIBUTES: project=abada,service.version=0.8.3-alpha
+      OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT: prod
+      OTEL_SERVICE_NAME: abada-engine-prod
+      SERVER_PORT: "5601"
+      SPRING_DATASOURCE_PASSWORD: postgres_secure_password
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/abada_engine
+      SPRING_DATASOURCE_USERNAME: abada
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_PROFILES_ACTIVE: prod
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://localhost:5601/abada/api/actuator/health
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: bashizip/abada-engine:latest
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.abada.rule: PathPrefix(`/abada`)
+      traefik.http.services.abada.loadbalancer.healthcheck.interval: 30s
+      traefik.http.services.abada.loadbalancer.healthcheck.path: /abada/api/actuator/health
+      traefik.http.services.abada.loadbalancer.server.port: "5601"
+    networks:
+      abada-network: null
+    pull_policy: always
+    restart: always
+  abada-orun:
+    container_name: abada-orun-prod
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --spider
+        - -q
+        - http://localhost:5603/health
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: bashizip/abada-orun:latest
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 5603
+        published: "5603"
+        protocol: tcp
+    pull_policy: always
+    restart: always
+  abada-tenda:
+    container_name: abada-tenda-prod
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --spider
+        - -q
+        - http://localhost:5602/health
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: bashizip/abada-tenda:latest
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 5602
+        published: "5602"
+        protocol: tcp
+    pull_policy: always
+    restart: always
+  consul:
+    container_name: consul
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://localhost:8500/v1/status/leader
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: hashicorp/consul:latest
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 8500
+        published: "8500"
+        protocol: tcp
+    restart: unless-stopped
+  grafana:
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: grafana/grafana:latest
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 3000
+        published: "3000"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        source: grafana_data
+        target: /var/lib/grafana
+        volume: {}
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/grafana/provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/grafana/dashboards
+        target: /var/lib/grafana/dashboards
+        read_only: true
+        bind:
+          selinux: z
+  jaeger:
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      JAEGER_STORAGE_TYPE: memory
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://localhost:16686/
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: jaegertracing/all-in-one:latest
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 16686
+        published: "16686"
+        protocol: tcp
+      - mode: ingress
+        target: 14250
+        published: "14250"
+        protocol: tcp
+    restart: unless-stopped
+  loki:
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+      - -config.expand-env=true
+    container_name: loki
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://localhost:3100/ready
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: grafana/loki:2.9.1
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 3100
+        published: "3100"
+        protocol: tcp
+    restart: unless-stopped
+    user: "0:0"
+    volumes:
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/loki-config-prod.yaml
+        target: /etc/loki/local-config.yaml
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/loki-wal
+        target: /tmp/loki/wal
+        bind: {}
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/loki-compactor
+        target: /loki/compactor
+        bind: {}
+  otel-collector:
+    command:
+      - --config=/etc/otel-collector-config.yaml
+    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib:latest
+    networks:
+      abada-network:
+        aliases:
+          - otel-collector
+    ports:
+      - mode: ingress
+        target: 4317
+        published: "4317"
+        protocol: tcp
+      - mode: ingress
+        target: 4318
+        published: "4318"
+        protocol: tcp
+      - mode: ingress
+        target: 8889
+        published: "8889"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/otel-collector-config.yaml
+        target: /etc/otel-collector-config.yaml
+        read_only: true
+        bind:
+          selinux: z
+  postgres:
+    container_name: postgres-prod
+    environment:
+      POSTGRES_DB: abada_engine
+      POSTGRES_PASSWORD: postgres_secure_password
+      POSTGRES_USER: abada
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U abada -d abada_engine
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: postgres:15-alpine
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 5432
+        published: "5432"
+        protocol: tcp
+    restart: always
+    volumes:
+      - type: volume
+        source: postgres_data
+        target: /var/lib/postgresql/data
+        volume: {}
+  prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.console.templates=/etc/prometheus/consoles
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    container_name: prometheus
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://localhost:9090/-/healthy
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: prom/prometheus:latest
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 9090
+        published: "9090"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+        bind:
+          selinux: z
+      - type: volume
+        source: prometheus_data
+        target: /prometheus
+        volume: {}
+  promtail:
+    command:
+      - -config.file=/etc/promtail/config.yml
+    container_name: promtail
+    depends_on:
+      loki:
+        condition: service_healthy
+        required: true
+    image: grafana/promtail:2.9.1
+    networks:
+      abada-network: null
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/promtail-config.yaml
+        target: /etc/promtail/config.yml
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/logs
+        target: /var/log/abada
+        read_only: true
+        bind:
+          selinux: z
+  traefik:
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --log.level=INFO
+      - --accesslog=true
+    container_name: traefik
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://localhost:8080/ping
+      timeout: 10s
+      interval: 30s
+      retries: 3
+    image: traefik:v3.0
+    networks:
+      abada-network: null
+    ports:
+      - mode: ingress
+        target: 80
+        published: "80"
+        protocol: tcp
+      - mode: ingress
+        target: 443
+        published: "443"
+        protocol: tcp
+      - mode: ingress
+        target: 8080
+        published: "8080"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+        bind: {}
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/traefik/traefik.yml
+        target: /etc/traefik/traefik.yml
+        read_only: true
+        bind:
+          selinux: z
+networks:
+  abada-network:
+    name: abada-engine_abada-network
+    driver: bridge
+volumes:
+  grafana_data:
+    name: abada-engine_grafana_data
+  postgres_data:
+    name: abada-engine_postgres_data
+  prometheus_data:
+    name: abada-engine_prometheus_data

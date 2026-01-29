@@ -4,9 +4,6 @@ import com.abada.engine.core.model.*;
 import com.abada.engine.dto.UserTaskPayload;
 import com.abada.engine.spi.DelegateExecution;
 import com.abada.engine.spi.JavaDelegate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Instant;
 import java.util.*;
 
@@ -23,8 +20,6 @@ public class ProcessInstance {
     private final List<String> activeTokens = new ArrayList<>();
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
     private final Map<String, Set<String>> joinArrivedTokens = new HashMap<>();
-
-    private static final Logger log = LoggerFactory.getLogger(ProcessInstance.class);
 
     public ProcessInstance(ParsedProcessDefinition definition) {
         this.id = UUID.randomUUID().toString();

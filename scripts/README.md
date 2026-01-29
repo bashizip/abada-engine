@@ -60,6 +60,31 @@ Builds a **self-contained production image** from source.
 ./scripts/prod-build.sh --build-only
 ```
 
+### `push-to-dockerhub.sh`
+
+Builds production-ready images (using `Dockerfile.prod` files) and pushes them to Docker Hub.
+
+**Usage:**
+
+```bash
+# Push to default user (bashizip) as latest
+./scripts/push-to-dockerhub.sh
+
+# Push to custom user with custom version
+export DOCKER_USERNAME=myorg
+export VERSION=v1.0.0
+./scripts/push-to-dockerhub.sh
+```
+
+**Prerequisites:**
+- You must be logged in to Docker Hub (`docker login`)
+- You must have permissions to push to the target repositories
+
+**What it does:**
+1. Builds production images for Engine, Tenda, and Orun
+2. Pushes them to Docker Hub with `${VERSION}` and `:latest` tags
+
+
 **What it does:**
 
 1. Builds Docker image from source (Maven runs inside Docker)
@@ -125,7 +150,7 @@ Generates sample process instances to preload the engine with test data.
 See [docs/sample-data-generator.md](../docs/sample-data-generator.md) for detailed documentation.
 
 ---
-
+docke
 ## Docker Build Architecture
 
 The single `Dockerfile` supports both dev and prod builds via the `USE_LOCAL_JAR` build argument.

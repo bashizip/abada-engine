@@ -39,6 +39,41 @@ GRAFANA_ADMIN_PASSWORD=admin123
 POSTGRES_PASSWORD=secure_password
 ```
 
+## Building Local Images
+
+You can build the Docker image locally for either production or development.
+
+### Production Build
+
+The standard build is a multi-stage process that compiles the code inside the container. This ensures a consistent build environment but takes longer.
+
+```bash
+docker build -t abada-engine:latest .
+```
+
+### Development Build (Fast)
+
+For faster iteration, you can build the JAR locally and inject it into the image. This skips the dependency download and build steps inside Docker.
+
+1. Build the JAR file locally:
+
+   ```bash
+   ./mvnw clean package -DskipTests
+   ```
+
+2. Build the Docker image using the local JAR:
+
+   ```bash
+   docker build --build-arg USE_LOCAL_JAR=true -t abada-engine:dev .
+   ```
+
+> [!TIP]
+> **Helper Scripts available!**
+> You can automate this process using the scripts in the `scripts/` directory:
+> - `scripts/build-and-run-dev.sh`: Builds JAR, builds image, and starts full stack.
+> - `scripts/build-dev.sh`: Rebuilds engine only (useful for iteration).
+
+
 ## Deployment Commands
 
 ### Development Environment
@@ -46,7 +81,7 @@ POSTGRES_PASSWORD=secure_password
 Single instance with H2 database, full observability, debug logging:
 
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
 **Access URLs:**
@@ -100,6 +135,41 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale ab
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
+
+## Quick Start (Recommended)
+
+The easiest way to run the platform is using the automated quickstart script.
+
+### 1. Download and Run
+You only need `docker` and `docker compose` installed.
+
+```bash
+# Download and run the quickstart script
+curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.sh | bash
+```
+
+This script will:
+1. Download the production configuration.
+2. Start all services using `docker compose`.
+3. Show you the access URLs.
+
+### 2. Manual Setup (Alternative)
+
+If you prefer to start it manually:
+
+1. Download the [release configuration](https://raw.githubusercontent.com/bashizip/abada-engine/main/release/docker-compose.release.yml) to a file named `docker-compose.yml`.
+2. Run:
+   ```bash
+   docker compose up -d
+   ```
+
+### Access URLs
+
+- **Abada Engine**: <http://localhost/abada/api> (via Traefik)
+- **Abada Tenda**: <http://localhost:5602>
+- **Abada Orun**: <http://localhost:5603>
+- **Grafana**: <http://localhost:3000>
+- **Traefik Dashboard**: <http://localhost:8080>
 
 ## Monitoring and Observability
 
