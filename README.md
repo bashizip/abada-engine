@@ -35,9 +35,20 @@ All components are containerized and deploy independently. For design, boundarie
 
 ## Quick Start
 
-You can start the full stack (Engine, Observability, Database) with a single command using our helper scripts.
+## Quick Start
 
-### Development Environment
+### 🚀 Launch Platform (Production/Demo)
+
+The easiest way to run the full Abada Platform (Engine, Tenda, Orun, Observability) is using our automated quickstart script. You only need Docker installed.
+
+```bash
+curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.sh | bash
+```
+
+### 💻 Development Environment
+
+For developers contributing to the project:
+
 Hosted with in-memory H2 database, pre-configured users, and full observability tools.
 
 **Option 1: Build & Run (Recommended)**

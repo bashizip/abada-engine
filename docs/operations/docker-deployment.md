@@ -136,6 +136,41 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale ab
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
+## Quick Start (Recommended)
+
+The easiest way to run the platform is using the automated quickstart script.
+
+### 1. Download and Run
+You only need `docker` and `docker compose` installed.
+
+```bash
+# Download and run the quickstart script
+curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.sh | bash
+```
+
+This script will:
+1. Download the production configuration.
+2. Start all services using `docker compose`.
+3. Show you the access URLs.
+
+### 2. Manual Setup (Alternative)
+
+If you prefer to start it manually:
+
+1. Download the [release configuration](https://raw.githubusercontent.com/bashizip/abada-engine/main/release/docker-compose.release.yml) to a file named `docker-compose.yml`.
+2. Run:
+   ```bash
+   docker compose up -d
+   ```
+
+### Access URLs
+
+- **Abada Engine**: <http://localhost/abada/api> (via Traefik)
+- **Abada Tenda**: <http://localhost:5602>
+- **Abada Orun**: <http://localhost:5603>
+- **Grafana**: <http://localhost:3000>
+- **Traefik Dashboard**: <http://localhost:8080>
+
 ## Monitoring and Observability
 
 ### Metrics Flow
