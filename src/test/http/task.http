@@ -1,12 +1,12 @@
 ### Send POST request with json body
-POST http://localhost:5601/abada/api/v1/tasks/claim?taskId=eea72b83-e1f8-4707-ad6c-f679ca6bb5bb
+POST http://localhost:5601/api/v1/tasks/claim?taskId=eea72b83-e1f8-4707-ad6c-f679ca6bb5bb
 Content-Type: application/json
 X-User: alice
 X-Groups: customers
 
 
 ### Send Get request with json body
-GET http://localhost:5601/abada/api/v1/tasks/
+GET http://localhost:5601/api/v1/tasks/
 Content-Type: application/json
 X-User: alice
 X-Groups: customers

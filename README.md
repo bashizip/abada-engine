@@ -70,7 +70,7 @@ Rebuilds and restarts only the engine service to apply code changes.
 ```
 
 **Services:**
-- **Abada Engine**: [http://localhost:5601/abada/api](http://localhost:5601/abada/api)
+- **Abada Engine**: [http://localhost:5601/api](http://localhost:5601/api)
 - **Abada Tenda** (Task UI): [http://localhost:5602](http://localhost:5602)
 - **Abada Orun** (Monitoring UI): [http://localhost:5603](http://localhost:5603)
 - **Grafana**: [http://localhost:3000](http://localhost:3000) (admin/admin123)

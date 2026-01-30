@@ -27,7 +27,7 @@ echo -e "\n${YELLOW}Step 4: Waiting for application to start...${NC}"
 sleep 10
 
 echo -e "\n${GREEN}✓ Build complete!${NC}"
-echo -e "${BLUE}Application is starting at http://localhost:5601/abada/api${NC}"
+echo -e "${BLUE}Application is starting at http://localhost:5601/api${NC}"
 echo -e "${BLUE}Jaeger UI: http://localhost:16686${NC}"
 echo -e "${BLUE}Grafana: http://localhost:3000${NC}"
 echo -e "\n${YELLOW}To view logs:${NC} docker logs -f abada-engine"
