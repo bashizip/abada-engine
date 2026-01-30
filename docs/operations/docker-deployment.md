@@ -104,7 +104,7 @@ docker-compose -f docker-compose.yml -f docker-compose.test.yml up
 
 ### Production Environment
 
-Multiple instances with PostgreSQL, load balancing, optimized settings:
+Multiple instances with PostgreSQL, load balancing via Traefik, optimized settings:
 
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
@@ -112,7 +112,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 **Access URLs:**
 
-- Abada Engine: <http://localhost/api> (via Traefik)
+- Abada Engine: <http://localhost/api> (via Traefik on port 80)
 - Traefik Dashboard: <http://localhost:8080>
 - Grafana: <http://localhost:3000>
 - Jaeger: <http://localhost:16686>
@@ -163,13 +163,12 @@ If you prefer to start it manually:
    docker compose up -d
    ```
 
-### Access URLs
+### Access URLs (Quickstart)
 
-- **Abada Engine**: <http://localhost/api> (via Traefik)
+- **Abada Engine**: <http://localhost:5601/api> (Direct Access)
 - **Abada Tenda**: <http://localhost:5602>
 - **Abada Orun**: <http://localhost:5603>
 - **Grafana**: <http://localhost:3000>
-- **Traefik Dashboard**: <http://localhost:8080>
 
 ## Monitoring and Observability
 

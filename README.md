@@ -75,7 +75,6 @@ Rebuilds and restarts only the engine service to apply code changes.
 - **Abada Orun** (Monitoring UI): [http://localhost:5603](http://localhost:5603)
 - **Grafana**: [http://localhost:3000](http://localhost:3000) (admin/admin123)
 - **Jaeger**: [http://localhost:16686](http://localhost:16686)
-- **Traefik Dashboard**: [http://localhost:8080](http://localhost:8080)
 
 For production deployment and manual Docker Compose commands, see the detailed [Docker Deployment Guide](docs/operations/docker-deployment.md).
 
