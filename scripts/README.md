@@ -147,7 +147,7 @@ Generates sample process instances to preload the engine with test data.
 - Testing UI with realistic data
 - Development and testing
 
-See [docs/sample-data-generator.md](../docs/sample-data-generator.md) for detailed documentation.
+See [docs/operations/sample-data-generator.md](../docs/operations/sample-data-generator.md) for detailed documentation.
 
 ---
 docke

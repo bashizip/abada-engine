@@ -2,7 +2,7 @@
 
 A modular, culturally-rooted BPMN 2.0 process automation platform built on **Java 21** and **Spring Boot 3**. Abada provides a lightweight, embeddable workflow engine with **first-class observability** and production-ready Docker deployment for dev, test, and prod.
 
-For a deep technical overview and deployment architecture, see [`docs/architecture-and-deployment-guide.md`](docs/architecture-and-deployment-guide.md).
+For a deep technical overview and deployment architecture, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ---
 
@@ -16,7 +16,7 @@ Abada is designed for the modern cloud-native stack. Observability is not an add
 *   **Actionable Metrics**: Pre-configured metrics for process duration, task throughput, and error rates.
 *   **Unified Logging**: Centralized log aggregation with automatic trace correlation for debugging distributed workflows.
 
-👉 **See the [Observability Reference Guide](docs/observability-reference-guide.md) for full configuration details.**
+👉 **See the [Observability Reference Guide](docs/operations/observability.md) for full configuration details.**
 
 ---
 
@@ -29,7 +29,7 @@ Abada is a modular platform composed of:
 - `admin`: Process administration (frontend)
 - `semaflow`: Natural-language to BPMN tooling
 
-All components are containerized and deploy independently. For design, boundaries, and runtime topology, see [`docs/abada_architecture_doc.md`](docs/abada_architecture_doc.md).
+All components are containerized and deploy independently. For design, boundaries, and runtime topology, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ---
 
@@ -83,7 +83,7 @@ For production deployment and manual Docker Compose commands, see the detailed [
 
 ## API Reference
 
-For endpoints, authentication, and examples, see [`docs/api-documentation.md`](docs/api-documentation.md).
+For endpoints, authentication, and examples, see [`docs/development/api.md`](docs/development/api.md).
 
 ---
 
