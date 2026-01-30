@@ -42,7 +42,7 @@ services:
       - OTEL_SERVICE_NAME=abada-engine-prod
       - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
     deploy:
-      replicas: ${ABADA_ENGINE_REPLICAS:-3}
+      replicas: ${ABADA_ENGINE_REPLICAS:-1}
       resources:
         limits:
           cpus: '1.0'

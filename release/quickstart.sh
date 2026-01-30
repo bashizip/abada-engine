@@ -49,20 +49,16 @@ check_prerequisites() {
 }
 
 download_compose() {
-    if [ -f "$LocalFile" ]; then
-        print_step "Using existing $LocalFile"
+    print_step "Downloading latest configuration..."
+    if command -v curl &> /dev/null; then
+        curl -sSL "$RELEASE_URL" -o "$LocalFile"
+    elif command -v wget &> /dev/null; then
+        wget -q "$RELEASE_URL" -O "$LocalFile"
     else
-        print_step "Downloading configuration..."
-        if command -v curl &> /dev/null; then
-            curl -sSL "$RELEASE_URL" -o "$LocalFile"
-        elif command -v wget &> /dev/null; then
-            wget -q "$RELEASE_URL" -O "$LocalFile"
-        else
-            echo -e "${RED}Error: curl or wget is required to download the configuration.${NC}"
-            exit 1
-        fi
-        echo "✓ Configuration downloaded"
+        echo -e "${RED}Error: curl or wget is required to download the configuration.${NC}"
+        exit 1
     fi
+    echo "✓ Configuration downloaded"
 }
 
 start_platform() {
