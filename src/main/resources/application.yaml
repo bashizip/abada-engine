@@ -8,7 +8,7 @@ spring:
 server:
   port: ${SERVER_PORT:5601} # Uses 5601 unless overridden by env var
   servlet:
-    context-path: /abada/api
+    context-path: /api
 
 # Logging Configuration
 logging:

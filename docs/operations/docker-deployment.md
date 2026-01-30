@@ -86,10 +86,10 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 **Access URLs:**
 
-- Abada Engine: <http://localhost:5601/abada/api>
+- Abada Engine: <http://localhost:5601/api>
 - Abada Tenda: <http://localhost:5602>
 - Abada Orun: <http://localhost:5603>
-- H2 Console: <http://localhost:5601/abada/api/h2-console>
+- H2 Console: <http://localhost:5601/api/h2-console>
 - Grafana: <http://localhost:3000> (admin/admin123)
 - Jaeger: <http://localhost:16686>
 - Prometheus: <http://localhost:9090>
@@ -112,7 +112,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 **Access URLs:**
 
-- Abada Engine: <http://localhost/abada/api> (via Traefik)
+- Abada Engine: <http://localhost/api> (via Traefik)
 - Traefik Dashboard: <http://localhost:8080>
 - Grafana: <http://localhost:3000>
 - Jaeger: <http://localhost:16686>
@@ -165,7 +165,7 @@ If you prefer to start it manually:
 
 ### Access URLs
 
-- **Abada Engine**: <http://localhost/abada/api> (via Traefik)
+- **Abada Engine**: <http://localhost/api> (via Traefik)
 - **Abada Tenda**: <http://localhost:5602>
 - **Abada Orun**: <http://localhost:5603>
 - **Grafana**: <http://localhost:3000>
@@ -224,7 +224,7 @@ Pre-configured dashboards available in Grafana:
 Production environment uses Traefik for load balancing:
 
 - **Strategy**: Round-robin
-- **Health Checks**: `/abada/api/actuator/health`
+- **Health Checks**: `/api/actuator/health`
 - **Path**: `/abada` prefix
 - **Sticky Sessions**: Disabled (stateless design)
 
@@ -397,7 +397,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 docker-compose ps
 
 # Check specific service health
-curl http://localhost:5601/abada/api/actuator/health
+curl http://localhost:5601/api/actuator/health
 ```
 
 ## Support

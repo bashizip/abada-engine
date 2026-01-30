@@ -5,7 +5,7 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-BASE_URL="http://localhost:5601/abada/api"
+BASE_URL="http://localhost:5601/api"
 ITERATIONS=20
 
 echo -e "${BLUE}Starting traffic generation for Jaeger troubleshooting...${NC}"

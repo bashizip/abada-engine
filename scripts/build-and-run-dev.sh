@@ -56,7 +56,7 @@ sleep 10
 
 echo -e "\n${GREEN}✓ Stack is up!${NC}"
 echo -e "${BLUE}Services:${NC}"
-echo -e "- Abada Engine:    http://localhost:5601/abada/api"
+echo -e "- Abada Engine:    http://localhost:5601/api"
 echo -e "- Abada Tenda:     http://localhost:5602"
 echo -e "- Abada Orun:      http://localhost:5603"
 echo -e "- Grafana:         http://localhost:3000 (admin/admin123)"

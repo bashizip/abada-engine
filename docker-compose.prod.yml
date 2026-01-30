@@ -54,7 +54,7 @@ services:
       - abada-network
     restart: always
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health" ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/api/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -65,9 +65,9 @@ services:
         condition: service_started
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.abada.rule=PathPrefix(`/abada`)"
+      - "traefik.http.routers.abada.rule=PathPrefix(`/api`)"
       - "traefik.http.services.abada.loadbalancer.server.port=5601"
-      - "traefik.http.services.abada.loadbalancer.healthcheck.path=/abada/api/actuator/health"
+      - "traefik.http.services.abada.loadbalancer.healthcheck.path=/api/actuator/health"
       - "traefik.http.services.abada.loadbalancer.healthcheck.interval=30s"
 
 volumes:

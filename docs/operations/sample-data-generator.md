@@ -313,7 +313,7 @@ services:
       - abada-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/abada/api/actuator/health" ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/api/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -386,11 +386,11 @@ docker logs abada-engine | grep "Sample Data"
 # Sample Data Generation Complete
 
 # Verify via API
-curl http://localhost:5601/abada/api/v1/processes/instances
+curl http://localhost:5601/api/v1/processes/instances
 
 # Check tasks
 curl -H "X-User: alice" -H "X-Groups: customers" \
-  http://localhost:5601/abada/api/v1/tasks
+  http://localhost:5601/api/v1/tasks
 ```
 
 ## Important Notes

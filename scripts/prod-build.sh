@@ -31,7 +31,7 @@ if [ "$BUILD_ONLY" = "false" ]; then
     docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
     
     echo -e "\n${GREEN}✓ Production stack started!${NC}"
-    echo -e "${BLUE}Application: http://localhost/abada/api (via Traefik)${NC}"
+    echo -e "${BLUE}Application: http://localhost/api (via Traefik)${NC}"
     echo -e "${BLUE}Jaeger UI: http://localhost:16686${NC}"
     echo -e "${BLUE}Grafana: http://localhost:3000${NC}"
     echo -e "\n${YELLOW}To view logs:${NC} docker-compose -f docker-compose.yml -f docker-compose.prod.yml logs -f"

@@ -41,17 +41,19 @@ services:
         - --no-verbose
         - --tries=1
         - --spider
-        - http://localhost:5601/abada/api/actuator/health
+        - http://localhost:5601/api/actuator/health
       timeout: 10s
       interval: 30s
       retries: 3
     image: bashizip/abada-engine:0.8.4-alpha
     labels:
       traefik.enable: "true"
-      traefik.http.routers.abada.rule: PathPrefix(`/abada`)
+      traefik.http.routers.abada.rule: PathPrefix(`/api`)
       traefik.http.services.abada.loadbalancer.healthcheck.interval: 30s
-      traefik.http.services.abada.loadbalancer.healthcheck.path: /abada/api/actuator/health
+      traefik.http.services.abada.loadbalancer.healthcheck.path: /api/actuator/health
       traefik.http.services.abada.loadbalancer.server.port: "5601"
+    ports:
+      - "5601:5601"
     networks:
       abada-network: null
     pull_policy: always

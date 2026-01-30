@@ -231,17 +231,17 @@ DELETE /v1/processes/instances/{instanceId}
 #### Task Management
 
 ```
-GET    /abada/api/tasks
-POST   /abada/api/tasks/{id}/claim
-POST   /abada/api/tasks/{id}/complete
-POST   /abada/api/tasks/{id}/fail
+GET    /api/tasks
+POST   /api/tasks/{id}/claim
+POST   /api/tasks/{id}/complete
+POST   /api/tasks/{id}/fail
 ```
 
 #### Event Management
 
 ```
-POST   /abada/api/events/messages
-POST   /abada/api/events/signals
+POST   /api/events/messages
+POST   /api/events/signals
 ```
 
 ## Deployment Architecture
@@ -337,8 +337,8 @@ services:
 
 **Access URLs:**
 
-- Engine: <http://localhost:5601/abada/api>
-- H2 Console: <http://localhost:5601/abada/api/h2-console>
+- Engine: <http://localhost:5601/api>
+- H2 Console: <http://localhost:5601/api/h2-console>
 - Grafana: <http://localhost:3000>
 - Jaeger: <http://localhost:16686>
 
@@ -530,7 +530,7 @@ scrape_configs:
   - job_name: 'abada-engine'
     static_configs:
       - targets: ['abada-engine:5601']
-    metrics_path: /abada/api/actuator/prometheus
+    metrics_path: /api/actuator/prometheus
     scrape_interval: 15s
 ```
 
@@ -651,7 +651,7 @@ CREATE TABLE task_instance (
 
 ```yaml
 labels:
-  - "traefik.http.services.abada.loadbalancer.healthcheck.path=/abada/api/actuator/health"
+  - "traefik.http.services.abada.loadbalancer.healthcheck.path=/api/actuator/health"
   - "traefik.http.services.abada.loadbalancer.healthcheck.interval=30s"
 ```
 
@@ -907,7 +907,7 @@ groups:
 docker stats abada-engine
 
 # Check JVM heap usage
-curl http://localhost:5601/abada/api/actuator/metrics/jvm.memory.used
+curl http://localhost:5601/api/actuator/metrics/jvm.memory.used
 ```
 
 **Solutions:**
@@ -931,7 +931,7 @@ curl http://localhost:5601/abada/api/actuator/metrics/jvm.memory.used
 docker compose exec postgres pg_isready -U abada
 
 # Check connection pool metrics
-curl http://localhost:5601/abada/api/actuator/metrics/hikaricp.connections.active
+curl http://localhost:5601/api/actuator/metrics/hikaricp.connections.active
 ```
 
 **Solutions:**
@@ -985,10 +985,10 @@ docker compose exec postgres psql -U abada -d abada_engine
 
 ```bash
 # Check service health
-curl http://localhost:5601/abada/api/actuator/health
+curl http://localhost:5601/api/actuator/health
 
 # Check metrics
-curl http://localhost:5601/abada/api/actuator/prometheus
+curl http://localhost:5601/api/actuator/prometheus
 
 # Check traces
 curl http://localhost:16686/api/services
@@ -1033,7 +1033,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 4. **Access Services:**
 
-- Engine: <http://localhost:5601/abada/api>
+- Engine: <http://localhost:5601/api>
 - Grafana: <http://localhost:3000>
 - Jaeger: <http://localhost:16686>
 
@@ -1144,7 +1144,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
 ```bash
 # Check all services are healthy
-curl http://localhost/abada/api/actuator/health
+curl http://localhost/api/actuator/health
 curl http://localhost:3000/api/health
 curl http://localhost:16686/api/services
 ```
@@ -1226,6 +1226,6 @@ This architecture and deployment guide provides comprehensive information for de
 For additional support or questions, refer to:
 
 - Project documentation in `/docs`
-- API documentation at `/abada/api/docs`
+- API documentation at `/api/docs`
 - Monitoring dashboards in Grafana
 - Issue tracking in the project repository

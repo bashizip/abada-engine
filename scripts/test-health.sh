@@ -2,7 +2,7 @@
 # Check health of key services
 
 echo "Checking Abada Engine Health..."
-curl -s http://localhost:5601/abada/api/actuator/health | jq . || echo "Engine not reachable"
+curl -s http://localhost:5601/api/actuator/health | jq . || echo "Engine not reachable"
  
  echo -e "\n\nChecking Abada Tenda Health..."
  curl -I -s http://localhost:5602 || echo "Tenda not reachable"

@@ -72,7 +72,7 @@ start_platform() {
     if [ $? -eq 0 ]; then
         echo ""
         print_step "Platform available at:"
-        echo -e "  - ${BLUE}Engine  ${NC}: http://localhost/abada/api"
+        echo -e "  - ${BLUE}Engine  ${NC}: http://localhost:5601/api/"
         echo -e "  - ${BLUE}Tenda   ${NC}: http://localhost:5602"
         echo -e "  - ${BLUE}Orun    ${NC}: http://localhost:5603"
         echo -e "  - ${BLUE}Grafana ${NC}: http://localhost:3000"

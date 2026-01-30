@@ -31,7 +31,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
 echo -e "\n${GREEN}✓ Production stack started!${NC}"
 echo -e "\n${BLUE}Service URLs:${NC}"
-echo -e "  Application: ${YELLOW}http://localhost/abada/api${NC} (via Traefik load balancer)"
+echo -e "  Application: ${YELLOW}http://localhost/api${NC} (via Traefik load balancer)"
 echo -e "  Jaeger UI:   ${YELLOW}http://localhost:16686${NC}"
 echo -e "  Grafana:     ${YELLOW}http://localhost:3000${NC} (admin/admin)"
 echo -e "  Prometheus:  ${YELLOW}http://localhost:9090${NC}"

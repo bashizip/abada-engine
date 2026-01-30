@@ -98,7 +98,7 @@ File: `docker/prometheus.yml`
 
 Scrape targets:
 - OTEL Collector metrics: `otel-collector:8889`
-- Abada Engine actuator: `abada-engine:5601/abada/api/actuator/prometheus`
+- Abada Engine actuator: `abada-engine:5601/api/actuator/prometheus`
 - Prometheus self-monitoring
 
 Retention: 15 days default, configurable
@@ -182,7 +182,7 @@ labels:
   - "traefik.enable=true"
   - "traefik.http.routers.abada.rule=PathPrefix(`/abada`)"
   - "traefik.http.services.abada.loadbalancer.server.port=5601"
-  - "traefik.http.services.abada.loadbalancer.healthcheck.path=/abada/api/actuator/health"
+  - "traefik.http.services.abada.loadbalancer.healthcheck.path=/api/actuator/health"
 ```
 
 ### Database Connection Pooling
@@ -193,7 +193,7 @@ Each engine instance maintains its own connection pool (HikariCP). PostgreSQL co
 
 ### Health Checks
 All services have health checks:
-- Abada Engine: `/abada/api/actuator/health`
+- Abada Engine: `/api/actuator/health`
 - PostgreSQL: `pg_isready`
 - OTEL Collector: internal health extension
 - Prometheus/Grafana/Jaeger: HTTP endpoints
