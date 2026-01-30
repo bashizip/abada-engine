@@ -53,29 +53,65 @@
     </appender>
 
     <!-- Logger configurations -->
-    <logger name="com.abada.engine" level="DEBUG" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
+    <!-- Development Profile Loggers -->
+    <springProfile name="!prod">
+        <logger name="com.abada.engine" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
 
-    <logger name="io.opentelemetry" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
+        <logger name="io.opentelemetry" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
 
-    <logger name="io.micrometer" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
+        <logger name="io.micrometer" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
 
-    <logger name="org.springframework.web" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
+        <logger name="org.springframework.web" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
 
-    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
 
-    <logger name="org.hibernate.type.descriptor.sql" level="TRACE" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-    </logger>
+        <logger name="org.hibernate.type.descriptor.sql" level="TRACE" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <!-- Production Profile Loggers -->
+    <springProfile name="prod">
+        <logger name="com.abada.engine" level="INFO" additivity="false">
+            <appender-ref ref="JSON"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <logger name="io.opentelemetry" level="INFO" additivity="false">
+            <appender-ref ref="JSON"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <logger name="io.micrometer" level="INFO" additivity="false">
+            <appender-ref ref="JSON"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <logger name="org.springframework.web" level="INFO" additivity="false">
+            <appender-ref ref="JSON"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <logger name="org.hibernate.SQL" level="INFO" additivity="false">
+            <appender-ref ref="JSON"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <logger name="org.hibernate.type.descriptor.sql" level="INFO" additivity="false">
+            <appender-ref ref="JSON"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+    </springProfile>
 
     <!-- Root logger -->
     <root level="INFO">

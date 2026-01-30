@@ -52,6 +52,11 @@ services:
       abada-network: null
     pull_policy: always
     restart: always
+    volumes:
+      - type: bind
+        source: /Users/pbash/repo/abada-platform/abada-engine/logs
+        target: /app/logs
+        bind: {}
   abada-orun:
     container_name: abada-orun-prod
     environment:
