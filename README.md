@@ -87,7 +87,7 @@ For endpoints, authentication, and examples, see [`docs/api-documentation.md`](d
 
 ---
 
-## Engine Status (0.8.2-alpha)
+## Engine Status (0.8.4-alpha)
 
 - **Core Execution**: BPMN parsing and execution; user, service, external, and script tasks; message/signal/timer events; XOR/AND/OR gateways.
 - **Persistence**: H2 (dev/test) and PostgreSQL (prod) with HikariCP pooling.
@@ -99,13 +99,15 @@ For endpoints, authentication, and examples, see [`docs/api-documentation.md`](d
 
 ## Release Notes
 
-*   [Version 0.8.2-alpha](docs/0.8.2-alpha-release-notes.md)
+*   [Version 0.8.4-alpha](docs/release-notes/0.8.4-alpha-release-notes.md)
+*   [Version 0.8.3-alpha](docs/release-notes/0.8.3-alpha-release-notes.md)
+*   [Version 0.8.2-alpha](docs/release-notes/0.8.2-alpha-release-notes.md)
 
 ---
 
 ## Roadmap
 
-See [`docs/roadmap-to-beta.md`](docs/roadmap-to-beta.md) for the staged milestones from `0.8.2-alpha` to `1.0.0-beta`.
+See [`docs/development/roadmap.md`](docs/development/roadmap.md) for the staged milestones from `0.8.2-alpha` to `1.0.0-beta`.
 
 ---
 
