@@ -45,7 +45,7 @@ services:
       timeout: 10s
       interval: 30s
       retries: 3
-    image: bashizip/abada-engine:latest
+    image: bashizip/abada-engine:0.8.4-alpha
     labels:
       traefik.enable: "true"
       traefik.http.routers.abada.rule: PathPrefix(`/abada`)
@@ -70,7 +70,7 @@ services:
       timeout: 10s
       interval: 30s
       retries: 3
-    image: bashizip/abada-orun:latest
+    image: bashizip/abada-orun:0.8.4-alpha
     networks:
       abada-network: null
     ports:
@@ -94,7 +94,7 @@ services:
       timeout: 10s
       interval: 30s
       retries: 3
-    image: bashizip/abada-tenda:latest
+    image: bashizip/abada-tenda:0.8.4-alpha
     networks:
       abada-network: null
     ports:
