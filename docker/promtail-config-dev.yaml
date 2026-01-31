@@ -1,0 +1,20 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: abada-engine-dev
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: abada-engine-dev
+          service_name: abada-engine-dev
+          environment: dev
+          __path__: /var/log/abada/*.log

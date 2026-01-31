@@ -346,7 +346,7 @@ services:
     restart: unless-stopped
     volumes:
       - type: bind
-        source: /Users/pbash/repo/abada-platform/abada-engine/docker/promtail-config.yaml
+        source: /Users/pbash/repo/abada-platform/abada-engine/docker/promtail-config-prod.yaml
         target: /etc/promtail/config.yml
         read_only: true
         bind:
