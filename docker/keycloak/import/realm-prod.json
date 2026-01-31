@@ -1,0 +1,45 @@
+{
+    "realm": "abada-prod",
+    "enabled": true,
+    "sslRequired": "external",
+    "roles": {
+        "realm": [
+            {
+                "name": "managers"
+            },
+            {
+                "name": "customers"
+            }
+        ]
+    },
+    "groups": [
+        {
+            "name": "managers"
+        },
+        {
+            "name": "customers"
+        }
+    ],
+    "clients": [
+        {
+            "clientId": "abada-frontend-prod",
+            "enabled": true,
+            "publicClient": false,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "REPLACE_WITH_OAUTH2_PROXY_CLIENT_SECRET",
+            "directAccessGrantsEnabled": false,
+            "standardFlowEnabled": true,
+            "redirectUris": [
+                "https://${APP_HOSTNAME}/*"
+            ],
+            "webOrigins": [
+                "https://${APP_HOSTNAME}"
+            ],
+            "protocol": "openid-connect",
+            "attributes": {
+                "pkce.code.challenge.method": "S256"
+            }
+        }
+    ],
+    "users": []
+}
