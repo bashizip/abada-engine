@@ -1,0 +1,25 @@
+# Example Traefik middleware configuration snippet for JWT validation and header injection.
+# This is a development example showing the idea; adapt to your Traefik version and deployment.
+
+http:
+  middlewares:
+    keycloak-jwt:
+      plugin:
+        jwt:
+          # Example config - many Traefik installations use a ForwardAuth approach instead.
+          jwks:
+            url: "http://keycloak:8080/realms/abada-dev/protocol/openid-connect/certs"
+          rolesClaim: "groups"
+          tokenFrom:
+            header: "Authorization"
+          onError: "unauthorized"
+      headers:
+        customRequestHeaders:
+          X-User: "{[jsonpath $.preferred_username]}"
+          X-Groups: "{[jsonpath $.groups]}"
+
+# NOTE:
+# - Traefik does not include a built-in JWT plugin that injects arbitrary header mappings
+#   in all deployments; many setups use ForwardAuth (oauth2-proxy) or a small validation
+#   sidecar that validates tokens and sets headers. Use this file as an example and adapt
+#   to your chosen approach (ForwardAuth, plugin, or sidecar).
