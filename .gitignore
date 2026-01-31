@@ -46,3 +46,4 @@ build/
 # Ignore local development database files
 data-local/*.mv.db
 data-local/*.trace.db
+.env
