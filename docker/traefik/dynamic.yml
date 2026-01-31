@@ -1,0 +1,68 @@
+http:
+  routers:
+    keycloak-dev:
+      rule: "Host(`keycloak.localhost`) || PathPrefix(`/auth`)"
+      service: keycloak-dev
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+    
+    engine-dev:
+      rule: "PathPrefix(`/api`)"
+      service: engine-dev
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+      middlewares:
+        - oauth2-proxy-dev
+    
+    oauth2-proxy-route:
+      rule: "PathPrefix(`/oauth2`)"
+      service: oauth2-proxy-dev
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+
+    root-redirect:
+      rule: "Path(`/`)"
+      service: engine-dev
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+      middlewares:
+        - redirect-to-api
+
+  services:
+    keycloak-dev:
+      loadBalancer:
+        servers:
+          - url: "http://keycloak:8080"
+    
+    engine-dev:
+      loadBalancer:
+        servers:
+          - url: "http://abada-engine:5601"
+          
+    oauth2-proxy-dev:
+      loadBalancer:
+        servers:
+          - url: "http://oauth2-proxy:4180"
+
+  middlewares:
+    oauth2-proxy-dev:
+      forwardAuth:
+        address: "http://oauth2-proxy:4180/oauth2/auth"
+        authResponseHeaders:
+          - "X-Auth-Request-User"
+          - "X-Auth-Request-Groups"
+          - "X-Auth-Request-Email"
+    
+    redirect-to-api:
+      redirectRegex:
+        regex: "^https?://[^/]+/$"
+        replacement: "/api/v1"
+        permanent: false

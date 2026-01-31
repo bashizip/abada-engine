@@ -20,13 +20,13 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=dev
       - OTEL_SERVICE_NAME=abada-engine-dev
       - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
-    ports:
-      - "5601:5601" # Direct access for development
+    # Port removed - access through Traefik on port 80
+    # Internal port 5601 is only accessible via Traefik
     volumes:
       - ./data:/app/data:z # H2 database persistence (z flag for SELinux)
       - ./logs:/app/logs:z # Application logs for Promtail
     networks:
-      - abada-network
+      - abada-internal # Engine only on internal network
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/api/actuator/health" ]
@@ -36,6 +36,20 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.engine-dev.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.engine-dev.entrypoints=web,websecure"
+      - "traefik.http.routers.engine-dev.tls=true"
+      - "traefik.http.services.engine-dev.loadbalancer.server.port=5601"
+      - "traefik.http.routers.engine-dev.middlewares=oauth2-proxy-dev"
+      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.address=http://oauth2-proxy:4180/oauth2/auth"
+      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email"
+
+  otel-collector:
+    networks:
+      - abada-internal
+      - abada-network
 
   keycloak-db:
     image: postgres:15
@@ -49,7 +63,7 @@ services:
     ports:
       - "5433:5432"
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
 
   keycloak:
@@ -62,20 +76,27 @@ services:
       - KC_DB_URL_HOST=keycloak-db
       - KC_DB_USERNAME=keycloak
       - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD:-keycloak_dev_pw}
-      - KEYCLOAK_IMPORT=/opt/keycloak/data/import/realm-export.json
+      - KEYCLOAK_IMPORT=/opt/keycloak/data/import/realm-dev.json
       - KC_PROXY=edge
       - KC_PROXY_HEADERS=xforwarded
+      - KC_HOSTNAME_URL=https://keycloak.localhost
+      - KC_HOSTNAME_ADMIN_URL=https://keycloak.localhost
     volumes:
-      - ./docker/keycloak/import:/opt/keycloak/data/import:ro,z
-    command: ["start-dev", "--hostname-strict=false"]
-    ports:
-      - "8080:8080"
+      - ./docker/keycloak/import/realm-dev.json:/opt/keycloak/data/import/realm-dev.json:ro,z
+    command: [ "start-dev", "--hostname-strict=false", "--import-realm" ]
+    # Ports removed - access via Traefik only
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
     depends_on:
       keycloak-db:
         condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak-dev.rule=Host(`keycloak.localhost`) || PathPrefix(`/auth`)"
+      - "traefik.http.routers.keycloak-dev.entrypoints=web,websecure"
+      - "traefik.http.routers.keycloak-dev.tls=true"
+      - "traefik.http.services.keycloak-dev.loadbalancer.server.port=8080"
 
   loki:
     image: grafana/loki:2.9.1
@@ -124,10 +145,78 @@ services:
       abada-engine:
         condition: service_started
 
-networks:
-  abada-network:
-    driver: bridge
+  # Traefik Gateway for development
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik-dev
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+      - "8081:8080" # Traefik dashboard
+    volumes:
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro,z
+      - ./docker/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro,z
+    networks:
+      abada-internal:
+        aliases:
+          - keycloak.localhost
+      abada-public:
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # OAuth2 Proxy for JWT validation and header injection
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+    container_name: oauth2-proxy-dev
+    command:
+      - "--provider=keycloak-oidc"
+      - "--client-id=${OAUTH2_PROXY_CLIENT_ID:-abada-frontend}"
+      - "--client-secret=${OAUTH2_PROXY_CLIENT_SECRET:-dev-secret}"
+      - "--cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET:-0000000000000000000000000000000=}"
+      - "--oidc-issuer-url=https://keycloak.localhost/realms/abada-dev"
+      - "--login-url=https://keycloak.localhost/realms/abada-dev/protocol/openid-connect/auth"
+      - "--redeem-url=http://keycloak:8080/realms/abada-dev/protocol/openid-connect/token"
+      - "--oidc-jwks-url=http://keycloak:8080/realms/abada-dev/protocol/openid-connect/certs"
+      - "--redirect-url=https://localhost/oauth2/callback"
+      - "--upstream=http://abada-engine:5601"
+      - "--http-address=0.0.0.0:4180"
+      - "--email-domain=*"
+      - "--cookie-secure=false"
+      - "--set-xauthrequest=true"
+      - "--pass-authorization-header=true"
+      - "--pass-access-token=true"
+      - "--skip-jwt-bearer-tokens=true"
+      - "--skip-provider-button=true"
+      - "--insecure-oidc-allow-unverified-email=true"
+      - "--user-id-claim=preferred_username"
+      - "--ssl-insecure-skip-verify=true"
+    environment:
+      - OAUTH2_PROXY_COOKIE_DOMAINS=localhost
+    networks:
+      - abada-internal
+    restart: unless-stopped
+    depends_on:
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4180/ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
-  abada-network:
-    driver: bridge
+  abada-public:
+    external: false
+  abada-internal:
+    internal: true
