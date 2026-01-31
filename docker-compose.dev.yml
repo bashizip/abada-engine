@@ -36,6 +36,22 @@ services:
     depends_on:
       otel-collector:
         condition: service_started
+
+  keycloak-db:
+    image: postgres:15
+    container_name: keycloak-db
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=keycloak
+      - POSTGRES_PASSWORD=${KEYCLOAK_DB_PASSWORD:-keycloak_dev_pw}
+    volumes:
+      - ./docker/keycloak/data:/var/lib/postgresql/data:z
+    ports:
+      - "5433:5432"
+    networks:
+      - abada-network
+    restart: unless-stopped
+
   loki:
     image: grafana/loki:2.9.1
     container_name: loki
