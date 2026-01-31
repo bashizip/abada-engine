@@ -82,3 +82,7 @@ services:
     depends_on:
       abada-engine:
         condition: service_started
+
+networks:
+  abada-network:
+    driver: bridge
