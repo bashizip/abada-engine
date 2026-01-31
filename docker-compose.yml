@@ -1,8 +1,11 @@
-version: '3.8'
-
 networks:
-  abada-network:
+  abada-public:
+    name: abada-public
     driver: bridge
+  abada-internal:
+    name: abada-internal
+    driver: bridge
+    internal: true
 
 services:
   # OpenTelemetry Collector
@@ -17,19 +20,10 @@ services:
       - "4318:4318" # OTLP HTTP receiver
       - "8889:8889" # Prometheus metrics
     networks:
-      abada-network:
-        aliases:
-          - otel-collector
+      - abada-internal
     restart: unless-stopped
-    # Healthcheck disabled - OTEL Collector runs but container lacks standard tools for healthcheck
-    # The service is functional as confirmed by logs showing "Everything is ready"
-    # healthcheck:
-    #   test: ["CMD-SHELL", "true"]
-    #   interval: 30s
-    #   timeout: 5s
-    #   retries: 3
 
-    # Jaeger for distributed tracing
+  # Jaeger for distributed tracing
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger
@@ -40,7 +34,7 @@ services:
       - "16686:16686" # Jaeger UI
       - "14250:14250" # Jaeger gRPC
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686/" ]
@@ -65,7 +59,7 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy" ]
@@ -85,7 +79,7 @@ services:
     ports:
       - "3100:3100"
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready" ]
@@ -102,7 +96,7 @@ services:
       - ./docker/promtail-config.yaml:/etc/promtail/config.yml:ro,z
       - ./logs:/var/log/abada:ro,z
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
     depends_on:
       loki:
@@ -114,13 +108,14 @@ services:
     ports:
       - "8500:8500"
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8500/v1/status/leader" ]
       interval: 30s
       timeout: 10s
       retries: 3
+
   # Grafana for visualization
   grafana:
     image: grafana/grafana:latest
@@ -128,7 +123,6 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
-
     volumes:
       - grafana_data:/var/lib/grafana
       - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro,z
@@ -136,7 +130,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - abada-network
+      - abada-internal
     restart: unless-stopped
     healthcheck:
       test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1" ]
@@ -146,29 +140,26 @@ services:
 
   # Traefik load balancer
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.3
     container_name: traefik
+    # Run as root to ensure socket access
+    user: root
     command:
-      - --api.dashboard=true
-      - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --log.level=INFO
-      - --accesslog=true
+      - "--configfile=/etc/traefik/traefik.yml"
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080" # Traefik dashboard
+      - "8080:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
       - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro,z
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro,z
     networks:
-      - abada-network
+      - abada-public
+      - abada-internal
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/ping" ]
+      test: [ "CMD", "traefik", "healthcheck", "--ping" ]
       interval: 30s
       timeout: 10s
       retries: 3

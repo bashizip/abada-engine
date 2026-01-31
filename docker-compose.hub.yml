@@ -20,7 +20,7 @@ services:
     environment:
       - NODE_ENV=production
     networks:
-      - abada-network
+      - abada-internal
     restart: always
     pull_policy: always
     healthcheck:
@@ -38,7 +38,7 @@ services:
     environment:
       - NODE_ENV=production
     networks:
-      - abada-network
+      - abada-internal
     restart: always
     pull_policy: always
     healthcheck:

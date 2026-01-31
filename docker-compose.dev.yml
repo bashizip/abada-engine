@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Abada Engine for development
   abada-engine:
@@ -7,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        USE_LOCAL_JAR: "true"
+        - SKIP_TESTS=true
     image: abada-engine:dev
     container_name: abada-engine
     environment:
@@ -30,12 +28,11 @@ services:
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/api/actuator/health" ]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 3
     depends_on:
-      otel-collector:
-        condition: service_started
+      - otel-collector
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.engine-dev.rule=PathPrefix(`/api`)"
@@ -43,29 +40,29 @@ services:
       - "traefik.http.routers.engine-dev.tls=true"
       - "traefik.http.services.engine-dev.loadbalancer.server.port=5601"
       - "traefik.http.routers.engine-dev.middlewares=oauth2-proxy-dev"
-      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.address=http://oauth2-proxy:4180/oauth2/auth"
+      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.address=http://oauth2-proxy-dev:4180/oauth2/auth"
       - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email"
 
-  otel-collector:
-    networks:
-      - abada-internal
-      - abada-network
-
+  # PostgreSQL for Keycloak
   keycloak-db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: keycloak-db
     environment:
       - POSTGRES_DB=keycloak
       - POSTGRES_USER=keycloak
       - POSTGRES_PASSWORD=${KEYCLOAK_DB_PASSWORD:-keycloak_dev_pw}
     volumes:
-      - ./docker/keycloak/data:/var/lib/postgresql/data:z
-    ports:
-      - "5433:5432"
+      - keycloak_db_data:/var/lib/postgresql/data
     networks:
       - abada-internal
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U keycloak -d keycloak" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
+  # Keycloak for Identity Management
   keycloak:
     image: quay.io/keycloak/keycloak:21.1.1
     container_name: keycloak
@@ -78,102 +75,26 @@ services:
       - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD:-keycloak_dev_pw}
       - KEYCLOAK_IMPORT=/opt/keycloak/data/import/realm-dev.json
       - KC_PROXY=edge
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT=false
       - KC_PROXY_HEADERS=xforwarded
-      - KC_HOSTNAME_URL=https://keycloak.localhost
-      - KC_HOSTNAME_ADMIN_URL=https://keycloak.localhost
     volumes:
-      - ./docker/keycloak/import/realm-dev.json:/opt/keycloak/data/import/realm-dev.json:ro,z
-    command: [ "start-dev", "--hostname-strict=false", "--import-realm" ]
-    # Ports removed - access via Traefik only
+      - ./docker/keycloak/import:/opt/keycloak/data/import:ro,z
+    command: [ "start-dev", "--import-realm" ]
+    ports:
+      - "8082:8080" # Direct access for administration if needed
     networks:
       - abada-internal
     restart: unless-stopped
     depends_on:
       keycloak-db:
-        condition: service_started
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak-dev.rule=Host(`keycloak.localhost`) || PathPrefix(`/auth`)"
       - "traefik.http.routers.keycloak-dev.entrypoints=web,websecure"
-      - "traefik.http.routers.keycloak-dev.tls=true"
       - "traefik.http.services.keycloak-dev.loadbalancer.server.port=8080"
-
-  loki:
-    image: grafana/loki:2.9.1
-    container_name: loki
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - ./docker/loki-config-dev.yaml:/etc/loki/local-config.yaml:ro,z
-      - ./docker/loki-wal:/tmp/loki/wal
-      - ./docker/loki-compactor:/loki/compactor
-    ports:
-      - "3100:3100"
-    networks:
-      - abada-network
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  abada-tenda:
-    image: abada-tenda:dev
-    container_name: abada-tenda
-    ports:
-      - "5602:5602"
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=dev
-    networks:
-      - abada-network
-    depends_on:
-      abada-engine:
-        condition: service_started
-
-  abada-orun:
-    image: abada-orun:dev
-    container_name: abada-orun
-    ports:
-      - "5603:5603"
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=dev
-    networks:
-      - abada-network
-    depends_on:
-      abada-engine:
-        condition: service_started
-
-  # Traefik Gateway for development
-  traefik:
-    image: traefik:v3.3
-    container_name: traefik-dev
-    command:
-      - "--api.dashboard=true"
-      - "--api.insecure=true"
-      - "--providers.file.filename=/etc/traefik/dynamic.yml"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--log.level=DEBUG"
-      - "--accesslog=true"
-    ports:
-      - "80:80"
-      - "8081:8080" # Traefik dashboard
-    volumes:
-      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro,z
-      - ./docker/traefik/traefik-dev.yml:/etc/traefik/traefik.yml:ro,z
-    networks:
-      abada-internal:
-        aliases:
-          - keycloak.localhost
-      abada-public:
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/ping" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - "traefik.http.routers.keycloak-dev.tls=true"
 
   # OAuth2 Proxy for JWT validation and header injection
   oauth2-proxy:
@@ -182,12 +103,9 @@ services:
     command:
       - "--provider=keycloak-oidc"
       - "--client-id=${OAUTH2_PROXY_CLIENT_ID:-abada-frontend}"
-      - "--client-secret=${OAUTH2_PROXY_CLIENT_SECRET:-dev-secret}"
+      - "--client-secret=${OAUTH2_PROXY_CLIENT_SECRET:-test-secret}"
       - "--cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET:-0000000000000000000000000000000=}"
-      - "--oidc-issuer-url=https://keycloak.localhost/realms/abada-dev"
-      - "--login-url=https://keycloak.localhost/realms/abada-dev/protocol/openid-connect/auth"
-      - "--redeem-url=http://keycloak:8080/realms/abada-dev/protocol/openid-connect/token"
-      - "--oidc-jwks-url=http://keycloak:8080/realms/abada-dev/protocol/openid-connect/certs"
+      - "--oidc-issuer-url=http://keycloak.localhost/realms/abada-dev"
       - "--redirect-url=https://localhost/oauth2/callback"
       - "--upstream=http://abada-engine:5601"
       - "--http-address=0.0.0.0:4180"
@@ -215,8 +133,30 @@ services:
       timeout: 10s
       retries: 3
 
-networks:
-  abada-public:
-    external: false
-  abada-internal:
-    internal: true
+  # Additional components
+  abada-tenda:
+    image: abada-tenda:latest
+    container_name: abada-tenda
+    build:
+      context: ../abada-tenda
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+    networks:
+      - abada-internal
+    restart: unless-stopped
+
+  abada-orun:
+    image: abada-orun:latest
+    container_name: abada-orun
+    build:
+      context: ../abada-orun
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=development
+    networks:
+      - abada-internal
+    restart: unless-stopped
+
+volumes:
+  keycloak_db_data:
