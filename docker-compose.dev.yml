@@ -86,3 +86,7 @@ services:
 networks:
   abada-network:
     driver: bridge
+
+networks:
+  abada-network:
+    driver: bridge
