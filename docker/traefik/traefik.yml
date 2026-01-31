@@ -17,11 +17,13 @@ providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
-    network: abada-network
-
+    network: abada-internal
   file:
-    filename: /etc/traefik/traefik.yml
+    filename: /etc/traefik/dynamic.yml
     watch: true
+
+ping:
+  entryPoint: traefik
 
 certificatesResolvers:
   letsencrypt:

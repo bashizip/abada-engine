@@ -36,6 +36,14 @@ http:
       middlewares:
         - redirect-to-api
 
+    engine-prod:
+      rule: "PathPrefix(`/api`)"
+      service: abada-engine-prod
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+
   services:
     keycloak-dev:
       loadBalancer:
@@ -46,16 +54,23 @@ http:
       loadBalancer:
         servers:
           - url: "http://abada-engine:5601"
+
+    abada-engine-prod:
+      loadBalancer:
+        servers:
+          - url: "http://abada-engine-abada-engine-1:5601"
+          - url: "http://abada-engine-abada-engine-2:5601"
+          - url: "http://abada-engine-abada-engine-3:5601"
           
     oauth2-proxy-dev:
       loadBalancer:
         servers:
-          - url: "http://oauth2-proxy:4180"
+          - url: "http://oauth2-proxy-dev:4180"
 
   middlewares:
     oauth2-proxy-dev:
       forwardAuth:
-        address: "http://oauth2-proxy:4180/oauth2/auth"
+        address: "http://oauth2-proxy-dev:4180/oauth2/auth"
         authResponseHeaders:
           - "X-Auth-Request-User"
           - "X-Auth-Request-Groups"
