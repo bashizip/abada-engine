@@ -21,6 +21,10 @@ The Abada Engine uses a **Gateway-based Authentication** pattern. Instead of the
 This diagram shows what happens when an application developer (or a frontend) makes a request to the Abada Engine.
 
 ```mermaid
+---
+config:
+  theme: redux-color
+---
 sequenceDiagram
     participant Dev as App Developer / Frontend
     participant Gateway as Traefik Gateway
@@ -31,19 +35,18 @@ sequenceDiagram
     Dev->>Gateway: GET /api/v1/tasks (Authorization: Bearer <JWT>)
     Gateway->>Proxy: Forward Auth Request
     Proxy->>Proxy: Extract & Validate JWT
-    
-    ALT JWT Invalid/Missing
+    alt JWT Invalid/Missing
         Proxy-->>Gateway: 401 Unauthorized
         Gateway-->>Dev: 401 Unauthorized
-    ELSE JWT Valid
+    else JWT Valid
         Proxy->>Proxy: Map Claims to Headers
         Proxy-->>Gateway: HTTP 200 (Success) + Injected Headers
         Gateway->>Engine: GET /api/v1/tasks
-        Note right of Gateway: Injected: X-Auth-Request-User, X-Auth-Request-Groups
+        Note over Gateway: Injected: X-Auth-Request-User,<br/>X-Auth-Request-Groups
         Engine->>Engine: Resolve Identity Context
         Engine-->>Gateway: 200 OK (Data)
         Gateway-->>Dev: 200 OK (Data)
-    END
+    end
 ```
 
 ### 2. Logical Flow (Activity Diagram)
