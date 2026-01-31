@@ -11,34 +11,44 @@ import java.util.Map;
 @RequestMapping("/v1/info")
 public class InfoController {
 
-    @Value("${spring.application.version}")
-    private String appVersion;
+        @Value("${spring.application.version}")
+        private String appVersion;
 
-    @Value("${spring.application.name}")
-    private String appName;
+        @Value("${spring.application.name}")
+        private String appName;
 
-    @Value("${spring.profiles.active}")
-    private String profile;
+        @Value("${spring.profiles.active}")
+        private String profile;
 
-    public InfoController() {
+        public InfoController() {
 
-    }
+        }
 
-    @GetMapping
-    public Map<String, Object> info() {
-        return Map.of(
-                "name", appName,
-                "description", "Abada Engine - High Performance BPMN Execution",
-                "version", appVersion,
-                "status", "UP",
-                "profile", profile,
-                "runtime", Map.of(
-                        "javaVersion", System.getProperty("java.version"),
-                        "timestamp", java.time.Instant.now().toString(),
-                        "uptime", java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime() + "ms"),
-                "capabilities", Map.of(
-                        "bpmn", "Core engine features implemented",
-                        "cmmn", "Planned",
-                        "dmn", "Planned"));
-    }
+        @GetMapping
+        public Map<String, Object> info() {
+                return Map.of(
+                                "name", appName,
+                                "description", "Abada Engine - High Performance BPMN Execution",
+                                "version", appVersion,
+                                "status", "UP",
+                                "profile", profile,
+                                "runtime", Map.of(
+                                                "javaVersion", System.getProperty("java.version"),
+                                                "hostname", getHostname(),
+                                                "timestamp", java.time.Instant.now().toString(),
+                                                "uptime", java.lang.management.ManagementFactory.getRuntimeMXBean()
+                                                                .getUptime() + "ms"),
+                                "capabilities", Map.of(
+                                                "bpmn", "Core engine features implemented",
+                                                "cmmn", "Planned",
+                                                "dmn", "Planned"));
+        }
+
+        private String getHostname() {
+                try {
+                        return java.net.InetAddress.getLocalHost().getHostName();
+                } catch (java.net.UnknownHostException e) {
+                        return "unknown";
+                }
+        }
 }
