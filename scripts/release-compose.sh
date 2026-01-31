@@ -27,10 +27,15 @@ if ! docker compose \
     -f "$PLATFORM_DIR/docker-compose.yml" \
     -f "$PLATFORM_DIR/docker-compose.prod.yml" \
     -f "$PLATFORM_DIR/docker-compose.hub.yml" \
-    config > "$OUTPUT_FILE"; then
+    config > "$OUTPUT_FILE.tmp"; then
     echo "Error: Failed to generate compose config"
     exit 1
 fi
+
+# Sanitize absolute paths to relative ones to make the file portable
+# We replace the absolute project root with '.'
+sed "s|$PLATFORM_DIR|.|g" "$OUTPUT_FILE.tmp" > "$OUTPUT_FILE"
+rm "$OUTPUT_FILE.tmp"
 
 echo -e "${GREEN}[INFO]${NC} Successfully generated: $OUTPUT_FILE"
 echo "You can test it with:"
