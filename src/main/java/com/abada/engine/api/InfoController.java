@@ -20,7 +20,6 @@ public class InfoController {
     @Value("${spring.profiles.active}")
     private String profile;
 
-
     public InfoController() {
 
     }
@@ -29,10 +28,17 @@ public class InfoController {
     public Map<String, Object> info() {
         return Map.of(
                 "name", appName,
+                "description", "Abada Engine - High Performance BPMN Execution",
+                "version", appVersion,
                 "status", "UP",
-                "engineVersion", appVersion,
-                   "profile", profile,
-                "bpmnSupport", "Core engine features implemented."
-        );
+                "profile", profile,
+                "runtime", Map.of(
+                        "javaVersion", System.getProperty("java.version"),
+                        "timestamp", java.time.Instant.now().toString(),
+                        "uptime", java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime() + "ms"),
+                "capabilities", Map.of(
+                        "bpmn", "Core engine features implemented",
+                        "cmmn", "Planned",
+                        "dmn", "Planned"));
     }
 }

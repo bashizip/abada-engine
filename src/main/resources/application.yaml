@@ -1,7 +1,7 @@
 spring:
   application:
     name: abada-engine
-    version: 0.8.3-alpha
+    version: @project.version@
   profiles:
     active: dev
 
