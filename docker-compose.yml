@@ -140,10 +140,12 @@ services:
 
   # Traefik load balancer
   traefik:
-    image: traefik:v3.3
+    image: traefik:v2.11
     container_name: traefik
     # Run as root to ensure socket access
     user: root
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
     command:
       - "--configfile=/etc/traefik/traefik.yml"
     ports:

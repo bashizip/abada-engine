@@ -1,3 +1,8 @@
+log:
+  level: INFO
+
+# accessLog: {}
+
 api:
   dashboard: true
   insecure: true
@@ -33,13 +38,6 @@ certificatesResolvers:
       httpChallenge:
         entryPoint: web
 
-log:
-  level: INFO
-  filePath: "/var/log/traefik/traefik.log"
-
-accessLog:
-  filePath: "/var/log/traefik/access.log"
-  format: json
 
 metrics:
   prometheus:
@@ -47,9 +45,9 @@ metrics:
     addServicesLabels: true
     addRoutersLabels: true
 
-tracing:
-  otlp:
-    grpc:
-      endpoint: otel-collector:4317
-    http:
-      endpoint: http://otel-collector:4318/v1/traces
+# tracing:
+#   otlp:
+#     grpc:
+#       endpoint: otel-collector:4317
+#     http:
+#       endpoint: http://otel-collector:4318/v1/traces

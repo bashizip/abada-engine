@@ -1,34 +1,9 @@
 http:
   routers:
-    keycloak-dev:
-      rule: "Host(`keycloak.localhost`) || PathPrefix(`/auth`)"
-      service: keycloak-dev
-      entryPoints:
-        - web
-        - websecure
-      tls: {}
-    
-    engine-dev:
-      rule: "PathPrefix(`/api`)"
-      service: engine-dev
-      entryPoints:
-        - web
-        - websecure
-      tls: {}
-      middlewares:
-        - oauth2-proxy-dev
-    
-    oauth2-proxy-route:
-      rule: "PathPrefix(`/oauth2`)"
-      service: oauth2-proxy-dev
-      entryPoints:
-        - web
-        - websecure
-      tls: {}
 
     root-redirect:
       rule: "Path(`/`)"
-      service: engine-dev
+      service: engine-dev@docker
       entryPoints:
         - web
         - websecure
@@ -36,46 +11,16 @@ http:
       middlewares:
         - redirect-to-api
 
-    engine-prod:
-      rule: "PathPrefix(`/api`)"
-      service: abada-engine-prod
+    dashboard:
+      rule: "Host(`traefik.localhost`)"
+      service: api@internal
       entryPoints:
         - web
         - websecure
       tls: {}
 
-  services:
-    keycloak-dev:
-      loadBalancer:
-        servers:
-          - url: "http://keycloak:8080"
-    
-    engine-dev:
-      loadBalancer:
-        servers:
-          - url: "http://abada-engine:5601"
-
-    abada-engine-prod:
-      loadBalancer:
-        servers:
-          - url: "http://abada-engine-abada-engine-1:5601"
-          - url: "http://abada-engine-abada-engine-2:5601"
-          - url: "http://abada-engine-abada-engine-3:5601"
-          
-    oauth2-proxy-dev:
-      loadBalancer:
-        servers:
-          - url: "http://oauth2-proxy-dev:4180"
 
   middlewares:
-    oauth2-proxy-dev:
-      forwardAuth:
-        address: "http://oauth2-proxy-dev:4180/oauth2/auth"
-        authResponseHeaders:
-          - "X-Auth-Request-User"
-          - "X-Auth-Request-Groups"
-          - "X-Auth-Request-Email"
-    
     redirect-to-api:
       redirectRegex:
         regex: "^https?://[^/]+/$"

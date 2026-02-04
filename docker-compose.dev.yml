@@ -18,8 +18,9 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=dev
       - OTEL_SERVICE_NAME=abada-engine-dev
       - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
-    # Port removed - access through Traefik on port 80
-    # Internal port 5601 is only accessible via Traefik
+    ports:
+      - "5601:5601"
+    # Internal port 5601 is also accessible via Traefik
     volumes:
       - ./data:/app/data:z # H2 database persistence (z flag for SELinux)
       - ./logs:/app/logs:z # Application logs for Promtail
@@ -39,9 +40,9 @@ services:
       - "traefik.http.routers.engine-dev.entrypoints=web,websecure"
       - "traefik.http.routers.engine-dev.tls=true"
       - "traefik.http.services.engine-dev.loadbalancer.server.port=5601"
-      - "traefik.http.routers.engine-dev.middlewares=oauth2-proxy-dev"
-      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.address=http://oauth2-proxy-dev:4180/oauth2/auth"
-      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email"
+      - "traefik.http.routers.engine-dev.service=engine-dev"
+      - "traefik.http.routers.engine-dev.middlewares=oauth2-proxy-dev@docker"
+      - "traefik.docker.network=abada-internal"
 
   # PostgreSQL for Keycloak
   keycloak-db:
@@ -79,12 +80,14 @@ services:
       - KC_HOSTNAME_STRICT=false
       - KC_PROXY_HEADERS=xforwarded
     volumes:
-      - ./docker/keycloak/import:/opt/keycloak/data/import:ro,z
+      - ./docker/keycloak/import/realm-dev.json:/opt/keycloak/data/import/realm-dev.json:ro,z
     command: [ "start-dev", "--import-realm" ]
     ports:
       - "8082:8080" # Direct access for administration if needed
     networks:
-      - abada-internal
+      abada-internal:
+        aliases:
+          - keycloak.localhost
     restart: unless-stopped
     depends_on:
       keycloak-db:
@@ -94,7 +97,9 @@ services:
       - "traefik.http.routers.keycloak-dev.rule=Host(`keycloak.localhost`) || PathPrefix(`/auth`)"
       - "traefik.http.routers.keycloak-dev.entrypoints=web,websecure"
       - "traefik.http.services.keycloak-dev.loadbalancer.server.port=8080"
+      - "traefik.http.routers.keycloak-dev.service=keycloak-dev"
       - "traefik.http.routers.keycloak-dev.tls=true"
+      - "traefik.docker.network=abada-internal"
 
   # OAuth2 Proxy for JWT validation and header injection
   oauth2-proxy:
@@ -105,7 +110,7 @@ services:
       - "--client-id=${OAUTH2_PROXY_CLIENT_ID:-abada-frontend}"
       - "--client-secret=${OAUTH2_PROXY_CLIENT_SECRET:-test-secret}"
       - "--cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET:-0000000000000000000000000000000=}"
-      - "--oidc-issuer-url=http://keycloak.localhost/realms/abada-dev"
+      - "--oidc-issuer-url=http://keycloak.localhost:8080/realms/abada-dev"
       - "--redirect-url=https://localhost/oauth2/callback"
       - "--upstream=http://abada-engine:5601"
       - "--http-address=0.0.0.0:4180"
@@ -119,6 +124,16 @@ services:
       - "--insecure-oidc-allow-unverified-email=true"
       - "--user-id-claim=preferred_username"
       - "--ssl-insecure-skip-verify=true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oauth2-proxy-route.rule=PathPrefix(`/oauth2`)"
+      - "traefik.http.routers.oauth2-proxy-route.entrypoints=web,websecure"
+      - "traefik.http.routers.oauth2-proxy-route.tls=true"
+      - "traefik.http.services.oauth2-proxy-dev.loadbalancer.server.port=4180"
+      - "traefik.http.routers.oauth2-proxy-route.service=oauth2-proxy-dev"
+      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.address=http://oauth2-proxy-dev:4180/oauth2/auth"
+      - "traefik.http.middlewares.oauth2-proxy-dev.forwardauth.authResponseHeaders=X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email"
+      - "traefik.docker.network=abada-internal"
     environment:
       - OAUTH2_PROXY_COOKIE_DOMAINS=localhost
     networks:
@@ -142,9 +157,20 @@ services:
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=development
+    ports:
+      - "5602:5602"
     networks:
       - abada-internal
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tenda-dev.rule=Host(`tenda.localhost`)"
+      - "traefik.http.routers.tenda-dev.entrypoints=web,websecure"
+      - "traefik.http.routers.tenda-dev.tls=true"
+      - "traefik.http.services.tenda-dev.loadbalancer.server.port=5602"
+      - "traefik.http.routers.tenda-dev.service=tenda-dev"
+      - "traefik.http.routers.tenda-dev.middlewares=oauth2-proxy-dev@docker"
+      - "traefik.docker.network=abada-internal"
 
   abada-orun:
     image: abada-orun:latest
@@ -154,9 +180,20 @@ services:
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=development
+    ports:
+      - "5603:5603"
     networks:
       - abada-internal
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orun-dev.rule=Host(`orun.localhost`)"
+      - "traefik.http.routers.orun-dev.entrypoints=web,websecure"
+      - "traefik.http.routers.orun-dev.tls=true"
+      - "traefik.http.services.orun-dev.loadbalancer.server.port=5603"
+      - "traefik.http.routers.orun-dev.service=orun-dev"
+      - "traefik.http.routers.orun-dev.middlewares=oauth2-proxy-dev@docker"
+      - "traefik.docker.network=abada-internal"
 
 volumes:
   keycloak_db_data:

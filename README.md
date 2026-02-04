@@ -24,16 +24,14 @@ Abada is designed for the modern cloud-native stack. Observability is not an add
 
 Abada is a modular platform composed of:
 - `abada-engine`: Core BPMN execution engine (REST API)
-- `orun`: Monitoring and observability dashboard (frontend)
-- `tenda`: End-user task UI (frontend)
+- `abada-orun`: Monitoring and observability dashboard (frontend)
+- `abada-tenda`: End-user task UI (frontend)
 - `admin`: Process administration (frontend)
 - `semaflow`: Natural-language to BPMN tooling
 
 All components are containerized and deploy independently. For design, boundaries, and runtime topology, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ---
-
-## Quick Start
 
 ## Quick Start
 
@@ -47,12 +45,10 @@ curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/q
 
 ### 💻 Development Environment
 
-For developers contributing to the project:
-
-Hosted with in-memory H2 database, pre-configured users, and full observability tools.
+Follow these steps for local development and contribution.
 
 **Option 1: Build & Run (Recommended)**
-Builds the engine locally (fast) and launches the **complete** stack.
+Builds the engine locally and launches the **complete** stack with Keycloak and Observability.
 ```bash
 ./scripts/build-and-run-dev.sh
 ```
@@ -63,42 +59,44 @@ Starts the containers if the image is already built.
 ./scripts/start-dev.sh
 ```
 
-**Option 3: Rebuild Engine Only (Fast Iteration)**
-Rebuilds and restarts only the engine service to apply code changes.
-```bash
-./scripts/build-dev.sh
-```
+| Service | URL | Note |
+| :--- | :--- | :--- |
+| **Abada Gateway** (Traefik) | [https://localhost](https://localhost) | Entry point for all services |
+| **Abada Engine** (API) | [https://localhost/api](https://localhost/api) | Swagger/Docs at `/api/swagger-ui.html` |
+| **Abada Tenda** (Task UI) | [https://tenda.localhost](https://tenda.localhost) | End-user task management |
+| **Abada Orun** (Monitoring) | [https://orun.localhost](https://orun.localhost) | Process monitoring dashboard |
+| **Keycloak Admin** | [https://keycloak.localhost](https://keycloak.localhost) | Identity & Access Management |
+| **Swagger UI** | [https://localhost/api/swagger-ui.html](https://localhost/api/swagger-ui.html) | Interactive API documentation |
+| **Grafana** | [http://localhost:3000](http://localhost:3000) | Metrics & Dashboards (admin/admin123) |
+| **Jaeger** | [http://localhost:16686](http://localhost:16686) | Distributed Tracing UI |
 
-**Services:**
-- **Abada Engine**: [http://localhost:5601/api](http://localhost:5601/api)
-- **Abada Tenda** (Task UI): [http://localhost:5602](http://localhost:5602)
-- **Abada Orun** (Monitoring UI): [http://localhost:5603](http://localhost:5603)
-- **Grafana**: [http://localhost:3000](http://localhost:3000) (admin/admin123)
-- **Jaeger**: [http://localhost:16686](http://localhost:16686)
+---
 
-For production deployment and manual Docker Compose commands, see the detailed [Docker Deployment Guide](docs/operations/docker-deployment.md).
+## Engine Status (v0.8.4-alpha)
+
+- **Execution Core**: BPMN 2.0 compliant; Support for User/Service/Script tasks, Parallel/XOR gateways, and Message/Signal events.
+- **Persistence**: H2 for local development; PostgreSQL for production with optimized pooling.
+- **Security**: OIDC-compliant authentication via **Keycloak**. JWT validation and role-based access control (RBAC) in progress.
+- **High Availability**: Stateless engine design, horizontally scalable with Traefik load-balancing.
+- **Capabilities**:
+    - [x] BPMN 2.0 (Core)
+    - [ ] CMMN (Planned)
+    - [ ] DMN (Planned)
+
+### Performance & Scalability
+Preliminary benchmarks show the engine capable of handling **hundreds of transactions per second (TPS)** in a standard cluster configuration. The current bottleneck is database I/O, with plans to integrate Redis/Kafka for high-frequency eventing in future versions.
 
 ---
 
 ## API Reference
 
-For endpoints, authentication, and examples, see [`docs/development/api.md`](docs/development/api.md).
-
----
-
-## Engine Status (0.8.4-alpha)
-
-- **Core Execution**: BPMN parsing and execution; user, service, external, and script tasks; message/signal/timer events; XOR/AND/OR gateways.
-- **Persistence**: H2 (dev/test) and PostgreSQL (prod) with HikariCP pooling.
-- **Observability**: Full OpenTelemetry instrumentation. Tracing for all BPMN elements. Metrics for process/task performance.
-- **Deployment**: Traefik load-balanced, stateless, horizontally scalable engine instances.
-- **Security**: Header-based user context (Role model planned).
+For endpoints, authentication, and examples, see [`docs/development/api.md`](docs/development/api.md). Check the engine heartbeat at `/api/v1/info`.
 
 ---
 
 ## Release Notes
 
-*   [Version 0.8.4-alpha](docs/release-notes/0.8.4-alpha-release-notes.md)
+*   [Version 0.8.4-alpha](docs/release-notes/0.8.4-alpha-release-notes.md) - Tenda MVP & Keycloak Integration
 *   [Version 0.8.3-alpha](docs/release-notes/0.8.3-alpha-release-notes.md)
 *   [Version 0.8.2-alpha](docs/release-notes/0.8.2-alpha-release-notes.md)
 
@@ -106,7 +104,7 @@ For endpoints, authentication, and examples, see [`docs/development/api.md`](doc
 
 ## Roadmap
 
-See [`docs/development/roadmap.md`](docs/development/roadmap.md) for the staged milestones from `0.8.2-alpha` to `1.0.0-beta`.
+See [`docs/development/roadmap.md`](docs/development/roadmap.md) for the staged milestones from `0.8.4-alpha` to `1.0.0-beta`.
 
 ---
 
