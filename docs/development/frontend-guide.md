@@ -9,21 +9,21 @@ To begin, you must learn the project's context and API contract. Follow this two
 
 First, read these documentation files for a high-level overview of the architecture and a summary of the API.
 
-* **Architecture Document:** `/home/pbashizi/IdeaProjects/abada-engine/docs/abada_architecture_doc.md`
-* **API Documentation:** `/home/pbashizi/IdeaProjects/abada-engine/docs/api-documentation.md`
+* **Architecture Document:** `//docs/abada_architecture_doc.md`
+* **API Documentation:** `//docs/api-documentation.md`
 
 **Step 2: Definitive API Contract (Source of Truth)**
 
 The documentation may not be perfectly up-to-date. Therefore, you **must** treat the following Java source files as the single source of truth for all data structures (DTOs), field names, and exact API endpoint behavior.
 
 * **Task API:**
-  * `/home/pbashizi/IdeaProjects/abada-engine/src/main/java/com/abada/engine/api/TaskController.java`
-  * `/home/pbashizi/IdeaProjects/abada-engine/src/main/java/com/abada/engine/dto/TaskDetailsDto.java`
+  * `//src/main/java/com/abada/engine/api/TaskController.java`
+  * `//src/main/java/com/abada/engine/dto/TaskDetailsDto.java`
 * **Process API:**
-  * `/home/pbashizi/IdeaProjects/abada-engine/src/main/java/com/abada/engine/api/ProcessController.java`
-  * `/home/pbashizi/IdeaProjects/abada-engine/src/main/java/com/abada/engine/dto/ProcessInstanceDTO.java`
+  * `//src/main/java/com/abada/engine/api/ProcessController.java`
+  * `//src/main/java/com/abada/engine/dto/ProcessInstanceDTO.java`
 * **Event API:**
-  * `/home/pbashizi/IdeaProjects/abada-engine/src/main/java/com/abada/engine/api/EventController.java`
+  * `//src/main/java/com/abada/engine/api/EventController.java`
 
 ---
 
