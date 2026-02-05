@@ -59,7 +59,7 @@ Starts the containers if the image is already built.
 ./scripts/start-dev.sh
 ```
 
-| Service | URL | Note |
+| Service | URL | Note  |
 | :--- | :--- | :--- |
 | **Abada Gateway** (Traefik) | [https://localhost](https://localhost) | Entry point for all services |
 | **Abada Engine** (API) | [https://localhost/api](https://localhost/api) | Swagger/Docs at `/api/swagger-ui.html` |
