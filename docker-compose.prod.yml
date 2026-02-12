@@ -155,6 +155,40 @@ services:
       timeout: 10s
       retries: 3
 
+  # Abada Tenda - Frontend for production
+  abada-tenda:
+    image: ${DOCKER_USERNAME:-bashizip}/abada-tenda:${VERSION:-latest}
+    container_name: abada-tenda-prod
+    environment:
+      - NODE_ENV=production
+    networks:
+      - abada-internal
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tenda.rule=Host(`tenda.${APP_HOSTNAME}`)"
+      - "traefik.http.routers.tenda.entrypoints=web,websecure"
+      - "traefik.http.routers.tenda.tls=true"
+      - "traefik.http.services.tenda.loadbalancer.server.port=5602"
+      - "traefik.http.routers.tenda.middlewares=oauth2-proxy-prod"
+
+  # Abada Orun - Frontend for production
+  abada-orun:
+    image: ${DOCKER_USERNAME:-bashizip}/abada-orun:${VERSION:-latest}
+    container_name: abada-orun-prod
+    environment:
+      - NODE_ENV=production
+    networks:
+      - abada-internal
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orun.rule=Host(`orun.${APP_HOSTNAME}`)"
+      - "traefik.http.routers.orun.entrypoints=web,websecure"
+      - "traefik.http.routers.orun.tls=true"
+      - "traefik.http.services.orun.loadbalancer.server.port=5603"
+      - "traefik.http.routers.orun.middlewares=oauth2-proxy-prod"
+
 volumes:
   postgres_data:
   keycloak_data:

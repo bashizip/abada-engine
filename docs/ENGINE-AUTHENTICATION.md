@@ -75,7 +75,7 @@ In the default development environment, use the following URLs:
 | **Abada Engine API** | `https://localhost/api` | Base URL for all Engine API calls. |
 | **Keycloak Console** | `https://keycloak.localhost` | Identity management (Users/Groups). |
 | **Keycloak Token URL**| `https://keycloak.localhost/realms/abada-dev/protocol/openid-connect/token` | Use this to exchange credentials for a JWT. |
-| **Traefik Dashboard** | `http://localhost:8081` | Monitor routing and middleware status. |
+| **Traefik Dashboard** | `http://traefik.localhost/` | Monitor routing and middleware status. |
 
 > **Note**: For `keycloak.localhost` to work on your local machine, you may need to add `127.0.0.1 keycloak.localhost` to your `/etc/hosts` file. Since we use self-signed certificates in development, you must use the `--bootstrap` or `--insecure` flag with `curl`.
 

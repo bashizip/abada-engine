@@ -29,11 +29,17 @@
       "redirectUris": [
         "http://localhost:5602/*",
         "http://localhost:5603/*",
-        "https://localhost/*"
+        "https://localhost/*",
+        "https://tenda.localhost/*",
+        "https://orun.localhost/*",
+        "https://keycloak.localhost/*"
       ],
       "webOrigins": [
         "http://localhost",
-        "https://localhost"
+        "https://localhost",
+        "https://tenda.localhost",
+        "https://orun.localhost",
+        "https://keycloak.localhost"
       ],
       "protocol": "openid-connect",
       "protocolMappers": [
