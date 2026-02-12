@@ -1,4 +1,7 @@
-import Keycloak, { type KeycloakProfile, type KeycloakTokenParsed } from "keycloak-js";
+import Keycloak, {
+  type KeycloakProfile,
+  type KeycloakTokenParsed,
+} from "keycloak-js";
 
 const keycloak = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL,
@@ -16,7 +19,9 @@ export async function initKeycloak() {
   const authenticated = await keycloak.init({
     onLoad: "check-sso",
     pkceMethod: "S256",
-    silentCheckSsoRedirectUri: window.location.origin + "/silent-check-sso.html",
+    silentCheckSsoRedirectUri:
+      window.location.origin + "/silent-check-sso.html",
+    checkLoginIframe: false, // Disable iframe-based checks that might cause issues
   });
 
   return authenticated;
@@ -33,7 +38,7 @@ export async function refreshToken(minValidity = 30) {
 
 export function getUserFromToken(
   tokenParsed?: KeycloakTokenParsed,
-  profile?: KeycloakProfile | null
+  profile?: KeycloakProfile | null,
 ): KeycloakUser | null {
   if (!tokenParsed) return null;
   const username =

@@ -2,7 +2,7 @@
 
 A modular, culturally-rooted BPMN 2.0 process automation platform built on **Java 21** and **Spring Boot 3**. Abada provides a lightweight, embeddable workflow engine with **first-class observability** and production-ready Docker deployment for dev, test, and prod.
 
-For a deep technical overview and deployment architecture, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
+For a comprehensive overview of the platform, see [`docs/platform-overview.md`](docs/platform-overview.md). For a deep technical overview and deployment architecture, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ---
 

@@ -8,8 +8,23 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 5602,
+    proxy: {
+      "/api": {
+        target: "https://localhost",
+        changeOrigin: true,
+        secure: false, // Set to false for self-signed certificates in development
+      },
+      "/auth": {
+        target: "https://keycloak.localhost",
+        changeOrigin: true,
+        secure: false, // Set to false for self-signed certificates in development
+        rewrite: (path) => path.replace(/^\/auth/, ""),
+      },
+    },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react(), mode === "development" && componentTagger()].filter(
+    Boolean,
+  ),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

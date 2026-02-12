@@ -87,15 +87,28 @@ src/
    bun install
    ```
 
-3. **Start the development server**
+3. **Configure environment variables**
+   
+   Create a `.env.local` file in the project root with the following content:
+   ```env
+   # API Configuration
+   VITE_API_URL=http://localhost:5601/api
+
+   # Keycloak Configuration
+   VITE_KEYCLOAK_URL=https://keycloak.localhost
+   VITE_KEYCLOAK_REALM=abada-dev
+   VITE_KEYCLOAK_CLIENT_ID=abada-frontend
+   ```
+
+4. **Start the development server**
    ```bash
    npm run dev
    # or
    bun dev
    ```
 
-4. **Open your browser**
-   Navigate to `http://localhost:5173` to view the application.
+5. **Open your browser**
+   Navigate to `http://localhost:5602` to view the application.
 
 ### Available Scripts
 
@@ -104,6 +117,53 @@ src/
 - `npm run build:dev` - Build for development
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
+
+### Troubleshooting
+
+If you encounter the error `Cannot find module '/node_modules/dist/node/cli.js'`, this typically indicates a corrupted node_modules installation. To fix this:
+
+1. Remove node_modules and lock file:
+   ```bash
+   rm -rf node_modules package-lock.json
+   ```
+
+2. Reinstall dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+#### Keycloak Login Issues
+
+If the login page doesn't redirect to Keycloak or you encounter CORS errors, ensure that:
+
+1. The full Abada Platform stack is running:
+   ```bash
+   ./scripts/build-and-run-dev.sh
+   ```
+
+2. The Keycloak service is accessible at `https://keycloak.localhost`
+
+3. Your hosts file includes the necessary entries:
+   ```
+   127.0.0.1 localhost
+   127.0.0.1 keycloak.localhost
+   127.0.0.1 tenda.localhost
+   127.0.0.1 orun.localhost
+   ```
+
+4. For local development, access the application through the proper domain:
+   - Instead of `http://localhost:5602`, access via `https://tenda.localhost`
+   - This ensures that both Tenda and Keycloak are on the same domain scheme (both HTTPS)
+   - The Traefik reverse proxy will route to the development container
+
+5. The environment variables in `.env.local` are correctly set as shown above.
+
+**Note**: When running the development server with `npm run dev`, the recommended approach is to access the application through the Traefik proxy at `https://tenda.localhost` rather than directly on `http://localhost:5602` to avoid CORS issues with Keycloak authentication.
 
 ## 🔧 Configuration
 
