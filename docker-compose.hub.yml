@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Abada Engine - Usage from Docker Hub
@@ -6,14 +6,19 @@ services:
     # Use image from Docker Hub instead of local build
     image: ${DOCKER_USERNAME:-bashizip}/abada-engine:${VERSION:-latest}
     build:
-      context: .
-      dockerfile: Dockerfile.prod # Point to prod dockerfile just in case build is forced, but image takes precedence
+      context: ./engine
+      dockerfile: Dockerfile.prod.engine # Point to prod dockerfile just in case build is forced, but image takes precedence
+    networks:
+      - abada-internal
     pull_policy: always
     restart: always
 
   # Abada Tenda - Frontend
   abada-tenda:
     image: ${DOCKER_USERNAME:-bashizip}/abada-tenda:${VERSION:-latest}
+    build:
+      context: ./tenda
+      dockerfile: Dockerfile
     container_name: abada-tenda-prod
     ports:
       - "5602:5602"
@@ -24,7 +29,7 @@ services:
     restart: always
     pull_policy: always
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:5602/health" ]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5602/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -32,6 +37,9 @@ services:
   # Abada Orun - Frontend
   abada-orun:
     image: ${DOCKER_USERNAME:-bashizip}/abada-orun:${VERSION:-latest}
+    build:
+      context: ./orun
+      dockerfile: Dockerfile
     container_name: abada-orun-prod
     ports:
       - "5603:5603"
@@ -42,7 +50,7 @@ services:
     restart: always
     pull_policy: always
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:5603/health" ]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5603/health"]
       interval: 30s
       timeout: 10s
       retries: 3

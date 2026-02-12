@@ -15,14 +15,16 @@ services:
       - abada-internal
     restart: always
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U abada -d abada_engine" ]
+      test: ["CMD-SHELL", "pg_isready -U abada -d abada_engine"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   # Abada Engine for production (multiple replicas)
   abada-engine:
-    build: .
+    build:
+      context: ./engine
+      dockerfile: Dockerfile.prod.engine
     image: abada-engine:latest
     environment:
       - SPRING_PROFILES_ACTIVE=prod
@@ -42,16 +44,24 @@ services:
       replicas: ${ABADA_ENGINE_REPLICAS:-3}
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 1G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
     networks:
       - abada-internal
     restart: always
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/api/actuator/health" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5601/api/actuator/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -84,7 +94,7 @@ services:
       - abada-internal
     restart: always
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U keycloak -d keycloak" ]
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -93,7 +103,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:21.1.1
     container_name: keycloak-prod
-    command: [ "start", "--auto-build" ]
+    command: ["start", "--auto-build"]
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN_USERNAME} # Required from env
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD} # Required from env
@@ -112,7 +122,7 @@ services:
       keycloak-db:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/health/ready" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -150,13 +160,24 @@ services:
       keycloak:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4180/ping" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:4180/ping",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
 
   # Abada Tenda - Frontend for production
   abada-tenda:
+    build:
+      context: ./tenda
+      dockerfile: Dockerfile
     image: ${DOCKER_USERNAME:-bashizip}/abada-tenda:${VERSION:-latest}
     container_name: abada-tenda-prod
     environment:
@@ -174,6 +195,9 @@ services:
 
   # Abada Orun - Frontend for production
   abada-orun:
+    build:
+      context: ./orun
+      dockerfile: Dockerfile
     image: ${DOCKER_USERNAME:-bashizip}/abada-orun:${VERSION:-latest}
     container_name: abada-orun-prod
     environment:

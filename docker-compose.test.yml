@@ -1,7 +1,9 @@
 services:
   # Abada Engine for testing
   abada-engine:
-    build: .
+    build:
+      context: ./engine
+      dockerfile: Dockerfile.engine
     image: abada-engine:test
     container_name: abada-engine
     environment:
@@ -16,7 +18,15 @@ services:
       - abada-internal
     restart: "no" # No restart for tests
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/api/actuator/health" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5601/api/actuator/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -61,7 +71,7 @@ services:
       - KC_PROXY_HEADERS=xforwarded
     volumes:
       - ./docker/keycloak/import:/opt/keycloak/data/import:ro,z
-    command: [ "start-dev", "--import-realm" ]
+    command: ["start-dev", "--import-realm"]
     ports:
       - "8080:8080"
     networks:

@@ -2,8 +2,8 @@ services:
   # Abada Engine for development
   abada-engine:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ./engine
+      dockerfile: Dockerfile.engine
       args:
         - SKIP_TESTS=true
     image: abada-engine:dev
@@ -28,7 +28,15 @@ services:
       - abada-internal # Engine only on internal network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5601/api/actuator/health" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5601/api/actuator/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -58,7 +66,7 @@ services:
       - abada-internal
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U keycloak -d keycloak" ]
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -81,7 +89,7 @@ services:
       - KC_PROXY_HEADERS=xforwarded
     volumes:
       - ./docker/keycloak/import/realm-dev.json:/opt/keycloak/data/import/realm-dev.json:ro,z
-    command: [ "start-dev", "--import-realm" ]
+    command: ["start-dev", "--import-realm"]
     ports:
       - "8082:8080" # Direct access for administration if needed
     networks:
@@ -146,7 +154,15 @@ services:
       keycloak:
         condition: service_started
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4180/ping" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:4180/ping",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -156,7 +172,7 @@ services:
     image: abada-tenda:latest
     container_name: abada-tenda
     build:
-      context: ../abada-tenda
+      context: ./tenda
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=development
@@ -179,7 +195,7 @@ services:
     image: abada-orun:latest
     container_name: abada-orun
     build:
-      context: ../abada-orun
+      context: ./orun
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=development

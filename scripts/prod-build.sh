@@ -29,7 +29,7 @@ echo -e "\n${GREEN}✓ Docker image built successfully!${NC}"
 if [ "$BUILD_ONLY" = "false" ]; then
     echo -e "\n${YELLOW}Starting production stack...${NC}"
     docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-    
+
     echo -e "\n${GREEN}✓ Production stack started!${NC}"
     echo -e "${BLUE}Application: http://localhost/api (via Traefik)${NC}"
     echo -e "${BLUE}Jaeger UI: http://localhost:16686${NC}"

@@ -22,14 +22,14 @@ Abada is designed for the modern cloud-native stack. Observability is not an add
 
 ## Project Architecture
 
-Abada is a modular platform composed of:
-- `abada-engine`: Core BPMN execution engine (REST API)
-- `abada-orun`: Monitoring and observability dashboard (frontend)
-- `abada-tenda`: End-user task UI (frontend)
-- `admin`: Process administration (frontend)
-- `semaflow`: Natural-language to BPMN tooling
+Abada is a modular platform composed of subdirectories in this monorepo:
+- `engine/`: Core BPMN execution engine (REST API)
+- `orun/`: Monitoring and observability dashboard (frontend)
+- `tenda/`: End-user task UI (frontend)
+- `admin`: Process administration (frontend, external repo)
+- `semaflow`: Natural-language to BPMN tooling (external repo)
 
-All components are containerized and deploy independently. For design, boundaries, and runtime topology, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
+All components are containerized and deploy independently from the root. For design, boundaries, and runtime topology, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 ---
 
@@ -48,13 +48,13 @@ curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/q
 Follow these steps for local development and contribution.
 
 **Option 1: Build & Run (Recommended)**
-Builds the engine locally and launches the **complete** stack with Keycloak and Observability.
+Builds the engine, tenda, and orun from subdirectories and launches the **complete** stack with Keycloak and Observability.
 ```bash
 ./scripts/build-and-run-dev.sh
 ```
 
 **Option 2: Start Only**
-Starts the containers if the image is already built.
+Starts the containers if the images are already built.
 ```bash
 ./scripts/start-dev.sh
 ```
@@ -62,9 +62,9 @@ Starts the containers if the image is already built.
 | Service | URL | Note  |
 | :--- | :--- | :--- |
 | **Abada Gateway** (Traefik) | [https://localhost](https://localhost) | Entry point for all services |
-| **Abada Engine** (API) | [https://localhost/api](https://localhost/api) | Swagger/Docs at `/api/swagger-ui.html` |
-| **Abada Tenda** (Task UI) | [https://tenda.localhost](https://tenda.localhost) | End-user task management |
-| **Abada Orun** (Monitoring) | [https://orun.localhost](https://orun.localhost) | Process monitoring dashboard |
+| **Abada Engine** (API) | [https://localhost/api](https://localhost/api) | Swagger/Docs at `/api/swagger-ui.html`; build from `engine/` |
+| **Abada Tenda** (Task UI) | [https://tenda.localhost](https://tenda.localhost) | End-user task management; build from `tenda/` |
+| **Abada Orun** (Monitoring) | [https://orun.localhost](https://orun.localhost) | Process monitoring dashboard; build from `orun/` |
 | **Keycloak Admin** | [https://keycloak.localhost](https://keycloak.localhost) | Identity & Access Management |
 | **Swagger UI** | [https://localhost/api/swagger-ui.html](https://localhost/api/swagger-ui.html) | Interactive API documentation |
 | **Grafana** | [http://localhost:3000](http://localhost:3000) | Metrics & Dashboards (admin/admin123) |
@@ -110,7 +110,7 @@ See [`docs/development/roadmap.md`](docs/development/roadmap.md) for the staged 
 
 ## Contributing
 
-Issues and PRs are welcome. Please include tests for any new engine behavior.
+This is now a monorepo containing engine, tenda, and orun. Issues and PRs are welcome for any subdirectory. Please include tests for any new behavior, and specify the component (e.g., engine, tenda, orun) in your commit messages.
 
 ## License
 

@@ -19,26 +19,24 @@ fi
 
 # Build the jar locally for faster Docker builds
 echo -e "${YELLOW}Step 1: Building JAR locally...${NC}"
-./mvnw clean package spring-boot:repackage -DskipTests
+cd engine && ./mvnw clean package spring-boot:repackage -DskipTests
 
 echo -e "\n${YELLOW}Step 1.5: Checking Sibling Projects...${NC}"
-PROJECT_ROOT=$(pwd)
-PARENT_DIR=$(dirname "$PROJECT_ROOT")
 
 # Build Abada Tenda if available (just the image, not the container)
-if [ -d "$PARENT_DIR/abada-tenda" ]; then
-    echo -e "${BLUE}Found ../abada-tenda. Building abada-tenda:dev image...${NC}"
-    (cd "$PARENT_DIR/abada-tenda" && docker build -t abada-tenda:dev .)
+if [ -d "./tenda" ]; then
+    echo -e "${BLUE}Found ./tenda. Building abada-tenda:dev image...${NC}"
+    (cd "./tenda" && docker build -t abada-tenda:dev .)
 else
-    echo -e "${YELLOW}../abada-tenda not found. Skipping build.${NC}"
+    echo -e "${YELLOW}./tenda not found. Skipping build.${NC}"
 fi
 
 # Build Abada Orun if available (just the image, not the container)
-if [ -d "$PARENT_DIR/abada-orun" ]; then
-    echo -e "${BLUE}Found ../abada-orun. Building abada-orun:dev image...${NC}"
-    (cd "$PARENT_DIR/abada-orun" && docker build -t abada-orun:dev .)
+if [ -d "./orun" ]; then
+    echo -e "${BLUE}Found ./orun. Building abada-orun:dev image...${NC}"
+    (cd "./orun" && docker build -t abada-orun:dev .)
 else
-    echo -e "${YELLOW}../abada-orun not found. Skipping build.${NC}"
+    echo -e "${YELLOW}./orun not found. Skipping build.${NC}"
 fi
 
 
