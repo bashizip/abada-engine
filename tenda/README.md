@@ -92,7 +92,7 @@ src/
    Create a `.env.local` file in the project root with the following content:
    ```env
    # API Configuration
-   VITE_API_URL=http://localhost:5601/api
+   VITE_API_URL=/api
 
    # Keycloak Configuration
    VITE_KEYCLOAK_URL=https://keycloak.localhost

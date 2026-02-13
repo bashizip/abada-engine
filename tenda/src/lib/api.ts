@@ -1,6 +1,6 @@
-import { refreshToken, keycloak } from '@/auth/keycloakClient';
+import { refreshToken, keycloak } from "@/auth/keycloakClient";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface ApiResponse<T> {
   data?: T;
@@ -8,7 +8,7 @@ export interface ApiResponse<T> {
   status: number;
 }
 
-export type TaskStatus = 'AVAILABLE' | 'CLAIMED' | 'COMPLETED' | 'FAILED';
+export type TaskStatus = "AVAILABLE" | "CLAIMED" | "COMPLETED" | "FAILED";
 
 export interface TaskDetailsDto {
   id: string;
@@ -85,7 +85,7 @@ class ApiClient {
     const headers: Record<string, string> = {};
 
     if (keycloak.token) {
-      headers['Authorization'] = `Bearer ${keycloak.token}`;
+      headers["Authorization"] = `Bearer ${keycloak.token}`;
     }
 
     return headers;
@@ -93,7 +93,7 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<ApiResponse<T>> {
     try {
       const isFormData = options.body instanceof FormData;
@@ -105,7 +105,7 @@ class ApiClient {
       };
 
       if (!isFormData) {
-        requestHeaders['Content-Type'] = 'application/json';
+        requestHeaders["Content-Type"] = "application/json";
       }
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -114,7 +114,10 @@ class ApiClient {
       });
 
       if (response.ok) {
-        if (response.status === 204 || response.headers.get('Content-Length') === '0') {
+        if (
+          response.status === 204 ||
+          response.headers.get("Content-Length") === "0"
+        ) {
           return { data: undefined, status: response.status };
         }
         const data = await response.json();
@@ -132,9 +135,9 @@ class ApiClient {
         // Not a JSON error response
       }
       return { status: response.status, error: errorPayload };
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Network error';
+      const errorMessage =
+        error instanceof Error ? error.message : "Network error";
       console.error("Network Error:", errorMessage);
       return {
         status: 0,
@@ -148,72 +151,89 @@ class ApiClient {
     status?: string;
   }): Promise<ApiResponse<TaskDetailsDto[]>> {
     const queryParams = new URLSearchParams();
-    if (filters?.status) queryParams.append('status', filters.status);
+    if (filters?.status) queryParams.append("status", filters.status);
     const queryString = queryParams.toString();
 
-    return this.request(`/v1/tasks${queryString ? `?${queryString}` : ''}`);
+    return this.request(`/v1/tasks${queryString ? `?${queryString}` : ""}`);
   }
 
   async getTask(id: string): Promise<ApiResponse<TaskDetailsDto>> {
     return this.request(`/v1/tasks/${id}`);
   }
 
-  async claimTask(taskId: string): Promise<ApiResponse<{ status: string; taskId: string }>> {
-    return this.request(`/v1/tasks/claim?taskId=${encodeURIComponent(taskId)}`, { method: 'POST' });
+  async claimTask(
+    taskId: string,
+  ): Promise<ApiResponse<{ status: string; taskId: string }>> {
+    return this.request(
+      `/v1/tasks/claim?taskId=${encodeURIComponent(taskId)}`,
+      { method: "POST" },
+    );
   }
 
-  async completeTask(taskId: string, variables?: Record<string, any>): Promise<ApiResponse<{ status: string; taskId: string }>> {
+  async completeTask(
+    taskId: string,
+    variables?: Record<string, any>,
+  ): Promise<ApiResponse<{ status: string; taskId: string }>> {
     const endpoint = `/v1/tasks/complete?taskId=${encodeURIComponent(taskId)}`;
     return this.request(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: variables ? JSON.stringify(variables) : undefined,
     });
   }
 
-  async failTask(taskId: string): Promise<ApiResponse<{ status: string; taskId: string }>> {
+  async failTask(
+    taskId: string,
+  ): Promise<ApiResponse<{ status: string; taskId: string }>> {
     const endpoint = `/v1/tasks/fail?taskId=${encodeURIComponent(taskId)}`;
-    return this.request(endpoint, { method: 'POST' });
+    return this.request(endpoint, { method: "POST" });
   }
 
   // Process endpoints
   async getProcessDefinitions(): Promise<ApiResponse<ProcessDefinition[]>> {
-    return this.request('/v1/processes');
+    return this.request("/v1/processes");
   }
 
-  async getProcessDefinition(id: string): Promise<ApiResponse<ProcessDefinition>> {
+  async getProcessDefinition(
+    id: string,
+  ): Promise<ApiResponse<ProcessDefinition>> {
     return this.request(`/v1/processes/${id}`);
   }
 
   async getProcessInstances(): Promise<ApiResponse<ProcessInstanceDTO[]>> {
-    return this.request('/v1/processes/instances');
+    return this.request("/v1/processes/instances");
   }
 
-  async startProcess(processId: string, variables?: Record<string, any>): Promise<ApiResponse<{ processInstanceId: string }>> {
+  async startProcess(
+    processId: string,
+    variables?: Record<string, any>,
+  ): Promise<ApiResponse<{ processInstanceId: string }>> {
     const endpoint = `/v1/processes/start?processId=${encodeURIComponent(processId)}`;
     return this.request(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: variables ? JSON.stringify(variables) : undefined,
     });
   }
 
-  async failProcessInstance(instanceId: string): Promise<ApiResponse<{ status: string; processInstanceId: string }>> {
+  async failProcessInstance(
+    instanceId: string,
+  ): Promise<ApiResponse<{ status: string; processInstanceId: string }>> {
     const endpoint = `/v1/processes/instance/${encodeURIComponent(instanceId)}/fail`;
-    return this.request(endpoint, { method: 'POST' });
+    return this.request(endpoint, { method: "POST" });
   }
 
   async deployProcess(file: File): Promise<ApiResponse<{ status: string }>> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
-    return this.request('/v1/processes/deploy', {
-      method: 'POST',
+    return this.request("/v1/processes/deploy", {
+      method: "POST",
       body: formData,
     });
   }
 
   // User stats endpoint
   async getUserStats(): Promise<ApiResponse<UserStatsDto>> {
-    return this.request('/v1/tasks/user-stats');
+    return this.request("/v1/tasks/user-stats");
   }
 }
 

@@ -268,7 +268,7 @@ If you encounter the error `Cannot find module '/node_modules/dist/node/cli.js'`
 4. Create a `.env.local` file with the following content:
    ```env
    # API Configuration
-   VITE_API_URL=http://localhost:5601/api
+   VITE_API_URL=/api
 
    # Keycloak Configuration
    VITE_KEYCLOAK_URL=https://keycloak.localhost

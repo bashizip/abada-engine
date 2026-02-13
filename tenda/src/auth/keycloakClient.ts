@@ -16,15 +16,24 @@ export type KeycloakUser = {
 };
 
 export async function initKeycloak() {
-  const authenticated = await keycloak.init({
-    onLoad: "check-sso",
-    pkceMethod: "S256",
-    silentCheckSsoRedirectUri:
-      window.location.origin + "/silent-check-sso.html",
-    checkLoginIframe: false, // Disable iframe-based checks that might cause issues
-  });
+  try {
+    const authenticated = await keycloak.init({
+      // Keep init passive: avoid auto check/login iframe flow that often fails
+      // on localhost with strict browser 3rd-party cookie policies.
+      pkceMethod: "S256",
+      checkLoginIframe: false,
+      enableLogging: import.meta.env.DEV,
+    });
 
-  return authenticated;
+    return authenticated;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("3rd party check iframe")) {
+      // Degrade gracefully: user can still authenticate via explicit login button.
+      return false;
+    }
+    throw error;
+  }
 }
 
 export async function refreshToken(minValidity = 30) {

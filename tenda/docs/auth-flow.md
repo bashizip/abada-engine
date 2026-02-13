@@ -20,7 +20,7 @@ npm i keycloak-js
 VITE_KEYCLOAK_URL=https://keycloak.localhost
 VITE_KEYCLOAK_REALM=abada-dev
 VITE_KEYCLOAK_CLIENT_ID=abada-frontend
-VITE_API_URL=https://localhost/api
+VITE_API_URL=/api
 ```
 
 ## Step 3: Initialize Keycloak (PKCE)

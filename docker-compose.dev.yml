@@ -47,6 +47,7 @@ services:
       - "traefik.http.routers.engine-dev.rule=PathPrefix(`/api`)"
       - "traefik.http.routers.engine-dev.entrypoints=web,websecure"
       - "traefik.http.routers.engine-dev.tls=true"
+      - "traefik.http.routers.engine-dev.priority=100"
       - "traefik.http.services.engine-dev.loadbalancer.server.port=5601"
       - "traefik.http.routers.engine-dev.service=engine-dev"
       - "traefik.http.routers.engine-dev.middlewares=oauth2-proxy-dev@docker"
@@ -118,7 +119,7 @@ services:
       - "--client-id=${OAUTH2_PROXY_CLIENT_ID:-abada-frontend}"
       - "--client-secret=${OAUTH2_PROXY_CLIENT_SECRET:-test-secret}"
       - "--cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET:-0000000000000000000000000000000=}"
-      - "--oidc-issuer-url=http://keycloak.localhost:8080/realms/abada-dev"
+      - "--oidc-issuer-url=http://keycloak:8080/realms/abada-dev"
       - "--redirect-url=https://localhost/oauth2/callback"
       - "--upstream=http://abada-engine:5601"
       - "--http-address=0.0.0.0:4180"
@@ -130,6 +131,7 @@ services:
       - "--skip-jwt-bearer-tokens=true"
       - "--skip-provider-button=true"
       - "--insecure-oidc-allow-unverified-email=true"
+      - "--insecure-oidc-skip-issuer-verification=true"
       - "--user-id-claim=preferred_username"
       - "--ssl-insecure-skip-verify=true"
       - "--whitelist-domain=.localhost"
@@ -176,6 +178,10 @@ services:
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=development
+      - VITE_API_URL=/api
+      - VITE_KEYCLOAK_URL=https://keycloak.localhost
+      - VITE_KEYCLOAK_REALM=abada-dev
+      - VITE_KEYCLOAK_CLIENT_ID=abada-frontend
     ports:
       - "5602:5602"
     networks:
@@ -186,9 +192,9 @@ services:
       - "traefik.http.routers.tenda-dev.rule=Host(`tenda.localhost`)"
       - "traefik.http.routers.tenda-dev.entrypoints=web,websecure"
       - "traefik.http.routers.tenda-dev.tls=true"
+      - "traefik.http.routers.tenda-dev.priority=10"
       - "traefik.http.services.tenda-dev.loadbalancer.server.port=5602"
       - "traefik.http.routers.tenda-dev.service=tenda-dev"
-      - "traefik.http.routers.tenda-dev.middlewares=oauth2-proxy-dev@docker"
       - "traefik.docker.network=abada-internal"
 
   abada-orun:
