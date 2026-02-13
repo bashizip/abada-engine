@@ -11,6 +11,9 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Abada Engine Full Stack Build & Run ===${NC}\n"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 # Check for Java/Maven
 if ! command -v java &> /dev/null; then
     echo -e "${YELLOW}Warning: Java not found. Local build will likely fail.${NC}"
@@ -19,22 +22,22 @@ fi
 
 # Build the jar locally for faster Docker builds
 echo -e "${YELLOW}Step 1: Building JAR locally...${NC}"
-cd engine && ./mvnw clean package spring-boot:repackage -DskipTests
+cd "${ROOT_DIR}/engine" && ./mvnw clean package spring-boot:repackage -DskipTests
 
 echo -e "\n${YELLOW}Step 1.5: Checking Sibling Projects...${NC}"
 
 # Build Abada Tenda if available (just the image, not the container)
-if [ -d "./tenda" ]; then
+if [ -d "${ROOT_DIR}/tenda" ]; then
     echo -e "${BLUE}Found ./tenda. Building abada-tenda:dev image...${NC}"
-    (cd "./tenda" && docker build -t abada-tenda:dev .)
+    (cd "${ROOT_DIR}/tenda" && docker build -t abada-tenda:dev .)
 else
     echo -e "${YELLOW}./tenda not found. Skipping build.${NC}"
 fi
 
 # Build Abada Orun if available (just the image, not the container)
-if [ -d "./orun" ]; then
+if [ -d "${ROOT_DIR}/orun" ]; then
     echo -e "${BLUE}Found ./orun. Building abada-orun:dev image...${NC}"
-    (cd "./orun" && docker build -t abada-orun:dev .)
+    (cd "${ROOT_DIR}/orun" && docker build -t abada-orun:dev .)
 else
     echo -e "${YELLOW}./orun not found. Skipping build.${NC}"
 fi
@@ -47,17 +50,17 @@ docker stop abada-engine 2>/dev/null || true
 
 echo -e "\n${YELLOW}Step 3: Building and starting ALL services...${NC}"
 # We build abada-engine specifically to ensure the local jar is picked up, then up everything
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker-compose -f "${ROOT_DIR}/docker-compose.yml" -f "${ROOT_DIR}/docker-compose.dev.yml" up -d --build
 
 echo -e "\n${YELLOW}Step 4: Waiting for services to stabilize...${NC}"
 sleep 10
 
 echo -e "\n${GREEN}✓ Stack is up!${NC}"
 echo -e "${BLUE}Services:${NC}"
-echo -e "- Abada Engine:    http://localhost:5601/api"
-echo -e "- Abada Tenda:     http://localhost:5602"
-echo -e "- Abada Orun:      http://localhost:5603"
+echo -e "- Abada Engine:    https://localhost/api/info"
+echo -e "- Abada Tenda:     https://tenda.localhost"
+echo -e "- Abada Orun:      https://orun.localhost"
 echo -e "- Grafana:         http://localhost:3000 (admin/admin123)"
 echo -e "- Jaeger:          http://localhost:16686"
 echo -e "- Traefik:         http://localhost:8080"
-echo -e "\n${YELLOW}To view logs:${NC} docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f"
+echo -e "\n${YELLOW}To view logs:${NC} docker-compose -f ${ROOT_DIR}/docker-compose.yml -f ${ROOT_DIR}/docker-compose.dev.yml logs -f"

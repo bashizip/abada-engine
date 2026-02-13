@@ -11,23 +11,26 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Starting Abada Engine Production Stack ===${NC}\n"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 # Check if image exists
 if ! docker images | grep -q "abada-engine.*latest"; then
     echo -e "${YELLOW}Warning: abada-engine:latest image not found${NC}"
     echo -e "${YELLOW}Building image first...${NC}\n"
-    ./scripts/prod-build.sh --build-only
+    "${SCRIPT_DIR}/build-prod.sh" --build-only
     echo ""
 fi
 
 echo -e "${YELLOW}Starting production services...${NC}"
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker-compose -f "${ROOT_DIR}/docker-compose.yml" -f "${ROOT_DIR}/docker-compose.prod.yml" up -d
 
 echo -e "\n${YELLOW}Waiting for services to be healthy...${NC}"
 sleep 5
 
 # Check service status
 echo -e "\n${BLUE}Service Status:${NC}"
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker-compose -f "${ROOT_DIR}/docker-compose.yml" -f "${ROOT_DIR}/docker-compose.prod.yml" ps
 
 echo -e "\n${GREEN}✓ Production stack started!${NC}"
 echo -e "\n${BLUE}Service URLs:${NC}"

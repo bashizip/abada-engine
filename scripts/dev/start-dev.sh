@@ -1,8 +1,11 @@
 #!/bin/bash
 # Start the development stack (Infrastructure + Engine)
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 echo "Starting Abada Engine Development Stack..."
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+docker compose -f "${ROOT_DIR}/docker-compose.yml" -f "${ROOT_DIR}/docker-compose.dev.yml" up -d
 
 echo "Stack started. Access endpoints:"
 echo "- Abada Engine: http://localhost:5601"

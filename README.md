@@ -46,17 +46,18 @@ curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/q
 ### 💻 Development Environment
 
 Follow these steps for local development and contribution.
+Scripts are grouped by environment under `scripts/dev`, `scripts/prod`, and `scripts/test`.
 
 **Option 1: Build & Run (Recommended)**
 Builds the engine, tenda, and orun from subdirectories and launches the **complete** stack with Keycloak and Observability.
 ```bash
-./scripts/build-and-run-dev.sh
+./scripts/dev/build-and-run-dev.sh
 ```
 
 **Option 2: Start Only**
 Starts the containers if the images are already built.
 ```bash
-./scripts/start-dev.sh
+./scripts/dev/start-dev.sh
 ```
 
 | Service | URL | Note  |

@@ -7,7 +7,7 @@ set -e
 
 # Configuration
 VERSION="${VERSION:-latest}"
-PLATFORM_DIR="$(dirname "$(dirname "$(realpath "$0")")")"
+PLATFORM_DIR="$(dirname "$(dirname "$(dirname "$(realpath "$0")")")")"
 OUTPUT_FILE="$PLATFORM_DIR/release/docker-compose.release.yml"
 
 # Colors

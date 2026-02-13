@@ -18,7 +18,7 @@ The project uses a **single Dockerfile** with a build argument to support two bu
 **Command:**
 
 ```bash
-./scripts/prod-build.sh
+./scripts/prod/build-prod.sh
 # or
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml build
 ```
@@ -164,7 +164,7 @@ COPY target/ ./target/
 
 ### For Production
 
-1. Use `./scripts/prod-build.sh` for deployments
+1. Use `./scripts/prod/build-prod.sh` for deployments
 2. Don't modify `pom.xml` frequently to maximize cache hits
 3. In CI/CD, use Docker layer caching (e.g., `--cache-from`)
 
