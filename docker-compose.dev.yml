@@ -105,6 +105,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak-dev.rule=Host(`keycloak.localhost`) || PathPrefix(`/auth`)"
       - "traefik.http.routers.keycloak-dev.entrypoints=web,websecure"
+      - "traefik.http.routers.keycloak-dev.priority=100"
       - "traefik.http.services.keycloak-dev.loadbalancer.server.port=8080"
       - "traefik.http.routers.keycloak-dev.service=keycloak-dev"
       - "traefik.http.routers.keycloak-dev.tls=true"
@@ -205,6 +206,10 @@ services:
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=development
+      - VITE_API_URL=/api
+      - VITE_KEYCLOAK_URL=https://orun.localhost/auth
+      - VITE_KEYCLOAK_REALM=abada-dev
+      - VITE_KEYCLOAK_CLIENT_ID=abada-frontend
     ports:
       - "5603:5603"
     networks:
@@ -215,9 +220,9 @@ services:
       - "traefik.http.routers.orun-dev.rule=Host(`orun.localhost`)"
       - "traefik.http.routers.orun-dev.entrypoints=web,websecure"
       - "traefik.http.routers.orun-dev.tls=true"
+      - "traefik.http.routers.orun-dev.priority=10"
       - "traefik.http.services.orun-dev.loadbalancer.server.port=5603"
       - "traefik.http.routers.orun-dev.service=orun-dev"
-      - "traefik.http.routers.orun-dev.middlewares=oauth2-proxy-dev@docker"
       - "traefik.docker.network=abada-internal"
 
 volumes:

@@ -190,13 +190,21 @@ Orun communicates with the Abada Engine via REST API. The complete API documenta
 | Cancel Instance | `DELETE /v1/process-instances/{id}` | Cancel a process |
 | Suspend/Resume | `PUT /v1/process-instances/{id}/suspension` | Suspend or resume |
 
-### Authentication Headers
+### Authentication
 
-All API requests require these headers:
+Orun now uses the same Keycloak SPA authentication mechanism as Tenda:
 
-```
-X-User: alice
-X-Groups: customers,managers
+- Keycloak login with PKCE
+- Route protection with redirect to `/login`
+- Automatic token refresh and `Authorization: Bearer <token>` on API calls
+
+Set these environment variables for Vite:
+
+```env
+VITE_KEYCLOAK_URL=https://orun.localhost/auth
+VITE_KEYCLOAK_REALM=abada-dev
+VITE_KEYCLOAK_CLIENT_ID=abada-frontend
+VITE_API_URL=/api
 ```
 
 ## 🛠️ Development
