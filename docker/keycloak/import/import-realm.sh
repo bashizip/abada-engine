@@ -4,12 +4,12 @@
 
 set -e
 
-REALM_FILE="/opt/keycloak/data/import/realm-export.json"
+REALM_FILE="/opt/keycloak/data/import/realm-dev.json"
 
 if [ "$1" = "docker-import" ]; then
   echo "Copying realm file into running 'keycloak' container and importing..."
-  docker cp ./docker/keycloak/import/realm-export.json keycloak:/tmp/realm-export.json
-  docker exec -it keycloak /opt/keycloak/bin/kc.sh import --file /tmp/realm-export.json
+  docker cp ./docker/keycloak/import/realm-dev.json keycloak:/tmp/realm-dev.json
+  docker exec -it keycloak /opt/keycloak/bin/kc.sh import --file /tmp/realm-dev.json
   echo "Import requested. Check Keycloak logs for results."
 else
   echo "No action requested. To import into a running container run:"

@@ -105,12 +105,13 @@ curl http://localhost:5601/api/tasks
 
 ## Available Test Users
 
-From `docker/keycloak/import/realm-export.json`:
+From `docker/keycloak/import/realm-dev.json`:
 
 | Username | Password | Groups |
 |----------|----------|--------|
-| alice | alice | managers |
-| bob | bob | customers |
+| alice | alice | customers |
+| bob | bob | cuistos |
+| orun-admin | orun-admin | orun-admin |
 
 ## Troubleshooting
 
