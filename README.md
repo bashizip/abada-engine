@@ -60,6 +60,28 @@ Starts the containers if the images are already built.
 ./scripts/dev/start-dev.sh
 ```
 
+**Local HTTPS (mkcert)**
+To avoid browser SSL warnings for `https://*.localhost`, generate and mount a locally trusted certificate.
+```bash
+./scripts/dev/setup-local-tls.sh docker-compose.dev.yml
+```
+
+Manual equivalent:
+```bash
+mkdir -p docker/traefik/certs
+mkcert -install
+mkcert \
+  -cert-file docker/traefik/certs/localhost.pem \
+  -key-file docker/traefik/certs/localhost-key.pem \
+  localhost \
+  "*.localhost" \
+  tenda.localhost \
+  orun.localhost \
+  keycloak.localhost \
+  traefik.localhost
+```
+Restart Traefik (or the full dev stack) after generating the certs.
+
 | Service | URL | Note  |
 | :--- | :--- | :--- |
 | **Abada Gateway** (Traefik) | [https://localhost](https://localhost) | Entry point for all services |

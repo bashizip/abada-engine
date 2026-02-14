@@ -48,11 +48,14 @@ echo -e "\n${YELLOW}Step 2: Cleaning up existing environment...${NC}"
 docker stop abada-engine 2>/dev/null || true
 # We don't remove the image here to allow cache usage, but we force rebuild next
 
-echo -e "\n${YELLOW}Step 3: Building and starting ALL services...${NC}"
+echo -e "\n${YELLOW}Step 3: Preparing local TLS certificates...${NC}"
+"${ROOT_DIR}/scripts/dev/setup-local-tls.sh" "${ROOT_DIR}/docker-compose.dev.yml" || true
+
+echo -e "\n${YELLOW}Step 4: Building and starting ALL services...${NC}"
 # We build abada-engine specifically to ensure the local jar is picked up, then up everything
 docker-compose -f "${ROOT_DIR}/docker-compose.yml" -f "${ROOT_DIR}/docker-compose.dev.yml" up -d --build
 
-echo -e "\n${YELLOW}Step 4: Waiting for services to stabilize...${NC}"
+echo -e "\n${YELLOW}Step 5: Waiting for services to stabilize...${NC}"
 sleep 10
 
 echo -e "\n${GREEN}✓ Stack is up!${NC}"

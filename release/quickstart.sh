@@ -13,6 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 RELEASE_URL="https://raw.githubusercontent.com/bashizip/abada-engine/main/release/docker-compose.release.yml"
+TLS_SETUP_URL="https://raw.githubusercontent.com/bashizip/abada-engine/main/scripts/dev/setup-local-tls.sh"
 LocalFile="docker-compose.release.yml"
 
 print_header() {
@@ -38,7 +39,7 @@ check_prerequisites() {
         echo "Please install Docker Desktop from https://www.docker.com/products/docker-desktop"
         exit 1
     fi
-    
+
     # Check for docker compose (v2)
     if ! docker compose version &> /dev/null; then
         echo -e "${RED}Error: docker compose (v2) is not available.${NC}"
@@ -61,10 +62,46 @@ download_compose() {
     echo "✓ Configuration downloaded"
 }
 
+setup_local_tls() {
+    print_step "Preparing local HTTPS certificates..."
+
+    # Prefer local helper when running from a cloned repository.
+    if [ -x "./scripts/dev/setup-local-tls.sh" ]; then
+        ./scripts/dev/setup-local-tls.sh "$LocalFile" || true
+        return
+    fi
+
+    # Fallback for curl|bash usage where repo files are not present locally.
+    local tmp_script
+    tmp_script="$(mktemp)"
+
+    if command -v curl &> /dev/null; then
+        if ! curl -sSL "$TLS_SETUP_URL" -o "$tmp_script"; then
+            echo "i Could not download TLS helper via curl. Skipping."
+            rm -f "$tmp_script"
+            return
+        fi
+    elif command -v wget &> /dev/null; then
+        if ! wget -q "$TLS_SETUP_URL" -O "$tmp_script"; then
+            echo "i Could not download TLS helper via wget. Skipping."
+            rm -f "$tmp_script"
+            return
+        fi
+    else
+        echo "i Could not download TLS helper (curl/wget not found). Skipping."
+        rm -f "$tmp_script"
+        return
+    fi
+
+    chmod +x "$tmp_script"
+    "$tmp_script" "$LocalFile" || true
+    rm -f "$tmp_script"
+}
+
 start_platform() {
     print_step "Starting Abada Platform..."
     docker compose -f "$LocalFile" up -d
-    
+
     if [ $? -eq 0 ]; then
         echo ""
         print_step "Platform available at:"
@@ -84,4 +121,5 @@ start_platform() {
 print_header
 check_prerequisites
 download_compose
+setup_local_tls
 start_platform
