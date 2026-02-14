@@ -207,7 +207,7 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_URL=/api
-      - VITE_KEYCLOAK_URL=https://orun.localhost/auth
+      - VITE_KEYCLOAK_URL=https://keycloak.localhost
       - VITE_KEYCLOAK_REALM=abada-dev
       - VITE_KEYCLOAK_CLIENT_ID=abada-frontend
     ports:
