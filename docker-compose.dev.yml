@@ -44,6 +44,11 @@ services:
       - otel-collector
     labels:
       - "traefik.enable=true"
+      - "traefik.http.routers.engine-dev-public.rule=Path(`/api/v1/info`) || Path(`/api/swagger-ui.html`) || PathPrefix(`/api/swagger-ui`) || PathPrefix(`/api/v3/api-docs`)"
+      - "traefik.http.routers.engine-dev-public.entrypoints=web,websecure"
+      - "traefik.http.routers.engine-dev-public.tls=true"
+      - "traefik.http.routers.engine-dev-public.priority=200"
+      - "traefik.http.routers.engine-dev-public.service=engine-dev"
       - "traefik.http.routers.engine-dev.rule=PathPrefix(`/api`)"
       - "traefik.http.routers.engine-dev.entrypoints=web,websecure"
       - "traefik.http.routers.engine-dev.tls=true"
