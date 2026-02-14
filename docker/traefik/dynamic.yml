@@ -1,6 +1,5 @@
 http:
   routers:
-
     root-redirect:
       rule: "Path(`/`)"
       service: engine-dev@docker
@@ -19,10 +18,14 @@ http:
         - websecure
       tls: {}
 
-
   middlewares:
     redirect-to-api:
       redirectRegex:
         regex: "^https?://[^/]+/$"
         replacement: "/api/v1"
         permanent: false
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/localhost.pem
+      keyFile: /etc/traefik/certs/localhost-key.pem

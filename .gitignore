@@ -61,3 +61,6 @@ orun/build/
 orun/.next/
 orun/.env*.local
 orun/coverage/
+
+# Local TLS certs for Traefik/mkcert
+docker/traefik/certs/
