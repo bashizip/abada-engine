@@ -43,6 +43,11 @@ The easiest way to run the full Abada Platform (Engine, Tenda, Orun, Observabili
 curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.sh | bash
 ```
 
+Windows PowerShell:
+```bash
+irm https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.ps1 | iex
+```
+
 ### 💻 Development Environment
 
 Follow these steps for local development and contribution.
