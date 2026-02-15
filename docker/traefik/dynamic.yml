@@ -18,12 +18,61 @@ http:
         - websecure
       tls: {}
 
+    grafana:
+      rule: "Host(`grafana.localhost`)"
+      service: grafana-dev
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+      middlewares:
+        - grafana-forwarded
+
+    jaeger:
+      rule: "Host(`jaeger.localhost`)"
+      service: jaeger-dev
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+
+    prometheus:
+      rule: "Host(`prometheus.localhost`)"
+      service: prometheus-dev
+      entryPoints:
+        - web
+        - websecure
+      tls: {}
+
   middlewares:
     redirect-to-api:
       redirectRegex:
         regex: "^https?://[^/]+/$"
         replacement: "/api/v1"
         permanent: false
+
+    grafana-forwarded:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+          X-Forwarded-Host: "grafana.localhost"
+          X-Forwarded-Port: "443"
+
+  services:
+    grafana-dev:
+      loadBalancer:
+        servers:
+          - url: "http://grafana:3000"
+
+    jaeger-dev:
+      loadBalancer:
+        servers:
+          - url: "http://jaeger:16686"
+
+    prometheus-dev:
+      loadBalancer:
+        servers:
+          - url: "http://prometheus:9090"
 
 tls:
   certificates:

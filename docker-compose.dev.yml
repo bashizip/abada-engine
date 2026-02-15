@@ -44,12 +44,12 @@ services:
       - otel-collector
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.engine-dev-public.rule=Path(`/api/v1/info`) || Path(`/api/swagger-ui.html`) || PathPrefix(`/api/swagger-ui`) || PathPrefix(`/api/v3/api-docs`)"
+      - "traefik.http.routers.engine-dev-public.rule=(Host(`localhost`) || Host(`tenda.localhost`) || Host(`orun.localhost`)) && (Path(`/api/v1/info`) || Path(`/api/swagger-ui.html`) || PathPrefix(`/api/swagger-ui`) || PathPrefix(`/api/v3/api-docs`))"
       - "traefik.http.routers.engine-dev-public.entrypoints=web,websecure"
       - "traefik.http.routers.engine-dev-public.tls=true"
       - "traefik.http.routers.engine-dev-public.priority=200"
       - "traefik.http.routers.engine-dev-public.service=engine-dev"
-      - "traefik.http.routers.engine-dev.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.engine-dev.rule=(Host(`localhost`) || Host(`tenda.localhost`) || Host(`orun.localhost`)) && PathPrefix(`/api`)"
       - "traefik.http.routers.engine-dev.entrypoints=web,websecure"
       - "traefik.http.routers.engine-dev.tls=true"
       - "traefik.http.routers.engine-dev.priority=100"
@@ -229,6 +229,18 @@ services:
       - "traefik.http.services.orun-dev.loadbalancer.server.port=5603"
       - "traefik.http.routers.orun-dev.service=orun-dev"
       - "traefik.docker.network=abada-internal"
+
+  grafana:
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_SECRET_KEY=${GRAFANA_SECRET_KEY:-abada-dev-grafana-secret-key}
+      - GF_AUTH_LOGIN_COOKIE_NAME=grafana_session_dev
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=grafana.localhost
+      - GF_SERVER_ROOT_URL=https://grafana.localhost/
+      - GF_SERVER_ENFORCE_DOMAIN=false
+      - GF_SECURITY_COOKIE_SECURE=true
+      - GF_SECURITY_COOKIE_SAMESITE=none
 
 volumes:
   keycloak_db_data:

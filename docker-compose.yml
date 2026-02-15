@@ -150,7 +150,7 @@ services:
 
   # Grafana for visualization
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.8
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
