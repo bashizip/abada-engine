@@ -83,7 +83,10 @@ mkcert \
   tenda.localhost \
   orun.localhost \
   keycloak.localhost \
-  traefik.localhost
+  traefik.localhost \
+  grafana.localhost \
+  jaeger.localhost \
+  prometheus.localhost
 ```
 Restart Traefik (or the full dev stack) after generating the certs.
 
