@@ -11,6 +11,9 @@ CERT_NAMES=(
   "*.localhost"
   "tenda.localhost"
   "orun.localhost"
+  "grafana.localhost"
+  "jaeger.localhost"
+  "prometheus.localhost"
   "keycloak.localhost"
   "traefik.localhost"
 )
@@ -58,9 +61,38 @@ fi
 
 mkdir -p "${CERT_DIR}"
 
+cert_has_all_names() {
+  local cert_file="$1"
+
+  if ! command -v openssl >/dev/null 2>&1; then
+    # If openssl is not available, fall back to keeping existing certs.
+    return 0
+  fi
+
+  local cert_text
+  cert_text="$(openssl x509 -in "${cert_file}" -text -noout 2>/dev/null || true)"
+  if [ -z "${cert_text}" ]; then
+    return 1
+  fi
+
+  local name
+  for name in "${CERT_NAMES[@]}"; do
+    if ! printf '%s\n' "${cert_text}" | grep -Fq "DNS:${name}"; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
 if [ -f "${CERT_FILE}" ] && [ -f "${KEY_FILE}" ]; then
-  print_info "Local TLS certs already exist at ${CERT_DIR}."
-  exit 0
+  if cert_has_all_names "${CERT_FILE}"; then
+    print_info "Local TLS certs already exist at ${CERT_DIR} and match required hostnames."
+    exit 0
+  fi
+
+  print_warn "Existing TLS cert is missing one or more required hostnames. Regenerating..."
+  rm -f "${CERT_FILE}" "${KEY_FILE}"
 fi
 
 print_step "Installing mkcert local CA (if not already installed)..."
