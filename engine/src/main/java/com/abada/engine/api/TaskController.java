@@ -8,13 +8,12 @@ import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.TaskDetailsDto;
 import com.abada.engine.dto.UserStatsDto;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * REST controller for managing user tasks within active process instances.
@@ -31,7 +30,11 @@ public class TaskController {
     private final UserContextProvider context;
     private final UserStatsService userStatsService;
 
-    public TaskController(AbadaEngine engine, UserContextProvider context, UserStatsService userStatsService) {
+    public TaskController(
+        AbadaEngine engine,
+        UserContextProvider context,
+        UserStatsService userStatsService
+    ) {
         this.engine = engine;
         this.context = context;
         this.userStatsService = userStatsService;
@@ -47,16 +50,24 @@ public class TaskController {
      * @return A {@link ResponseEntity} containing a list of {@link TaskDetailsDto} objects.
      */
     @GetMapping
-    public ResponseEntity<List<TaskDetailsDto>> getTasks(@RequestParam(required = false) TaskStatus status) {
+    public ResponseEntity<List<TaskDetailsDto>> getTasks(
+        @RequestParam(required = false) TaskStatus status
+    ) {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
-        List<TaskInstance> visible = engine.getTaskManager().getVisibleTasksForUser(user, groups, status);
+        List<TaskInstance> visible = engine
+            .getTaskManager()
+            .getVisibleTasksForUser(user, groups, status);
 
-        List<TaskDetailsDto> taskDetailsDtos = visible.stream().map(task -> {
-            ProcessInstance processInstance = engine.getProcessInstanceById(task.getProcessInstanceId());
-            Map<String, Object> variables = (processInstance != null) ? processInstance.getVariables() : Map.of();
-            return TaskDetailsDto.from(task, variables);
-        }).collect(Collectors.toList());
+        List<TaskDetailsDto> taskDetailsDtos = visible
+            .stream()
+            .map(task -> {
+                ProcessInstance processInstance = engine.getProcessInstanceById(
+                    task.getProcessInstanceId()
+                );
+                return TaskDetailsDto.from(task, processInstance);
+            })
+            .collect(Collectors.toList());
 
         return ResponseEntity.ok(taskDetailsDtos);
     }
@@ -73,17 +84,20 @@ public class TaskController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<TaskDetailsDto> getTaskById(@PathVariable String id) {
-        Optional<TaskInstance> taskOptional = engine.getTaskManager().getTask(id);
+        Optional<TaskInstance> taskOptional = engine
+            .getTaskManager()
+            .getTask(id);
 
         if (taskOptional.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
         TaskInstance task = taskOptional.get();
-        ProcessInstance processInstance = engine.getProcessInstanceById(task.getProcessInstanceId());
-        Map<String, Object> variables = (processInstance != null) ? processInstance.getVariables() : Map.of();
+        ProcessInstance processInstance = engine.getProcessInstanceById(
+            task.getProcessInstanceId()
+        );
 
-        TaskDetailsDto taskDetails = TaskDetailsDto.from(task, variables);
+        TaskDetailsDto taskDetails = TaskDetailsDto.from(task, processInstance);
         return ResponseEntity.ok(taskDetails);
     }
 
@@ -95,7 +109,9 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/claim")
-    public ResponseEntity<Map<String, Object>> claim(@RequestParam String taskId) {
+    public ResponseEntity<Map<String, Object>> claim(
+        @RequestParam String taskId
+    ) {
         engine.claim(taskId, context.getUsername(), context.getGroups());
         return ResponseEntity.ok(Map.of("status", "Claimed", "taskId", taskId));
     }
@@ -109,9 +125,19 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/complete")
-    public ResponseEntity<Map<String, Object>> complete(@RequestParam String taskId, @RequestBody(required = false) Map<String, Object> variables) {
-        engine.completeTask(taskId, context.getUsername(), context.getGroups(), variables);
-        return ResponseEntity.ok(Map.of("status", "Completed", "taskId", taskId));
+    public ResponseEntity<Map<String, Object>> complete(
+        @RequestParam String taskId,
+        @RequestBody(required = false) Map<String, Object> variables
+    ) {
+        engine.completeTask(
+            taskId,
+            context.getUsername(),
+            context.getGroups(),
+            variables
+        );
+        return ResponseEntity.ok(
+            Map.of("status", "Completed", "taskId", taskId)
+        );
     }
 
     /**
@@ -122,7 +148,9 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/fail")
-    public ResponseEntity<Map<String, Object>> fail(@RequestParam String taskId) {
+    public ResponseEntity<Map<String, Object>> fail(
+        @RequestParam String taskId
+    ) {
         engine.failTask(taskId);
         return ResponseEntity.ok(Map.of("status", "Failed", "taskId", taskId));
     }
@@ -143,8 +171,11 @@ public class TaskController {
     public ResponseEntity<UserStatsDto> getUserStats() {
         String username = context.getUsername();
         List<String> userGroups = context.getGroups();
-        
-        UserStatsDto stats = userStatsService.getUserStats(username, userGroups);
+
+        UserStatsDto stats = userStatsService.getUserStats(
+            username,
+            userGroups
+        );
         return ResponseEntity.ok(stats);
     }
 }
