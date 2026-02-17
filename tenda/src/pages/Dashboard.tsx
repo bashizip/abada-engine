@@ -1,58 +1,79 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  CheckSquare, 
-  Clock, 
-  Play, 
-  AlertCircle, 
-  TrendingUp, 
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { Layout } from "@/components/Layout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  CheckSquare,
+  Clock,
+  Play,
+  AlertCircle,
+  TrendingUp,
   Activity,
   Plus,
   Eye,
-  ArrowRight
-} from 'lucide-react';
-import { apiClient, TaskDetailsDto, ProcessInstanceDTO, UserStatsDto } from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth';
-import { formatDistanceToNow, getTaskStatusColors } from '@/lib/utils';
-import { ApiErrorToast } from '@/components/ApiErrorToast';
-import { useToast } from '@/hooks/use-toast';
+  ArrowRight,
+} from "lucide-react";
+import {
+  apiClient,
+  TaskDetailsDto,
+  ProcessInstanceDTO,
+  UserStatsDto,
+} from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
+import { formatDistanceToNow, getTaskStatusColors } from "@/lib/utils";
+import { ApiErrorToast } from "@/components/ApiErrorToast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   // Fetch user statistics
-  const { data: userStats, isLoading: statsLoading, error: statsError } = useQuery({
-    queryKey: ['user-stats'],
+  const {
+    data: userStats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useQuery({
+    queryKey: ["user-stats"],
     queryFn: async () => {
       const response = await apiClient.getUserStats();
       if (response.data) {
         return response.data;
       } else {
-        toast(ApiErrorToast({ error: response.error, defaultMessage: "Failed to fetch user statistics" }));
-        throw new Error('Failed to fetch user statistics');
+        toast(
+          ApiErrorToast({
+            error: response.error,
+            defaultMessage: "Failed to fetch user statistics",
+          }),
+        );
+        throw new Error("Failed to fetch user statistics");
       }
     },
   });
 
   // Extract data from userStats since it contains everything we need
   const recentTasks = userStats?.recentTasks?.slice(0, 5) || [];
-  const processInstances = userStats?.processActivity?.recentlyStartedProcesses?.slice(0, 5) || [];
+  const processInstances =
+    userStats?.processActivity?.recentlyStartedProcesses?.slice(0, 5) || [];
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'COMPLETED':
-        return 'Completed';
-      case 'CLAIMED':
-        return 'Claimed';
-      case 'AVAILABLE':
-        return 'Available';
-      case 'FAILED':
-        return 'Failed';
+      case "COMPLETED":
+        return "Completed";
+      case "CLAIMED":
+        return "Claimed";
+      case "AVAILABLE":
+        return "Available";
+      case "FAILED":
+        return "Failed";
       default:
         return status;
     }
@@ -84,11 +105,15 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Active Tasks
+                  </CardTitle>
                   <CheckSquare className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userStats?.quickStats.activeTasks || 0}</div>
+                  <div className="text-2xl font-bold">
+                    {userStats?.quickStats.activeTasks || 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Currently assigned to you
                   </p>
@@ -97,11 +122,15 @@ export default function Dashboard() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Completed Tasks</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Completed Tasks
+                  </CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userStats?.quickStats.completedTasks || 0}</div>
+                  <div className="text-2xl font-bold">
+                    {userStats?.quickStats.completedTasks || 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {userStats?.tasksByStatus.COMPLETED || 0} total completed
                   </p>
@@ -110,24 +139,33 @@ export default function Dashboard() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Running Processes</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Running Processes
+                  </CardTitle>
                   <Activity className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userStats?.quickStats.runningProcesses || 0}</div>
+                  <div className="text-2xl font-bold">
+                    {userStats?.quickStats.runningProcesses || 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {userStats?.processActivity.activeProcessCount || 0} active processes
+                    {userStats?.processActivity.activeProcessCount || 0} active
+                    processes
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Available Tasks</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Available Tasks
+                  </CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{userStats?.quickStats.availableTasks || 0}</div>
+                  <div className="text-2xl font-bold">
+                    {userStats?.quickStats.availableTasks || 0}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Ready to be claimed
                   </p>
@@ -150,7 +188,10 @@ export default function Dashboard() {
                 <CardContent>
                   <div className="space-y-2">
                     {userStats.overdueTasks.slice(0, 3).map((task) => (
-                      <div key={task.id} className="flex items-center justify-between p-2 rounded border border-destructive/20 bg-destructive/5">
+                      <div
+                        key={task.id}
+                        className="flex items-center justify-between p-2 rounded border border-destructive/20 bg-destructive/5"
+                      >
                         <div className="flex-1">
                           <Link
                             to={`/tasks/${task.id}`}
@@ -162,14 +203,13 @@ export default function Dashboard() {
                             {task.daysOverdue} days overdue
                           </p>
                         </div>
-                        <Badge variant="destructive">
-                          Overdue
-                        </Badge>
+                        <Badge variant="destructive">Overdue</Badge>
                       </div>
                     ))}
                     {userStats.overdueTasks.length > 3 && (
                       <p className="text-xs text-muted-foreground text-center">
-                        And {userStats.overdueTasks.length - 3} more overdue tasks...
+                        And {userStats.overdueTasks.length - 3} more overdue
+                        tasks...
                       </p>
                     )}
                   </div>
@@ -184,7 +224,9 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle>Recent Tasks</CardTitle>
-                      <CardDescription>Your latest task activity</CardDescription>
+                      <CardDescription>
+                        Your latest task activity
+                      </CardDescription>
                     </div>
                     <Link to="/tasks">
                       <Button variant="outline" size="sm">
@@ -198,7 +240,10 @@ export default function Dashboard() {
                   {recentTasks && recentTasks.length > 0 ? (
                     <div className="space-y-3">
                       {recentTasks.map((task) => (
-                        <div key={task.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div
+                          key={task.id}
+                          className="flex items-center justify-between p-3 rounded-lg border"
+                        >
                           <div className="flex-1">
                             <Link
                               to={`/tasks/${task.id}`}
@@ -207,7 +252,8 @@ export default function Dashboard() {
                               {task.name}
                             </Link>
                             <p className="text-xs text-muted-foreground">
-                              {task.assignee || 'Unassigned'}
+                              {task.processDefinitionName ||
+                                task.processDefinitionId}
                             </p>
                           </div>
                           <Badge className={getTaskStatusColors(task.status)}>
@@ -219,7 +265,9 @@ export default function Dashboard() {
                   ) : (
                     <div className="text-center py-6">
                       <CheckSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No recent tasks</p>
+                      <p className="text-sm text-muted-foreground">
+                        No recent tasks
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -235,7 +283,10 @@ export default function Dashboard() {
                         Active process instances
                         {userStats?.processActivity.completionRate && (
                           <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                            {Math.round(userStats.processActivity.completionRate * 100)}% completion rate
+                            {Math.round(
+                              userStats.processActivity.completionRate * 100,
+                            )}
+                            % completion rate
                           </span>
                         )}
                       </CardDescription>
@@ -252,15 +303,32 @@ export default function Dashboard() {
                   {processInstances && processInstances.length > 0 ? (
                     <div className="space-y-3">
                       {processInstances.map((instance) => (
-                        <div key={instance.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div
+                          key={instance.id}
+                          className="flex items-center justify-between p-3 rounded-lg border"
+                        >
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{instance.processDefinitionId}</p>
+                            <p className="text-sm font-medium">
+                              {instance.processDefinitionName ||
+                                instance.processDefinitionId}
+                            </p>
                             <p className="text-xs text-muted-foreground">
-                              Started {formatDistanceToNow(instance.startDate)} ago
+                              Started {formatDistanceToNow(instance.startDate)}{" "}
+                              ago
+                              {instance.currentActivityId &&
+                                ` • ${instance.currentActivityId}`}
                             </p>
                           </div>
-                          <Badge variant={instance.currentActivityId ? "secondary" : "default"}>
-                            {instance.currentActivityId ? "Active" : "Completed"}
+                          <Badge
+                            variant={
+                              instance.currentActivityId
+                                ? "secondary"
+                                : "default"
+                            }
+                          >
+                            {instance.currentActivityId
+                              ? "Active"
+                              : "Completed"}
                           </Badge>
                         </div>
                       ))}
@@ -268,7 +336,9 @@ export default function Dashboard() {
                   ) : (
                     <div className="text-center py-6">
                       <Play className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No active processes</p>
+                      <p className="text-sm text-muted-foreground">
+                        No active processes
+                      </p>
                     </div>
                   )}
                 </CardContent>

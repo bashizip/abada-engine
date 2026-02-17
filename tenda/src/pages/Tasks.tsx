@@ -1,31 +1,44 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Layout } from '@/components/Layout';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Search } from 'lucide-react';
-import { apiClient, TaskDetailsDto, TaskStatus } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNow, getTaskStatusColors } from '@/lib/utils';
-import { ApiErrorToast } from '@/components/ApiErrorToast';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Layout } from "@/components/Layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Search } from "lucide-react";
+import { apiClient, TaskDetailsDto, TaskStatus } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow, getTaskStatusColors } from "@/lib/utils";
+import { ApiErrorToast } from "@/components/ApiErrorToast";
 
 export default function Tasks() {
   const [tasks, setTasks] = useState<TaskDetailsDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const { toast } = useToast();
 
   const fetchTasks = async () => {
     setLoading(true);
-    const response = await apiClient.getTasks({ status: statusFilter === 'all' ? undefined : statusFilter });
+    const response = await apiClient.getTasks({
+      status: statusFilter === "all" ? undefined : statusFilter,
+    });
     if (response.data) {
       setTasks(response.data);
     } else {
-      toast(ApiErrorToast({ error: response.error, defaultMessage: "Failed to fetch tasks" }));
+      toast(
+        ApiErrorToast({
+          error: response.error,
+          defaultMessage: "Failed to fetch tasks",
+        }),
+      );
     }
     setLoading(false);
   };
@@ -36,22 +49,27 @@ export default function Tasks() {
 
   const getStatusLabel = (status: TaskStatus) => {
     switch (status) {
-      case 'COMPLETED':
-        return 'Completed';
-      case 'CLAIMED':
-        return 'Claimed';
-      case 'AVAILABLE':
-        return 'Available';
-      case 'FAILED':
-        return 'Failed';
+      case "COMPLETED":
+        return "Completed";
+      case "CLAIMED":
+        return "Claimed";
+      case "AVAILABLE":
+        return "Available";
+      case "FAILED":
+        return "Failed";
       default:
         return status;
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
-    return task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.assignee?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredTasks = tasks.filter((task) => {
+    return (
+      task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.assignee?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.processDefinitionName
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    );
   });
 
   return (
@@ -60,9 +78,10 @@ export default function Tasks() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage and track your assigned tasks</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Manage and track your assigned tasks
+            </p>
           </div>
-
         </div>
 
         {/* Filters */}
@@ -81,7 +100,12 @@ export default function Tasks() {
                 </div>
               </div>
               <div className="w-full md:w-48">
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as TaskStatus | 'all')}>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) =>
+                    setStatusFilter(value as TaskStatus | "all")
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Status: All" />
                   </SelectTrigger>
@@ -105,30 +129,51 @@ export default function Tasks() {
               <table className="w-full">
                 <thead className="border-b border-border">
                   <tr>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">TASK NAME</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">ASSIGNEE</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">CANDIDATE GROUPS</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">START DATE</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">END DATE</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">STATUS</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">
+                      TASK NAME
+                    </th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">
+                      PROCESS
+                    </th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">
+                      ASSIGNEE
+                    </th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">
+                      CANDIDATE GROUPS
+                    </th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">
+                      START DATE
+                    </th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">
+                      STATUS
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="text-center p-8 text-muted-foreground">
+                      <td
+                        colSpan={6}
+                        className="text-center p-8 text-muted-foreground"
+                      >
                         Loading tasks...
                       </td>
                     </tr>
                   ) : filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center p-8 text-muted-foreground">
+                      <td
+                        colSpan={6}
+                        className="text-center p-8 text-muted-foreground"
+                      >
                         No tasks found
                       </td>
                     </tr>
                   ) : (
                     filteredTasks.map((task) => (
-                      <tr key={task.id} className="border-b border-border hover:bg-muted/50">
+                      <tr
+                        key={task.id}
+                        className="border-b border-border hover:bg-muted/50"
+                      >
                         <td className="p-4">
                           <Link
                             to={`/tasks/${task.id}`}
@@ -137,17 +182,22 @@ export default function Tasks() {
                             {task.name}
                           </Link>
                         </td>
-                        <td className="p-4 text-sm text-muted-foreground">
-                          {task.assignee || '-'}
+                        <td className="p-4">
+                          <div className="text-sm font-medium text-foreground">
+                            {task.processDefinitionName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {task.processDefinitionId}
+                          </div>
                         </td>
                         <td className="p-4 text-sm text-muted-foreground">
-                          {task.candidateGroups?.join(', ') || '-'}
+                          {task.assignee || "-"}
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground">
+                          {task.candidateGroups?.join(", ") || "-"}
                         </td>
                         <td className="p-4 text-sm text-muted-foreground">
                           {formatDistanceToNow(task.startDate)}
-                        </td>
-                        <td className="p-4 text-sm text-muted-foreground">
-                          {formatDistanceToNow(task.endDate)}
                         </td>
                         <td className="p-4">
                           <Badge className={getTaskStatusColors(task.status)}>

@@ -10,16 +10,27 @@ export interface ApiResponse<T> {
 
 export type TaskStatus = "AVAILABLE" | "CLAIMED" | "COMPLETED" | "FAILED";
 
+export type ProcessStatus = "RUNNING" | "COMPLETED" | "SUSPENDED" | "FAILED";
+
 export interface TaskDetailsDto {
   id: string;
+  taskDefinitionKey: string;
   name: string;
   assignee?: string;
   status: TaskStatus;
-  candidateGroups?: string[];
-  processInstanceId: string;
-  variables?: Record<string, any>;
   startDate?: string;
   endDate?: string;
+  candidateUsers?: string[];
+  candidateGroups?: string[];
+  processInstanceId: string;
+  processDefinitionId: string;
+  processDefinitionName: string;
+  processStatus: ProcessStatus;
+  processSuspended: boolean;
+  processStartDate?: string;
+  processEndDate?: string;
+  currentActivityId?: string;
+  variables?: Record<string, any>;
 }
 
 export interface ProcessInstanceDTO {
@@ -52,6 +63,9 @@ export interface UserStatsDto {
     status: TaskStatus;
     startDate: string;
     processInstanceId: string;
+    processDefinitionId: string;
+    processDefinitionName: string;
+    assignee?: string;
   }>;
   tasksByStatus: {
     AVAILABLE: number;
@@ -71,6 +85,7 @@ export interface UserStatsDto {
     recentlyStartedProcesses: Array<{
       id: string;
       processDefinitionId: string;
+      processDefinitionName?: string;
       startDate: string;
       currentActivityId: string | null;
     }>;

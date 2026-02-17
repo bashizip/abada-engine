@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Layout } from '@/components/Layout';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Star, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { apiClient, TaskDetailsDto, TaskStatus } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNow, getTaskStatusColors } from '@/lib/utils';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Layout } from "@/components/Layout";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Star, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { apiClient, TaskDetailsDto, TaskStatus } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow, getTaskStatusColors } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -16,9 +16,9 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import { ApiErrorToast } from '@/components/ApiErrorToast';
-import JSONInput from 'react-json-editor-ajrm';
-import locale from 'react-json-editor-ajrm/locale/en';
+import { ApiErrorToast } from "@/components/ApiErrorToast";
+import JSONInput from "react-json-editor-ajrm";
+import locale from "react-json-editor-ajrm/locale/en";
 
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
@@ -46,7 +46,12 @@ export default function TaskDetail() {
     if (response.data) {
       setTask(response.data);
     } else {
-      toast(ApiErrorToast({ error: response.error, defaultMessage: "Failed to fetch task details" }));
+      toast(
+        ApiErrorToast({
+          error: response.error,
+          defaultMessage: "Failed to fetch task details",
+        }),
+      );
     }
   };
 
@@ -58,14 +63,19 @@ export default function TaskDetail() {
     setActionLoading(false);
     setIsClaimConfirmOpen(false);
 
-    if (response.data?.status === 'Claimed') {
+    if (response.data?.status === "Claimed") {
       toast({
         title: "Task claimed",
         description: "You have successfully claimed this task",
       });
       fetchTask(task.id);
     } else {
-      toast(ApiErrorToast({ error: response.error, defaultMessage: "Failed to claim task" }));
+      toast(
+        ApiErrorToast({
+          error: response.error,
+          defaultMessage: "Failed to claim task",
+        }),
+      );
     }
   };
 
@@ -77,14 +87,19 @@ export default function TaskDetail() {
     setActionLoading(false);
     setIsCompleteConfirmOpen(false);
 
-    if (response.data?.status === 'Completed') {
+    if (response.data?.status === "Completed") {
       toast({
         title: "Task completed",
         description: "Task has been marked as completed",
       });
-      navigate('/tasks');
+      navigate("/tasks");
     } else {
-      toast(ApiErrorToast({ error: response.error, defaultMessage: "Failed to complete task" }));
+      toast(
+        ApiErrorToast({
+          error: response.error,
+          defaultMessage: "Failed to complete task",
+        }),
+      );
     }
   };
 
@@ -96,27 +111,32 @@ export default function TaskDetail() {
     setActionLoading(false);
     setIsFailConfirmOpen(false);
 
-    if (response.data?.status === 'Failed') {
+    if (response.data?.status === "Failed") {
       toast({
         title: "Task failed",
         description: "Task has been marked as failed",
       });
       fetchTask(task.id);
     } else {
-      toast(ApiErrorToast({ error: response.error, defaultMessage: "Failed to fail task" }));
+      toast(
+        ApiErrorToast({
+          error: response.error,
+          defaultMessage: "Failed to fail task",
+        }),
+      );
     }
   };
 
   const getStatusLabel = (status: TaskStatus) => {
     switch (status) {
-      case 'COMPLETED':
-        return 'Completed';
-      case 'CLAIMED':
-        return 'Claimed';
-      case 'AVAILABLE':
-        return 'Available';
-      case 'FAILED':
-        return 'Failed';
+      case "COMPLETED":
+        return "Completed";
+      case "CLAIMED":
+        return "Claimed";
+      case "AVAILABLE":
+        return "Available";
+      case "FAILED":
+        return "Failed";
       default:
         return status;
     }
@@ -140,7 +160,7 @@ export default function TaskDetail() {
         <div className="container mx-auto px-6 py-8">
           <div className="text-center">
             <p className="text-muted-foreground">Task not found</p>
-            <Button onClick={() => navigate('/tasks')} className="mt-4">
+            <Button onClick={() => navigate("/tasks")} className="mt-4">
               Back to Tasks
             </Button>
           </div>
@@ -155,7 +175,7 @@ export default function TaskDetail() {
         <div className="mb-6">
           <Button
             variant="ghost"
-            onClick={() => navigate('/tasks')}
+            onClick={() => navigate("/tasks")}
             className="mb-4"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -164,7 +184,9 @@ export default function TaskDetail() {
 
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Task Details</h1>
+              <h1 className="text-3xl font-bold text-foreground">
+                Task Details
+              </h1>
               <p className="text-muted-foreground mt-1">
                 View and manage the details of the selected task.
               </p>
@@ -175,7 +197,9 @@ export default function TaskDetail() {
         <div className="space-y-8">
           {/* Task Information */}
           <div>
-            <h2 className="text-xl font-semibold text-foreground mb-4">Task Information</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Task Information
+            </h2>
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Task ID</p>
@@ -189,40 +213,126 @@ export default function TaskDetail() {
 
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Assignee</p>
-                <p className="font-medium text-foreground">{task.assignee || 'Unassigned'}</p>
+                <p className="font-medium text-foreground">
+                  {task.assignee || "Unassigned"}
+                </p>
               </div>
 
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Status</p>
-                <Badge className={getTaskStatusColors(task.status)}>{getStatusLabel(task.status)}</Badge>
+                <Badge className={getTaskStatusColors(task.status)}>
+                  {getStatusLabel(task.status)}
+                </Badge>
               </div>
 
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Start Date</p>
-                <p className="font-medium text-foreground">{formatDistanceToNow(task.startDate)}</p>
+                <p className="font-medium text-foreground">
+                  {formatDistanceToNow(task.startDate)}
+                </p>
               </div>
 
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">End Date</p>
-                <p className="font-medium text-foreground">{formatDistanceToNow(task.endDate)}</p>
+                <p className="font-medium text-foreground">
+                  {formatDistanceToNow(task.endDate)}
+                </p>
               </div>
             </div>
           </div>
 
           {/* Process Information */}
           <div>
-            <h2 className="text-xl font-semibold text-foreground mb-4">Process Information</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Process Information
+            </h2>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-muted p-4 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Process ID</p>
-                <p className="font-medium text-foreground">#{task.processInstanceId}</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Process Definition
+                </p>
+                <p className="font-medium text-foreground">
+                  {task.processDefinitionName}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {task.processDefinitionId}
+                </p>
               </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">
+                  Process Instance
+                </p>
+                <p
+                  className="font-medium text-foreground truncate"
+                  title={task.processInstanceId}
+                >
+                  #{task.processInstanceId.slice(0, 8)}
+                </p>
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">
+                  Process Status
+                </p>
+                <Badge
+                  variant={
+                    task.processStatus === "RUNNING" ? "default" : "secondary"
+                  }
+                >
+                  {task.processStatus}
+                </Badge>
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">
+                  Process Started
+                </p>
+                <p className="font-medium text-foreground">
+                  {task.processStartDate
+                    ? formatDistanceToNow(task.processStartDate)
+                    : "-"}
+                </p>
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">
+                  Process Ended
+                </p>
+                <p className="font-medium text-foreground">
+                  {task.processEndDate
+                    ? formatDistanceToNow(task.processEndDate)
+                    : "Running"}
+                </p>
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">
+                  Current Activity
+                </p>
+                <p className="font-medium text-foreground">
+                  {task.currentActivityId || "-"}
+                </p>
+              </div>
+
+              {task.processSuspended && (
+                <div className="bg-muted p-4 rounded-lg border-2 border-destructive">
+                  <p className="text-sm text-destructive font-semibold mb-1">
+                    ⚠️ Process Suspended
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    This process is currently suspended
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Variables */}
           <div>
-            <h2 className="text-xl font-semibold text-foreground mb-4">Variables</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Variables
+            </h2>
             <div className="bg-slate-800 p-4 rounded-lg">
               <pre className="text-sm font-mono text-white overflow-x-auto">
                 <code className="text-white">
@@ -237,7 +347,7 @@ export default function TaskDetail() {
             <Button
               variant="outline"
               onClick={() => setIsClaimConfirmOpen(true)}
-              disabled={actionLoading || task.status !== 'AVAILABLE'}
+              disabled={actionLoading || task.status !== "AVAILABLE"}
               className="bg-blue-500 text-white border-blue-500 hover:bg-blue-600 hover:border-blue-600"
             >
               <Star className="mr-2 h-4 w-4" />
@@ -249,7 +359,7 @@ export default function TaskDetail() {
                 setIsCompleteConfirmOpen(true);
                 setIsValidating(false);
               }}
-              disabled={actionLoading || task.status !== 'CLAIMED'}
+              disabled={actionLoading || task.status !== "CLAIMED"}
               className="bg-green-500 text-white hover:bg-green-600"
             >
               <CheckCircle className="mr-2 h-4 w-4" />
@@ -259,7 +369,11 @@ export default function TaskDetail() {
             <Button
               variant="destructive"
               onClick={() => setIsFailConfirmOpen(true)}
-              disabled={actionLoading || task.status === 'COMPLETED' || task.status === 'FAILED'}
+              disabled={
+                actionLoading ||
+                task.status === "COMPLETED" ||
+                task.status === "FAILED"
+              }
             >
               <XCircle className="mr-2 h-4 w-4" />
               Fail
@@ -280,15 +394,18 @@ export default function TaskDetail() {
               <Button variant="outline">Cancel</Button>
             </DialogClose>
             <Button onClick={handleClaim} disabled={actionLoading}>
-              {actionLoading ? 'Claiming...' : 'Confirm'}
+              {actionLoading ? "Claiming..." : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={isCompleteConfirmOpen} onOpenChange={(open) => {
-        setIsCompleteConfirmOpen(open);
-        if (!open) setIsValidating(false);
-      }}>
+      <Dialog
+        open={isCompleteConfirmOpen}
+        onOpenChange={(open) => {
+          setIsCompleteConfirmOpen(open);
+          if (!open) setIsValidating(false);
+        }}
+      >
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>Complete Task</DialogTitle>
@@ -297,9 +414,12 @@ export default function TaskDetail() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <div onKeyDown={() => setIsValidating(true)} onPaste={() => setIsValidating(true)}>
+            <div
+              onKeyDown={() => setIsValidating(true)}
+              onPaste={() => setIsValidating(true)}
+            >
               <JSONInput
-                id='completion-variables-editor'
+                id="completion-variables-editor"
                 placeholder={completionVariables}
                 locale={locale}
                 onChange={(data: any) => {
@@ -308,8 +428,8 @@ export default function TaskDetail() {
                     setCompletionVariables(data.jsObject);
                   }
                 }}
-                height='250px'
-                width='100%'
+                height="250px"
+                width="100%"
                 theme="dark_vscode_tribute"
                 waitAfterKeyPress={5000}
               />
@@ -326,7 +446,7 @@ export default function TaskDetail() {
               <Button variant="outline">Cancel</Button>
             </DialogClose>
             <Button onClick={handleComplete} disabled={actionLoading}>
-              {actionLoading ? 'Completing...' : 'Confirm & Complete'}
+              {actionLoading ? "Completing..." : "Confirm & Complete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -343,8 +463,12 @@ export default function TaskDetail() {
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleFail} disabled={actionLoading} variant="destructive">
-              {actionLoading ? 'Failing...' : 'Confirm'}
+            <Button
+              onClick={handleFail}
+              disabled={actionLoading}
+              variant="destructive"
+            >
+              {actionLoading ? "Failing..." : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
