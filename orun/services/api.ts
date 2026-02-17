@@ -20,7 +20,7 @@ interface ApiProcessInstance {
   startDate: string;
   endDate?: string;
   startedBy: string;
-  variables: Record<string, any>;
+  variables: Record<string, unknown>;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -191,20 +191,20 @@ export const api = {
       },
     );
     const data =
-      await handleResponse<Record<string, { value: any; type: string }>>(
+      await handleResponse<Record<string, { value: unknown; type: string }>>(
         response,
       );
     return Object.entries(data).map(([name, info]) => ({
       name,
       value: info.value,
-      type: info.type as any,
+      type: info.type as Variable["type"],
     }));
   },
 
   updateProcessVariable: async (
     id: string,
     variableName: string,
-    value: any,
+    value: unknown,
     type: string,
   ): Promise<void> => {
     const response = await fetch(

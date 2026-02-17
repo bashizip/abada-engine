@@ -1,12 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Badge } from './ui/Common.tsx';
-import { Activity, AlertOctagon, CheckCircle, PauseCircle, PlayCircle, ArrowRight, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api.ts';
-import { ProcessInstance, Job } from '../types.ts';
-import { getRelativeTime } from '../utils.ts';
+import React, { useEffect, useState } from "react";
+import { Card, Badge } from "./ui/Common.tsx";
+import {
+  Activity,
+  AlertOctagon,
+  CheckCircle,
+  PauseCircle,
+  PlayCircle,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../services/api.ts";
+import { ProcessInstance, Job } from "../types.ts";
+import { getRelativeTime } from "../utils.ts";
 
-const StatCard: React.FC<{ title: string; value: string | number; icon: React.ReactNode; color: string; subtext?: string }> = ({ title, value, icon, color, subtext }) => (
+const StatCard: React.FC<{
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+  subtext?: string;
+}> = ({ title, value, icon, color, subtext }) => (
   <Card className="p-6 flex items-start justify-between relative overflow-hidden group">
     <div className="z-10 relative">
       <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
@@ -17,7 +31,9 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.Re
       {icon}
     </div>
     {/* Glow Effect */}
-    <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full ${color} opacity-5 blur-2xl group-hover:opacity-10 transition-opacity`}></div>
+    <div
+      className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full ${color} opacity-5 blur-2xl group-hover:opacity-10 transition-opacity`}
+    ></div>
   </Card>
 );
 
@@ -33,13 +49,15 @@ export const Dashboard: React.FC = () => {
       try {
         const [instancesData, jobsData] = await Promise.all([
           api.getProcessInstances(),
-          api.getJobs()
+          api.getJobs(),
         ]);
         setInstances(instancesData);
         setJobs(jobsData);
-      } catch (err: any) {
-        console.error('Failed to fetch dashboard data:', err);
-        setError('Failed to load dashboard data. Please check if the API is running.');
+      } catch (err: unknown) {
+        console.error("Failed to fetch dashboard data:", err);
+        setError(
+          "Failed to load dashboard data. Please check if the API is running.",
+        );
       } finally {
         setLoading(false);
       }
@@ -48,10 +66,14 @@ export const Dashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  const activeCount = instances.filter(i => i.status === 'RUNNING').length;
+  const activeCount = instances.filter((i) => i.status === "RUNNING").length;
   const failedJobsCount = jobs.length;
-  const suspendedCount = instances.filter(i => i.status === 'SUSPENDED').length;
-  const completedToday = instances.filter(i => i.status === 'COMPLETED').length; // Ideally filter by date
+  const suspendedCount = instances.filter(
+    (i) => i.status === "SUSPENDED",
+  ).length;
+  const completedToday = instances.filter(
+    (i) => i.status === "COMPLETED",
+  ).length; // Ideally filter by date
 
   if (loading) {
     return (
@@ -72,7 +94,9 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-100">Operations Overview</h1>
+        <h1 className="text-2xl font-bold text-slate-100">
+          Operations Overview
+        </h1>
         <span className="text-sm text-slate-500">Last updated: Just now</span>
       </div>
 
@@ -114,28 +138,48 @@ export const Dashboard: React.FC = () => {
             <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-red-900/10">
               <div className="flex items-center gap-2">
                 <AlertOctagon className="text-red-500" size={20} />
-                <h2 className="font-semibold text-slate-100">Failed Jobs Alert</h2>
+                <h2 className="font-semibold text-slate-100">
+                  Failed Jobs Alert
+                </h2>
               </div>
-              <button onClick={() => navigate('/jobs')} className="text-xs text-blue-400 hover:text-blue-300 font-medium">View All</button>
+              <button
+                onClick={() => navigate("/jobs")}
+                className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+              >
+                View All
+              </button>
             </div>
             <div className="p-0 flex-1 overflow-auto">
               {failedJobsCount === 0 ? (
-                <div className="p-8 text-center text-slate-500">No failed jobs. System healthy.</div>
+                <div className="p-8 text-center text-slate-500">
+                  No failed jobs. System healthy.
+                </div>
               ) : (
                 <div className="divide-y divide-slate-700">
-                  {jobs.slice(0, 3).map(job => (
-                    <div key={job.id} className="p-4 hover:bg-slate-750 transition-colors">
+                  {jobs.slice(0, 3).map((job) => (
+                    <div
+                      key={job.id}
+                      className="p-4 hover:bg-slate-750 transition-colors"
+                    >
                       <div className="flex justify-between items-start mb-1">
-                        <span className="text-sm font-medium text-slate-200">{job.processDefinitionName}</span>
-                        <span className="text-xs text-slate-500">{new Date(job.failureTime).toLocaleTimeString()}</span>
+                        <span className="text-sm font-medium text-slate-200">
+                          {job.processDefinitionName}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {new Date(job.failureTime).toLocaleTimeString()}
+                        </span>
                       </div>
                       <div className="text-xs text-red-400 font-mono mb-2 truncate bg-red-950/30 p-1.5 rounded border border-red-900/30">
                         {job.exceptionMessage}
                       </div>
                       <div className="flex justify-between items-center">
-                        <div className="text-xs text-slate-400">Activity: {job.activityName}</div>
+                        <div className="text-xs text-slate-400">
+                          Activity: {job.activityName}
+                        </div>
                         <button
-                          onClick={() => navigate(`/instances/${job.processInstanceId}`)}
+                          onClick={() =>
+                            navigate(`/instances/${job.processInstanceId}`)
+                          }
                           className="text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300"
                         >
                           Inspect <ArrowRight size={12} />
@@ -161,18 +205,36 @@ export const Dashboard: React.FC = () => {
             <div className="p-0 flex-1 overflow-auto">
               <div className="divide-y divide-slate-700/50">
                 {instances.slice(0, 6).map((inst, i) => (
-                  <div key={i} className="p-4 hover:bg-slate-750 transition-colors cursor-pointer" onClick={() => navigate(`/instances/${inst.id}`)}>
+                  <div
+                    key={i}
+                    className="p-4 hover:bg-slate-750 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/instances/${inst.id}`)}
+                  >
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-mono text-slate-500">{inst.id}</span>
-                      <span className="text-xs text-slate-500">{getRelativeTime(inst.startTime)}</span>
+                      <span className="text-xs font-mono text-slate-500">
+                        {inst.id}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {getRelativeTime(inst.startTime)}
+                      </span>
                     </div>
-                    <div className="text-base font-semibold text-slate-100 mb-2">{inst.definitionName}</div>
+                    <div className="text-base font-semibold text-slate-100 mb-2">
+                      {inst.definitionName}
+                    </div>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <Badge status={inst.status} />
-                        {inst.currentActivity && <span className="text-xs text-slate-400 truncate max-w-[120px]">&bull; {inst.currentActivity}</span>}
+                        {inst.currentActivity && (
+                          <span className="text-xs text-slate-400 truncate max-w-[120px]">
+                            &bull; {inst.currentActivity}
+                          </span>
+                        )}
                       </div>
-                      {inst.duration && <span className="text-xs text-slate-400">Duration: {inst.duration}</span>}
+                      {inst.duration && (
+                        <span className="text-xs text-slate-400">
+                          Duration: {inst.duration}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

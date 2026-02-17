@@ -1,4 +1,9 @@
-export type ProcessStatus = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'SUSPENDED' | 'CANCELLED';
+export type ProcessStatus =
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "SUSPENDED"
+  | "CANCELLED";
 
 export interface ProcessDefinition {
   id: string;
@@ -34,8 +39,8 @@ export interface Job {
 
 export interface Variable {
   name: string;
-  type: 'String' | 'Integer' | 'Long' | 'Double' | 'Float' | 'Boolean' | 'Json';
-  value: any;
+  type: "String" | "Integer" | "Long" | "Double" | "Float" | "Boolean" | "Json";
+  value: unknown;
 }
 
 export interface ActivityInstance {
@@ -44,8 +49,8 @@ export interface ActivityInstance {
   activityName: string;
   startTime: string;
   endTime?: string;
-  type: 'startEvent' | 'endEvent' | 'userTask' | 'serviceTask' | 'gateway';
-  status: 'COMPLETED' | 'RUNNING' | 'FAILED';
+  type: "startEvent" | "endEvent" | "userTask" | "serviceTask" | "gateway";
+  status: "COMPLETED" | "RUNNING" | "FAILED";
 }
 
 export interface MetricPoint {

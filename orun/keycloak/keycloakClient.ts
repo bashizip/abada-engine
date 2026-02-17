@@ -91,7 +91,10 @@ export function hasOrunAdminRole(tokenParsed?: KeycloakTokenParsed): boolean {
     parsed?.resource_access?.[clientId]?.roles || []
   ).map(normalize);
   const anyClientRoles: string[] = Object.values(parsed?.resource_access || {})
-    .flatMap((resource: any) => resource?.roles || [])
+    .flatMap(
+      (resource: Record<string, unknown>) =>
+        (resource as { roles?: string[] })?.roles || [],
+    )
     .map(normalize);
 
   if (realmRoles.includes(requiredRole) || groups.includes(requiredRole)) {
