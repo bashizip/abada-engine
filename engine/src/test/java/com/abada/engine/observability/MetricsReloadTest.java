@@ -1,12 +1,19 @@
 package com.abada.engine.observability;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.when;
+
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.StateReloadService;
 import com.abada.engine.core.model.TaskInstance;
-import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.util.BpmnTestUtils;
+import java.io.File;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,15 +22,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-
-import java.io.File;
-import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @ActiveProfiles("integration-persistence")
@@ -54,15 +52,27 @@ public class MetricsReloadTest {
     @Test
     void shouldRestoreMetricsAfterReload() throws Exception {
         // 1. Deploy and start process
-        InputStream bpmnStream = BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn");
+        InputStream bpmnStream = BpmnTestUtils.loadBpmnStream(
+            "recipe-cook.bpmn"
+        );
         abadaEngine.deploy(bpmnStream);
 
-        ProcessInstance processInstance = abadaEngine.startProcess("recipe-cook");
+        ProcessInstance processInstance = abadaEngine.startProcess(
+            "recipe-cook"
+        );
         assertNotNull(processInstance.getId());
 
         // Verify initial metrics
-        assertEquals(1.0, engineMetrics.getActiveProcessInstances(), "Should have 1 active process");
-        assertEquals(1.0, engineMetrics.getActiveTasks(), "Should have 1 active task");
+        assertEquals(
+            1.0,
+            engineMetrics.getActiveProcessInstances(),
+            "Should have 1 active process"
+        );
+        assertEquals(
+            1.0,
+            engineMetrics.getActiveTasks(),
+            "Should have 1 active task"
+        );
 
         // 2. Simulate memory crash (clear in-memory state)
         abadaEngine.clearMemory();
@@ -93,7 +103,8 @@ public class MetricsReloadTest {
         // To properly simulate a restart, we should ideally check that the count
         // increases by the expected amount.
 
-        double activeProcessesBeforeReload = engineMetrics.getActiveProcessInstances();
+        double activeProcessesBeforeReload =
+            engineMetrics.getActiveProcessInstances();
         double activeTasksBeforeReload = engineMetrics.getActiveTasks();
 
         // 3. Reload engine state
@@ -104,18 +115,31 @@ public class MetricsReloadTest {
         // Here, they start at 1 and should go to 2 because we didn't reset the metrics
         // bean.
         // This proves the restore logic was executed.
-        assertEquals(activeProcessesBeforeReload + 1.0, engineMetrics.getActiveProcessInstances(),
-                "Active processes should increment after reload (simulating restore)");
-        assertEquals(activeTasksBeforeReload + 1.0, engineMetrics.getActiveTasks(),
-                "Active tasks should increment after reload (simulating restore)");
+        assertEquals(
+            activeProcessesBeforeReload + 1.0,
+            engineMetrics.getActiveProcessInstances(),
+            "Active processes should increment after reload (simulating restore)"
+        );
+        assertEquals(
+            activeTasksBeforeReload + 1.0,
+            engineMetrics.getActiveTasks(),
+            "Active tasks should increment after reload (simulating restore)"
+        );
 
         // 5. Complete the process to verify metrics decrement correctly
         // We need to get the task ID again as the object instance might have changed
-        List<TaskInstance> tasks = abadaEngine.getTaskManager().getVisibleTasksForUser("alice", List.of("customers"));
+        List<TaskInstance> tasks = abadaEngine
+            .getTaskManager()
+            .getVisibleTasksForUser("alice", List.of("customers"));
         String taskId = tasks.get(0).getId();
 
         abadaEngine.claim(taskId, "alice", List.of("customers"));
-        abadaEngine.completeTask(taskId, "alice", List.of("customers"), Map.of("goodOne", true));
+        abadaEngine.completeTask(
+            taskId,
+            "alice",
+            List.of("customers"),
+            Map.of("goodOne", true)
+        );
 
         // Verify metrics updated
         // Active tasks should decrease by 1 (completed) but maybe increase if next task
@@ -131,9 +155,7 @@ public class MetricsReloadTest {
         String basePath = "./build/test-db-abada-recovery";
         File mvDb = new File(basePath + ".mv.db");
         File traceDb = new File(basePath + ".trace.db");
-        if (mvDb.exists())
-            mvDb.delete();
-        if (traceDb.exists())
-            traceDb.delete();
+        if (mvDb.exists()) mvDb.delete();
+        if (traceDb.exists()) traceDb.delete();
     }
 }
