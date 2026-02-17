@@ -1,7 +1,7 @@
 import { ToastAction } from "@/components/ui/toast";
 
 interface ApiErrorToastProps {
-  error: any;
+  error: unknown;
   defaultMessage: string;
 }
 
@@ -16,7 +16,7 @@ export function ApiErrorToast({ error, defaultMessage }: ApiErrorToastProps) {
   if (error instanceof Error) {
     // For standard JavaScript errors, we only want the message.
     description = error.message;
-  } else if (typeof error === 'object' && error !== null) {
+  } else if (typeof error === "object" && error !== null) {
     // For our API's JSON responses, we display the full object.
     description = (
       <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">

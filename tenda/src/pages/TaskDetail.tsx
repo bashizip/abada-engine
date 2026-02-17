@@ -33,12 +33,6 @@ export default function TaskDetail() {
   const [isValidating, setIsValidating] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (id) {
-      fetchTask(id);
-    }
-  }, [id]);
-
   const fetchTask = async (taskId: string) => {
     setLoading(true);
     const response = await apiClient.getTask(taskId);
@@ -54,6 +48,12 @@ export default function TaskDetail() {
       );
     }
   };
+
+  useEffect(() => {
+    if (id) {
+      fetchTask(id);
+    }
+  }, [id]);
 
   const handleClaim = async () => {
     if (!task) return;
@@ -422,10 +422,17 @@ export default function TaskDetail() {
                 id="completion-variables-editor"
                 placeholder={completionVariables}
                 locale={locale}
-                onChange={(data: any) => {
+                onChange={(data: unknown) => {
                   setIsValidating(false);
-                  if (data.error === false) {
-                    setCompletionVariables(data.jsObject);
+                  if (
+                    data &&
+                    typeof data === "object" &&
+                    "error" in data &&
+                    data.error === false
+                  ) {
+                    setCompletionVariables(
+                      (data as { jsObject: Record<string, unknown> }).jsObject,
+                    );
                   }
                 }}
                 height="250px"

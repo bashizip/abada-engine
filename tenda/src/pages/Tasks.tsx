@@ -45,7 +45,7 @@ export default function Tasks() {
 
   useEffect(() => {
     fetchTasks();
-  }, [statusFilter]);
+  }, [statusFilter, toast]);
 
   const getStatusLabel = (status: TaskStatus) => {
     switch (status) {

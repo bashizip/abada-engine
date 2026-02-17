@@ -4,7 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface ApiResponse<T> {
   data?: T;
-  error?: any;
+  error?: unknown;
   status: number;
 }
 
@@ -30,13 +30,13 @@ export interface TaskDetailsDto {
   processStartDate?: string;
   processEndDate?: string;
   currentActivityId?: string;
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown>;
 }
 
 export interface ProcessInstanceDTO {
   id: string;
   currentActivityId: string;
-  variables: Record<string, any>;
+  variables: Record<string, unknown>;
   isCompleted: boolean;
   startDate: string;
   endDate?: string;
@@ -139,7 +139,7 @@ class ApiClient {
         return { data, status: response.status };
       }
 
-      let errorPayload: any = `HTTP ${response.status}: ${response.statusText}`;
+      let errorPayload: unknown = `HTTP ${response.status}: ${response.statusText}`;
       try {
         const errorData = await response.json();
         errorPayload = errorData;
@@ -187,7 +187,7 @@ class ApiClient {
 
   async completeTask(
     taskId: string,
-    variables?: Record<string, any>,
+    variables?: Record<string, unknown>,
   ): Promise<ApiResponse<{ status: string; taskId: string }>> {
     const endpoint = `/v1/tasks/complete?taskId=${encodeURIComponent(taskId)}`;
     return this.request(endpoint, {
@@ -220,7 +220,7 @@ class ApiClient {
 
   async startProcess(
     processId: string,
-    variables?: Record<string, any>,
+    variables?: Record<string, unknown>,
   ): Promise<ApiResponse<{ processInstanceId: string }>> {
     const endpoint = `/v1/processes/start?processId=${encodeURIComponent(processId)}`;
     return this.request(endpoint, {
