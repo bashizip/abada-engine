@@ -31,18 +31,14 @@ export default function Processes() {
   const [loading, setLoading] = useState(true);
   const [selectedProcess, setSelectedProcess] =
     useState<ProcessDefinition | null>(null);
-  const [variables, setVariables] = useState({});
+  const [variables, setVariables] = useState<Record<string, unknown>>({});
   const [isValidating, setIsValidating] = useState(false);
   const [startingProcess, setStartingProcess] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const { toast } = useToast();
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    fetchProcesses();
-  }, []);
-
-  const fetchProcesses = async () => {
+  const fetchProcesses = useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiClient.getProcessDefinitions();
@@ -67,7 +63,11 @@ export default function Processes() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchProcesses();
+  }, [fetchProcesses]);
 
   const handleStartProcess = async () => {
     if (!selectedProcess) return;
@@ -219,8 +219,11 @@ export default function Processes() {
                           data.error === false
                         ) {
                           setVariables(
-                            (data as { jsObject: Record<string, unknown> })
-                              .jsObject,
+                            (
+                              data as unknown as {
+                                jsObject: Record<string, unknown>;
+                              }
+                            ).jsObject,
                           );
                         }
                       }, 2000);
