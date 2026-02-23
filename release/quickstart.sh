@@ -164,6 +164,8 @@ verify_local_tls() {
             "tenda.localhost"
             "orun.localhost"
             "grafana.localhost"
+            "keycloak.localhost"
+            "jaeger.localhost"
             "traefik.localhost"
         )
 
@@ -199,9 +201,12 @@ start_platform() {
         echo ""
         print_step "Platform available at:"
         echo -e "  - ${BLUE}Engine API      ${NC}: https://localhost/api/"
+        echo -e "  - ${BLUE}Swagger UI      ${NC}: https://localhost/api/swagger-ui.html"
         echo -e "  - ${BLUE}Tenda UI        ${NC}: https://tenda.localhost"
         echo -e "  - ${BLUE}Orun UI         ${NC}: https://orun.localhost"
         echo -e "  - ${BLUE}Grafana         ${NC}: https://grafana.localhost"
+        echo -e "  - ${BLUE}Keycloak        ${NC}: https://keycloak.localhost"
+        echo -e "  - ${BLUE}Jaeger          ${NC}: https://jaeger.localhost"
         echo -e "  - ${BLUE}Traefik         ${NC}: https://traefik.localhost"
         echo ""
         echo "Run 'docker compose -f $LOCAL_FILE down' to stop."

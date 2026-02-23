@@ -44,7 +44,7 @@ curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/q
 ```
 
 Windows PowerShell:
-```bash
+```powershell
 irm https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.ps1 | iex
 ```
 
@@ -98,8 +98,9 @@ Restart Traefik (or the full dev stack) after generating the certs.
 | **Abada Orun** (Monitoring) | [https://orun.localhost](https://orun.localhost) | Process monitoring dashboard; build from `orun/` |
 | **Keycloak Admin** | [https://keycloak.localhost](https://keycloak.localhost) | Identity & Access Management |
 | **Swagger UI** | [https://localhost/api/swagger-ui.html](https://localhost/api/swagger-ui.html) | Interactive API documentation |
-| **Grafana** | [http://localhost:3000](http://localhost:3000) | Metrics & Dashboards (admin/admin123) |
-| **Jaeger** | [http://localhost:16686](http://localhost:16686) | Distributed Tracing UI |
+| **Grafana** | [https://grafana.localhost](https://grafana.localhost) | Metrics & Dashboards |
+| **Jaeger** | [https://jaeger.localhost](https://jaeger.localhost) | Distributed Tracing UI |
+| **Traefik Dashboard** | [https://traefik.localhost](https://traefik.localhost) | Reverse-proxy dashboard |
 
 ---
 

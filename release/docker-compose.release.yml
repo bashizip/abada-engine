@@ -247,7 +247,7 @@ services:
     image: quay.io/keycloak/keycloak:21.1.1
     labels:
       traefik.enable: "true"
-      traefik.http.routers.keycloak.rule: Host(``)
+      traefik.http.routers.keycloak.rule: Host(`keycloak.localhost`) || PathPrefix(`/auth`)
       traefik.http.services.keycloak.loadbalancer.server.port: "8080"
     networks:
       abada-internal: null
