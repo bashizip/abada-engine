@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Star, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Star, CheckCircle, XCircle } from "lucide-react";
 import { apiClient, TaskDetailsDto, TaskStatus } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, getTaskStatusColors } from "@/lib/utils";
@@ -16,9 +17,42 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiErrorToast } from "@/components/ApiErrorToast";
-import JSONInput from "react-json-editor-ajrm";
-import locale from "react-json-editor-ajrm/locale/en";
+import {
+  TaskVariableEditor,
+  TaskVariableRow,
+  TaskVariableType,
+} from "@/components/TaskVariableEditor";
+
+const VARIABLE_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+function inferVariableType(value: unknown): TaskVariableType {
+  if (typeof value === "boolean") return "Boolean";
+  if (typeof value === "number")
+    return Number.isInteger(value) ? "Integer" : "Double";
+  if (typeof value === "object" && value !== null) return "Json";
+  return "String";
+}
+
+function objectToRows(variables: Record<string, unknown>): TaskVariableRow[] {
+  return Object.entries(variables).map(([name, value]) => {
+    const type = inferVariableType(value);
+    const rawValue =
+      type === "Json"
+        ? JSON.stringify(value)
+        : type === "Boolean"
+          ? String(Boolean(value))
+          : String(value ?? "");
+
+    return {
+      id: crypto.randomUUID(),
+      name,
+      type,
+      value: rawValue,
+    };
+  });
+}
 
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
@@ -29,9 +63,77 @@ export default function TaskDetail() {
   const [isClaimConfirmOpen, setIsClaimConfirmOpen] = useState(false);
   const [isCompleteConfirmOpen, setIsCompleteConfirmOpen] = useState(false);
   const [isFailConfirmOpen, setIsFailConfirmOpen] = useState(false);
-  const [completionVariables, setCompletionVariables] = useState({});
-  const [isValidating, setIsValidating] = useState(false);
+  const [completionVariables, setCompletionVariables] = useState<
+    Record<string, unknown>
+  >({});
+  const [editorMode, setEditorMode] = useState<"form" | "json">("form");
+  const [variableRows, setVariableRows] = useState<TaskVariableRow[]>([]);
+  const [variableErrors, setVariableErrors] = useState<Record<string, string>>(
+    {},
+  );
+  const [jsonDraft, setJsonDraft] = useState("{}");
+  const [jsonRequiresValidation, setJsonRequiresValidation] = useState(false);
+  const [jsonEditorError, setJsonEditorError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const buildVariablesFromRows = (rows: TaskVariableRow[]) => {
+    const nextErrors: Record<string, string> = {};
+    const variables: Record<string, unknown> = {};
+    const seen = new Set<string>();
+
+    for (const row of rows) {
+      const trimmedName = row.name.trim();
+      if (!trimmedName) {
+        nextErrors[row.id] = "Name is required";
+        continue;
+      }
+
+      if (!VARIABLE_NAME_PATTERN.test(trimmedName)) {
+        nextErrors[row.id] =
+          "Use letters, numbers, underscore. Start with letter/underscore.";
+        continue;
+      }
+
+      if (seen.has(trimmedName)) {
+        nextErrors[row.id] = "Duplicate variable name";
+        continue;
+      }
+
+      seen.add(trimmedName);
+
+      try {
+        if (row.type === "Boolean") {
+          variables[trimmedName] = row.value === "true";
+        } else if (row.type === "Integer" || row.type === "Long") {
+          const parsed = Number.parseInt(row.value, 10);
+          if (Number.isNaN(parsed)) {
+            throw new Error("must be an integer");
+          }
+          variables[trimmedName] = parsed;
+        } else if (row.type === "Double" || row.type === "Float") {
+          const parsed = Number.parseFloat(row.value);
+          if (Number.isNaN(parsed)) {
+            throw new Error("must be a number");
+          }
+          variables[trimmedName] = parsed;
+        } else if (row.type === "Json") {
+          variables[trimmedName] = JSON.parse(row.value || "null");
+        } else {
+          variables[trimmedName] = row.value;
+        }
+      } catch (error) {
+        const description =
+          error instanceof Error ? error.message : "invalid value";
+        nextErrors[row.id] = `Value ${description}`;
+      }
+    }
+
+    return {
+      variables,
+      errors: nextErrors,
+      isValid: Object.keys(nextErrors).length === 0,
+    };
+  };
 
   const fetchTask = async (taskId: string) => {
     setLoading(true);
@@ -82,8 +184,39 @@ export default function TaskDetail() {
   const handleComplete = async () => {
     if (!task) return;
 
+    let variablesToSubmit: Record<string, unknown> | undefined;
+
+    if (editorMode === "form") {
+      const result = buildVariablesFromRows(variableRows);
+      setVariableErrors(result.errors);
+      if (!result.isValid) {
+        toast({
+          variant: "destructive",
+          title: "Invalid variable input",
+          description: "Fix highlighted rows before completing this task.",
+        });
+        return;
+      }
+      variablesToSubmit =
+        Object.keys(result.variables).length > 0 ? result.variables : undefined;
+    } else {
+      if (jsonRequiresValidation || jsonEditorError) {
+        toast({
+          variant: "destructive",
+          title: "Validate JSON first",
+          description:
+            "Click Validate JSON after your latest edits before submitting.",
+        });
+        return;
+      }
+      variablesToSubmit =
+        Object.keys(completionVariables).length > 0
+          ? completionVariables
+          : undefined;
+    }
+
     setActionLoading(true);
-    const response = await apiClient.completeTask(task.id, completionVariables);
+    const response = await apiClient.completeTask(task.id, variablesToSubmit);
     setActionLoading(false);
     setIsCompleteConfirmOpen(false);
 
@@ -142,6 +275,32 @@ export default function TaskDetail() {
     }
   };
 
+  const handleEditorModeChange = (nextMode: "form" | "json") => {
+    if (nextMode === editorMode) return;
+
+    if (nextMode === "json") {
+      const result = buildVariablesFromRows(variableRows);
+      setVariableErrors(result.errors);
+      if (!result.isValid) {
+        toast({
+          variant: "destructive",
+          title: "Cannot switch to JSON",
+          description: "Fix invalid rows first so values can be converted.",
+        });
+        return;
+      }
+      setCompletionVariables(result.variables);
+      setJsonDraft(JSON.stringify(result.variables, null, 2));
+      setJsonRequiresValidation(false);
+      setJsonEditorError(null);
+    } else {
+      setVariableRows(objectToRows(completionVariables));
+      setVariableErrors({});
+    }
+
+    setEditorMode(nextMode);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -168,6 +327,29 @@ export default function TaskDetail() {
       </Layout>
     );
   }
+
+  const handleValidateJson = () => {
+    try {
+      const parsed = JSON.parse(jsonDraft);
+      if (
+        parsed === null ||
+        Array.isArray(parsed) ||
+        typeof parsed !== "object"
+      ) {
+        setJsonEditorError("JSON must be an object (key-value map).");
+        setJsonRequiresValidation(true);
+        return;
+      }
+      setCompletionVariables(parsed as Record<string, unknown>);
+      setJsonEditorError(null);
+      setJsonRequiresValidation(false);
+    } catch (error) {
+      setJsonEditorError(
+        error instanceof Error ? error.message : "Invalid JSON syntax",
+      );
+      setJsonRequiresValidation(true);
+    }
+  };
 
   return (
     <Layout>
@@ -356,8 +538,14 @@ export default function TaskDetail() {
 
             <Button
               onClick={() => {
+                setCompletionVariables({});
+                setVariableRows([]);
+                setVariableErrors({});
+                setJsonDraft("{}");
+                setJsonRequiresValidation(false);
+                setJsonEditorError(null);
+                setEditorMode("form");
                 setIsCompleteConfirmOpen(true);
-                setIsValidating(false);
               }}
               disabled={actionLoading || task.status !== "CLAIMED"}
               className="bg-green-500 text-white hover:bg-green-600"
@@ -403,50 +591,75 @@ export default function TaskDetail() {
         open={isCompleteConfirmOpen}
         onOpenChange={(open) => {
           setIsCompleteConfirmOpen(open);
-          if (!open) setIsValidating(false);
+          if (!open) {
+            setVariableErrors({});
+            setJsonRequiresValidation(false);
+            setJsonEditorError(null);
+          }
         }}
       >
-        <DialogContent className="sm:max-w-[625px]">
+        <DialogContent className="sm:max-w-[760px]">
           <DialogHeader>
             <DialogTitle>Complete Task</DialogTitle>
             <DialogDescription>
-              Enter any variables to pass to the process upon completion.
+              Enter variables using form inputs or raw JSON before completing.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <div
-              onKeyDown={() => setIsValidating(true)}
-              onPaste={() => setIsValidating(true)}
+            <Tabs
+              value={editorMode}
+              onValueChange={(value) =>
+                handleEditorModeChange(value as "form" | "json")
+              }
             >
-              <JSONInput
-                id="completion-variables-editor"
-                placeholder={completionVariables}
-                locale={locale}
-                onChange={(data: unknown) => {
-                  setIsValidating(false);
-                  if (
-                    data &&
-                    typeof data === "object" &&
-                    "error" in data &&
-                    data.error === false
-                  ) {
-                    setCompletionVariables(
-                      (data as { jsObject: Record<string, unknown> }).jsObject,
-                    );
-                  }
-                }}
-                height="250px"
-                width="100%"
-                theme="dark_vscode_tribute"
-                waitAfterKeyPress={5000}
-              />
-            </div>
-            {isValidating && (
-              <div className="flex items-center mt-2 text-sm text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Validating JSON...
-              </div>
-            )}
+              <TabsList className="mb-4">
+                <TabsTrigger value="form">Form Editor</TabsTrigger>
+                <TabsTrigger value="json">JSON Editor</TabsTrigger>
+              </TabsList>
+              <TabsContent value="form">
+                <TaskVariableEditor
+                  rows={variableRows}
+                  onChange={setVariableRows}
+                  errors={variableErrors}
+                />
+              </TabsContent>
+              <TabsContent value="json">
+                <Textarea
+                  value={jsonDraft}
+                  onChange={(event) => {
+                    setJsonDraft(event.target.value);
+                    setJsonRequiresValidation(true);
+                    setJsonEditorError(null);
+                  }}
+                  className="min-h-[260px] font-mono"
+                  placeholder='{"approved": true, "amount": 1200}'
+                />
+                <div className="mt-3 flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleValidateJson}
+                  >
+                    Validate JSON
+                  </Button>
+                  {jsonRequiresValidation && !jsonEditorError && (
+                    <p className="text-xs text-muted-foreground">
+                      JSON changed. Validate before submitting.
+                    </p>
+                  )}
+                </div>
+                {jsonEditorError && (
+                  <p className="mt-2 text-sm text-destructive">
+                    JSON error: {jsonEditorError}
+                  </p>
+                )}
+                {!jsonRequiresValidation && !jsonEditorError && (
+                  <p className="mt-2 text-sm text-green-600 dark:text-green-400">
+                    JSON is valid and ready to submit.
+                  </p>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
           <DialogFooter>
             <DialogClose asChild>
