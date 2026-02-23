@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       if (refreshInterval) window.clearInterval(refreshInterval);
     };
-  }, []);
+  }, [toast]);
 
   return (
     <AuthContext.Provider

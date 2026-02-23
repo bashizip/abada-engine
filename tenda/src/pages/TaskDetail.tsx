@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -135,27 +135,30 @@ export default function TaskDetail() {
     };
   };
 
-  const fetchTask = async (taskId: string) => {
-    setLoading(true);
-    const response = await apiClient.getTask(taskId);
-    setLoading(false);
-    if (response.data) {
-      setTask(response.data);
-    } else {
-      toast(
-        ApiErrorToast({
-          error: response.error,
-          defaultMessage: "Failed to fetch task details",
-        }),
-      );
-    }
-  };
+  const fetchTask = useCallback(
+    async (taskId: string) => {
+      setLoading(true);
+      const response = await apiClient.getTask(taskId);
+      setLoading(false);
+      if (response.data) {
+        setTask(response.data);
+      } else {
+        toast(
+          ApiErrorToast({
+            error: response.error,
+            defaultMessage: "Failed to fetch task details",
+          }),
+        );
+      }
+    },
+    [toast],
+  );
 
   useEffect(() => {
     if (id) {
       fetchTask(id);
     }
-  }, [id]);
+  }, [id, fetchTask]);
 
   const handleClaim = async () => {
     if (!task) return;
