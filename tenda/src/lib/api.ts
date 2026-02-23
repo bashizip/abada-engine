@@ -117,6 +117,15 @@ export interface UserStatsDto {
 }
 
 class ApiClient {
+  private toHeaderRecord(headers?: HeadersInit): Record<string, string> {
+    if (!headers) return {};
+    const normalized: Record<string, string> = {};
+    new Headers(headers).forEach((value, key) => {
+      normalized[key] = value;
+    });
+    return normalized;
+  }
+
   private async getAuthHeaders(): Promise<HeadersInit> {
     await refreshToken(30);
     const headers: Record<string, string> = {};
@@ -135,10 +144,11 @@ class ApiClient {
     try {
       const isFormData = options.body instanceof FormData;
       const authHeaders = await this.getAuthHeaders();
+      const providedHeaders = this.toHeaderRecord(options.headers);
 
       const requestHeaders: Record<string, string> = {
-        ...authHeaders,
-        ...(options.headers as Record<string, string>),
+        ...this.toHeaderRecord(authHeaders),
+        ...providedHeaders,
       };
 
       if (!isFormData) {
