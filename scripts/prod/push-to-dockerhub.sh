@@ -7,6 +7,7 @@ set -e  # Exit on error
 
 # Configuration
 DOCKER_USERNAME="${DOCKER_USERNAME:-}"
+DOCKER_PASSWORD="${DOCKER_PASSWORD:-}"
 VERSION="${VERSION:-latest}"
 PLATFORM_DIR="$(dirname "$(dirname "$(dirname "$(realpath "$0")")")")"
 
@@ -45,13 +46,32 @@ docker_login() {
         echo "Please run: export DOCKER_USERNAME=your_dockerhub_username"
         exit 1
     fi
-    
+
+    # Skip explicit login if Docker already has an authenticated username.
+    local current_user
+    current_user="$(docker info --format '{{.Username}}' 2>/dev/null || true)"
+    if [ -n "$current_user" ]; then
+        print_info "Docker is already authenticated as $current_user"
+        return 0
+    fi
+
     print_info "Logging into Docker Hub as $DOCKER_USERNAME..."
+    if [ -n "$DOCKER_PASSWORD" ]; then
+        if ! echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin; then
+            print_error "Docker Hub login failed"
+            exit 1
+        fi
+        print_info "Successfully logged into Docker Hub (non-interactive)"
+        return 0
+    fi
+
+    # Interactive fallback (for local terminal use)
     if ! docker login -u "$DOCKER_USERNAME"; then
         print_error "Docker Hub login failed"
+        echo "Tip: Set DOCKER_PASSWORD to use non-interactive login in CI or remote shells."
         exit 1
     fi
-    print_info "Successfully logged into Docker Hub"
+    print_info "Successfully logged into Docker Hub (interactive)"
 }
 
 # Function to build and push an image
@@ -62,11 +82,11 @@ build_and_push() {
     local image_name="${DOCKER_USERNAME}/${component}"
     local full_tag="${image_name}:${VERSION}"
     local latest_tag="${image_name}:latest"
-    
+
     print_info "Building $component..."
     print_info "Context: $context_dir"
     print_info "Dockerfile: $dockerfile"
-    
+
     # Build the image
     if docker build -f "$dockerfile" -t "$full_tag" -t "$latest_tag" "$context_dir"; then
         print_info "Successfully built $component"
@@ -74,7 +94,7 @@ build_and_push() {
         print_error "Failed to build $component"
         return 1
     fi
-    
+
     # Push the versioned tag
     print_info "Pushing $full_tag..."
     if docker push "$full_tag"; then
@@ -83,7 +103,7 @@ build_and_push() {
         print_error "Failed to push $full_tag"
         return 1
     fi
-    
+
     # Push the latest tag (only if VERSION is not 'latest')
     if [ "$VERSION" != "latest" ]; then
         print_info "Pushing $latest_tag..."
@@ -94,7 +114,7 @@ build_and_push() {
             return 1
         fi
     fi
-    
+
     print_info "✓ Completed $component"
 }
 
@@ -104,40 +124,40 @@ main() {
     print_info "Platform directory: $PLATFORM_DIR"
     print_info "Version: $VERSION"
     echo ""
-    
+
     # Check prerequisites
     check_docker
     docker_login
     echo ""
-    
+
     # Build and push each component
     print_info "=== Building and Pushing Images ==="
     echo ""
-    
+
     # 1. Abada Engine
     print_info "--- Building Abada Engine ---"
     build_and_push \
         "abada-engine" \
-        "$PLATFORM_DIR/abada-engine" \
-        "$PLATFORM_DIR/abada-engine/Dockerfile.prod"
+        "$PLATFORM_DIR/engine" \
+        "$PLATFORM_DIR/engine/Dockerfile.prod.engine"
     echo ""
-    
+
     # 2. Abada Tenda
     print_info "--- Building Abada Tenda ---"
     build_and_push \
         "abada-tenda" \
-        "$PLATFORM_DIR/abada-tenda" \
-        "$PLATFORM_DIR/abada-tenda/Dockerfile.prod"
+        "$PLATFORM_DIR/tenda" \
+        "$PLATFORM_DIR/tenda/Dockerfile.prod"
     echo ""
-    
+
     # 3. Abada Orun
     print_info "--- Building Abada Orun ---"
     build_and_push \
         "abada-orun" \
-        "$PLATFORM_DIR/abada-orun" \
-        "$PLATFORM_DIR/abada-orun/Dockerfile.prod"
+        "$PLATFORM_DIR/orun" \
+        "$PLATFORM_DIR/orun/Dockerfile.prod"
     echo ""
-    
+
     # Summary
     print_info "=== Build and Push Complete ==="
     echo ""
@@ -145,12 +165,12 @@ main() {
     echo "  - ${DOCKER_USERNAME}/abada-engine:${VERSION}"
     echo "  - ${DOCKER_USERNAME}/abada-tenda:${VERSION}"
     echo "  - ${DOCKER_USERNAME}/abada-orun:${VERSION}"
-    
+
     if [ "$VERSION" != "latest" ]; then
         echo ""
         print_info "Also tagged as :latest"
     fi
-    
+
     echo ""
     print_info "Users can now run the platform with:"
     echo "  docker-compose -f docker-compose.hub.yml up -d"
