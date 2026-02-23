@@ -39,6 +39,7 @@ Guides for deploying, monitoring, and managing the engine.
 Resources for developers building on or contributing to Abada Engine.
 
 - [API Documentation](development/api.md) - REST API reference.
+- [Authentication Guide](ENGINE-AUTHENTICATION.md) - Practical guide for app developers on using Keycloak and Traefik.
 - [Frontend Guide](development/frontend-guide.md) - Guide for frontend development.
 - [Orun App Specification](development/orun-app-spec.md) - Specifications for the Orun application.
 - [Project Configuration](development/project-config.md) - Review of project configuration settings.

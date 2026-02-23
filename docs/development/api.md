@@ -219,11 +219,25 @@ Retrieves a list of tasks visible to the current user.
   [
     {
       "id": "task_789",
+      "taskDefinitionKey": "review-order",
       "name": "Review Order",
       "assignee": "patrick",
       "status": "CLAIMED",
       "startDate": "2024-01-01T12:00:00Z",
-      "endDate": null
+      "endDate": null,
+      "candidateUsers": [],
+      "candidateGroups": ["managers"],
+      "processInstanceId": "process-instance-456",
+      "processDefinitionId": "order-processing",
+      "processDefinitionName": "Order Processing",
+      "processStatus": "RUNNING",
+      "processSuspended": false,
+      "processStartDate": "2024-01-01T11:50:00Z",
+      "processEndDate": null,
+      "currentActivityId": "review-order",
+      "variables": {
+        "orderId": "order_456"
+      }
     }
   ]
   ```
@@ -240,11 +254,22 @@ Retrieves the details of a specific task by its ID.
   ```json
   {
     "id": "task_789",
+    "taskDefinitionKey": "review-order",
     "name": "Review Order",
     "assignee": "patrick",
     "status": "CLAIMED",
     "startDate": "2024-01-01T12:00:00Z",
     "endDate": null,
+    "candidateUsers": [],
+    "candidateGroups": ["managers"],
+    "processInstanceId": "process-instance-456",
+    "processDefinitionId": "order-processing",
+    "processDefinitionName": "Order Processing",
+    "processStatus": "RUNNING",
+    "processSuspended": false,
+    "processStartDate": "2024-01-01T11:50:00Z",
+    "processEndDate": null,
+    "currentActivityId": "review-order",
     "variables": {
       "orderId": "order_456"
     }

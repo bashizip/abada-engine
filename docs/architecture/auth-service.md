@@ -4,6 +4,8 @@ This document explains how **authentication and authorization** are integrated i
 
 ---
 
+> **Looking for the Developer Guide?** See the [Engine Authentication Guide](../ENGINE-AUTHENTICATION.md) for practical usage, URLs, and code examples.
+
 ## 🔐 Overview
 
 The Abada Engine itself is **auth-agnostic**.
@@ -87,7 +89,7 @@ sequenceDiagram
 * **Abada Engine**
 
   * Stateless regarding authentication.
-  * Reads `X-User` and `X-Groups` headers to evaluate BPMN assignments.
+  * Reads `X-Auth-Request-User` and `X-Auth-Request-Groups` headers to evaluate BPMN assignments.
   * Uses its own PostgreSQL database for process state and audit.
 
 * **PostgreSQL Cluster**

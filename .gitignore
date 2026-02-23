@@ -46,3 +46,24 @@ build/
 # Ignore local development database files
 data-local/*.mv.db
 data-local/*.trace.db
+.env
+
+# Frontend ignores for tenda and orun
+tenda/node_modules/
+tenda/dist/
+tenda/build/
+tenda/.next/
+tenda/.env*.local
+tenda/coverage/
+orun/node_modules/
+orun/dist/
+orun/build/
+orun/.next/
+orun/.env*.local
+orun/coverage/
+
+# Docker build artifacts
+engine/docker/
+
+# Local TLS certs for Traefik/mkcert
+docker/traefik/certs/

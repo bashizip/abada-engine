@@ -1,0 +1,64 @@
+import { useEffect, useRef } from "react";
+import BpmnJS from "bpmn-js/lib/NavigatedViewer";
+
+// Import the necessary CSS for the viewer and the BPMN font
+import "bpmn-js/dist/assets/diagram-js.css";
+import "bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css";
+
+interface BpmnViewerProps {
+  xml: string;
+  activeActivityIds?: string[];
+}
+
+export function BpmnViewer({ xml, activeActivityIds = [] }: BpmnViewerProps) {
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!viewerRef.current) return;
+
+    const viewer = new BpmnJS({
+      container: viewerRef.current,
+      keyboard: {
+        bindTo: window,
+      },
+    });
+
+    const importXml = async () => {
+      try {
+        await viewer.importXML(xml);
+        const canvas = viewer.get("canvas") as {
+          zoom: (value: string) => void;
+          addMarker: (id: string, marker: string) => void;
+        };
+        canvas.zoom("fit-viewport");
+        activeActivityIds.forEach((activityId) => {
+          if (!activityId) return;
+          try {
+            canvas.addMarker(activityId, "highlight-active");
+            canvas.addMarker(activityId, "highlight-pulse");
+          } catch (error) {
+            console.warn(
+              `Failed to highlight BPMN activity ${activityId}`,
+              error,
+            );
+          }
+        });
+      } catch (err) {
+        console.error("Failed to import BPMN XML", err);
+      }
+    };
+
+    importXml();
+
+    return () => {
+      viewer.destroy();
+    };
+  }, [xml, activeActivityIds]);
+
+  return (
+    <div
+      ref={viewerRef}
+      className="h-full w-full bg-background/50 rounded-lg border border-border overflow-hidden bpmn-container"
+    />
+  );
+}

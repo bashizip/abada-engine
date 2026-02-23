@@ -9,11 +9,11 @@ Successfully integrated Loki as the centralized log aggregation system for the A
 ### 1. Infrastructure Configuration
 
 #### Promtail for Log Collection
-- **[promtail-config.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/docker/promtail-config.yaml)**: Created configuration to tail application log files from `/var/log/abada/*.log` and forward them to Loki.
-- **[docker-compose.yml](file:///home/pbashizi/IdeaProjects/abada-engine/docker-compose.yml)**: Added `promtail` service, mounting the `./logs` directory and linking to Loki.
+- **[promtail-config.yaml](//docker/promtail-config.yaml)**: Created configuration to tail application log files from `/var/log/abada/*.log` and forward them to Loki.
+- **[docker-compose.yml](//docker-compose.yml)**: Added `promtail` service, mounting the `./logs` directory and linking to Loki.
 
 #### Loki Configuration
-- **[loki-config-dev.yaml](file:///home/pbashizi/IdeaProjects/abada-engine/docker/loki-config-dev.yaml)**: Increased ingestion rate limits to handle log volume:
+- **[loki-config-dev.yaml](//docker/loki-config-dev.yaml)**: Increased ingestion rate limits to handle log volume:
   - `ingestion_rate_mb`: 50
   - `per_stream_rate_limit`: 50MB
 
@@ -22,12 +22,12 @@ Successfully integrated Loki as the centralized log aggregation system for the A
 ### 2. Application Logging Configuration
 
 #### Logback Configuration
-- **[logback-spring.xml](file:///home/pbashizi/IdeaProjects/abada-engine/src/main/resources/logback-spring.xml)**:
+- **[logback-spring.xml](//src/main/resources/logback-spring.xml)**:
   - Configured `RollingFileAppender` to write logs to `logs/abada-engine.log`.
   - Ensured logs include `traceId` and `spanId` in the pattern for correlation.
 
 #### Docker Compose
-- **[docker-compose.dev.yml](file:///home/pbashizi/IdeaProjects/abada-engine/docker-compose.dev.yml)**:
+- **[docker-compose.dev.yml](//docker-compose.dev.yml)**:
   - Added volume mount `./logs:/app/logs:z` to expose application logs to the host (and Promtail).
 
 ---
@@ -35,13 +35,13 @@ Successfully integrated Loki as the centralized log aggregation system for the A
 ### 3. Documentation Updates
 
 #### Observability Reference Guide
-- **[observability-reference-guide.md](file:///home/pbashizi/IdeaProjects/abada-engine/docs/observability-reference-guide.md)**:
+- **[observability-reference-guide.md](//docs/observability-reference-guide.md)**:
   - Updated architecture to show Promtail integration.
   - Added Promtail configuration examples.
   - Removed OpenTelemetry logging configuration.
 
 #### README
-- **[README.md](file:///home/pbashizi/IdeaProjects/abada-engine/README.md)**:
+- **[README.md](//README.md)**:
   - Updated observability section to mention Promtail and Loki.
 
 ---
