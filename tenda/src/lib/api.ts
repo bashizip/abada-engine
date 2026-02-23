@@ -49,6 +49,28 @@ export interface ProcessDefinition {
   bpmnXml?: string;
 }
 
+export interface ProcessInstanceDetailsDto {
+  id: string;
+  processDefinitionId: string;
+  processDefinitionName: string;
+  currentActivityId?: string;
+  status: "RUNNING" | "COMPLETED" | "FAILED" | "SUSPENDED" | "CANCELLED";
+  suspended: boolean;
+  startDate: string;
+  endDate?: string;
+  startedBy: string;
+  variables: Record<string, unknown>;
+}
+
+export interface ActivityInstanceDto {
+  id: string;
+  activityId?: string;
+  activityName?: string;
+  activityType?: string;
+  startTime?: string;
+  endTime?: string;
+}
+
 export interface UserStatsDto {
   quickStats: {
     activeTasks: number;
@@ -216,6 +238,22 @@ class ApiClient {
 
   async getProcessInstances(): Promise<ApiResponse<ProcessInstanceDTO[]>> {
     return this.request("/v1/processes/instances");
+  }
+
+  async getProcessInstance(
+    instanceId: string,
+  ): Promise<ApiResponse<ProcessInstanceDetailsDto>> {
+    return this.request(
+      `/v1/processes/instances/${encodeURIComponent(instanceId)}`,
+    );
+  }
+
+  async getActivityInstances(
+    instanceId: string,
+  ): Promise<ApiResponse<{ childActivityInstances?: ActivityInstanceDto[] }>> {
+    return this.request(
+      `/v1/process-instances/${encodeURIComponent(instanceId)}/activity-instances`,
+    );
   }
 
   async startProcess(

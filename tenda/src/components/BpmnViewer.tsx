@@ -7,9 +7,10 @@ import "bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css";
 
 interface BpmnViewerProps {
   xml: string;
+  activeActivityIds?: string[];
 }
 
-export function BpmnViewer({ xml }: BpmnViewerProps) {
+export function BpmnViewer({ xml, activeActivityIds = [] }: BpmnViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,8 +26,23 @@ export function BpmnViewer({ xml }: BpmnViewerProps) {
     const importXml = async () => {
       try {
         await viewer.importXML(xml);
-        const canvas = viewer.get("canvas");
+        const canvas = viewer.get("canvas") as {
+          zoom: (value: string) => void;
+          addMarker: (id: string, marker: string) => void;
+        };
         canvas.zoom("fit-viewport");
+        activeActivityIds.forEach((activityId) => {
+          if (!activityId) return;
+          try {
+            canvas.addMarker(activityId, "highlight-active");
+            canvas.addMarker(activityId, "highlight-pulse");
+          } catch (error) {
+            console.warn(
+              `Failed to highlight BPMN activity ${activityId}`,
+              error,
+            );
+          }
+        });
       } catch (err) {
         console.error("Failed to import BPMN XML", err);
       }
@@ -37,7 +53,7 @@ export function BpmnViewer({ xml }: BpmnViewerProps) {
     return () => {
       viewer.destroy();
     };
-  }, [xml]);
+  }, [xml, activeActivityIds]);
 
   return (
     <div
