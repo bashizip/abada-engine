@@ -9,6 +9,8 @@ const keycloak = new Keycloak({
   realm: import.meta.env.VITE_KEYCLOAK_REALM,
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
 });
+let keycloakInitPromise: Promise<boolean> | null = null;
+let keycloakInitialized = false;
 
 export type KeycloakUser = {
   id: string;
@@ -17,23 +19,36 @@ export type KeycloakUser = {
 };
 
 export async function initKeycloak() {
+  if (keycloakInitialized) {
+    return Boolean(keycloak.authenticated);
+  }
+  if (keycloakInitPromise) {
+    return keycloakInitPromise;
+  }
+
   try {
-    const authenticated = await keycloak.init({
+    keycloakInitPromise = keycloak.init({
       // Keep init passive: avoid auto check/login iframe flow that often fails
       // on localhost with strict browser 3rd-party cookie policies.
+      onLoad: "check-sso",
       pkceMethod: "S256",
       checkLoginIframe: false,
       enableLogging: import.meta.env.DEV,
     });
+    const authenticated = await keycloakInitPromise;
+    keycloakInitialized = true;
 
     return authenticated;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("3rd party check iframe")) {
       // Degrade gracefully: user can still authenticate via explicit login button.
+      keycloakInitialized = true;
       return false;
     }
     throw error;
+  } finally {
+    keycloakInitPromise = null;
   }
 }
 

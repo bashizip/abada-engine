@@ -30,6 +30,7 @@ export async function initKeycloak() {
     keycloakInitPromise = keycloak.init({
       // React StrictMode runs effects twice in dev.
       // Keep init single-shot by sharing one in-flight promise.
+      onLoad: "check-sso",
       pkceMethod: "S256",
       checkLoginIframe: false,
       enableLogging: import.meta.env.DEV,

@@ -1,9 +1,14 @@
-import { useState, useEffect, createContext, useContext } from 'react';
-import type { ReactNode } from 'react';
-import { AuthState, initialAuthState, User } from '@/lib/auth';
-import { keycloak, initKeycloak, refreshToken, getUserFromToken } from '@/auth/keycloakClient';
-import { useToast } from '@/hooks/use-toast';
-import { ApiErrorToast } from './ApiErrorToast';
+import { useState, useEffect, createContext, useContext } from "react";
+import type { ReactNode } from "react";
+import { AuthState, initialAuthState, User } from "@/lib/auth";
+import {
+  keycloak,
+  initKeycloak,
+  refreshToken,
+  getUserFromToken,
+} from "@/auth/keycloakClient";
+import { useToast } from "@/hooks/use-toast";
+import { ApiErrorToast } from "./ApiErrorToast";
 
 interface AuthContextType extends AuthState {
   login: () => Promise<void>;
@@ -15,7 +20,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>(initialAuthState);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   const login = async (): Promise<void> => {
@@ -61,7 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         if (!mounted) return;
-        toast(ApiErrorToast({ error, defaultMessage: "Authentication failed" }));
+        toast(
+          ApiErrorToast({ error, defaultMessage: "Authentication failed" }),
+        );
         setAuthState(initialAuthState);
       } finally {
         if (mounted) setLoading(false);
@@ -77,12 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{
-      ...authState,
-      login,
-      logout,
-      loading,
-    }}>
+    <AuthContext.Provider
+      value={{
+        ...authState,
+        login,
+        logout,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -91,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuthContext() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    throw new Error("useAuthContext must be used within an AuthProvider");
   }
   return context;
 }
