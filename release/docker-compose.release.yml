@@ -48,10 +48,11 @@ services:
     image: bashizip/abada-engine:latest
     labels:
       traefik.enable: "true"
+      traefik.docker.network: abada-engine_abada-internal
       traefik.http.middlewares.oauth2-proxy-prod.forwardauth.address: http://oauth2-proxy:4180/oauth2/auth
       traefik.http.middlewares.oauth2-proxy-prod.forwardauth.authResponseHeaders: X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email
       traefik.http.routers.abada.middlewares: oauth2-proxy-prod
-      traefik.http.routers.abada.rule: PathPrefix(`/api`)
+      traefik.http.routers.abada.rule: (Host(`localhost`) || Host(`tenda.localhost`) || Host(`orun.localhost`)) && PathPrefix(`/api`)
       traefik.http.services.abada.loadbalancer.healthcheck.interval: 30s
       traefik.http.services.abada.loadbalancer.healthcheck.path: /api/actuator/health
       traefik.http.services.abada.loadbalancer.server.port: "5601"
@@ -74,6 +75,15 @@ services:
       interval: 30s
       retries: 3
     image: bashizip/abada-orun:latest
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: abada-engine_abada-internal
+      traefik.http.routers.orun-prod.entrypoints: web,websecure
+      traefik.http.routers.orun-prod.priority: "10"
+      traefik.http.routers.orun-prod.rule: Host(`orun.localhost`)
+      traefik.http.routers.orun-prod.service: orun-prod
+      traefik.http.routers.orun-prod.tls: "true"
+      traefik.http.services.orun-prod.loadbalancer.server.port: "5603"
     networks:
       abada-internal: null
     ports:
@@ -98,6 +108,15 @@ services:
       interval: 30s
       retries: 3
     image: bashizip/abada-tenda:latest
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: abada-engine_abada-internal
+      traefik.http.routers.tenda-prod.entrypoints: web,websecure
+      traefik.http.routers.tenda-prod.priority: "10"
+      traefik.http.routers.tenda-prod.rule: Host(`tenda.localhost`)
+      traefik.http.routers.tenda-prod.service: tenda-prod
+      traefik.http.routers.tenda-prod.tls: "true"
+      traefik.http.services.tenda-prod.loadbalancer.server.port: "5602"
     networks:
       abada-internal: null
     ports:
@@ -461,6 +480,8 @@ services:
       - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --log.level=INFO
@@ -501,6 +522,18 @@ services:
         target: /var/run/docker.sock
         read_only: true
         bind: {}
+      - type: bind
+        source: ./docker/traefik/dynamic.yml
+        target: /etc/traefik/dynamic.yml
+        read_only: true
+        bind:
+          selinux: z
+      - type: bind
+        source: ./docker/traefik/certs
+        target: /etc/traefik/certs
+        read_only: true
+        bind:
+          selinux: z
       - type: bind
         source: ./docker/traefik/traefik.yml
         target: /etc/traefik/traefik.yml
