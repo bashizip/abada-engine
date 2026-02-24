@@ -1,13 +1,25 @@
+# Traefik v3 Configuration
+# See: https://doc.traefik.io/traefik/
+
 log:
   level: INFO
+  format: common
+  filePath: /var/log/traefik/traefik.log
 
-# accessLog: {}
+# Access log for HTTP requests
+accessLog:
+  filePath: /var/log/traefik/access.log
+  format: common
+  bufferingSize: 100
 
+# API and Dashboard
 api:
   dashboard: true
   insecure: true
 
+# Entry points
 entryPoints:
+  # HTTP - redirects to HTTPS
   web:
     address: ":80"
     http:
@@ -15,38 +27,66 @@ entryPoints:
         entryPoint:
           to: websecure
           scheme: https
+          permanent: true
+
+  # HTTPS
   websecure:
     address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+      # Enable HTTP/3 (QUIC) - Traefik v3 feature
+      # http3: {}
 
+  # Traefik internal (dashboard, ping, metrics)
+  traefik:
+    address: ":8080"
+
+# Providers
 providers:
+  # Docker provider
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
     network: abada-internal
+    watch: true
+
+  # File provider for static configuration
   file:
     filename: /etc/traefik/dynamic.yml
     watch: true
 
+# Health check endpoint
 ping:
   entryPoint: traefik
+  terminatingStatusCode: 204
 
+# Let's Encrypt configuration
 certificatesResolvers:
   letsencrypt:
     acme:
       email: admin@abada.dev
       storage: /etc/traefik/acme.json
+      # Use HTTP challenge (works behind NAT/firewalls)
       httpChallenge:
         entryPoint: web
+      # Staging server for testing (uncomment to test without rate limits)
+      # caServer: https://acme-staging-v02.api.letsencrypt.org/directory
 
+# Metrics for Prometheus
 metrics:
   prometheus:
     addEntryPointsLabels: true
     addServicesLabels: true
     addRoutersLabels: true
+    entryPoint: traefik
+    manualRouting: true
 
-# tracing:
-#   otlp:
-#     grpc:
-#       endpoint: otel-collector:4317
-#     http:
-#       endpoint: http://otel-collector:4318/v1/traces
+# Global settings
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# Servers transport (for HTTPS upstreams)
+serversTransport:
+  insecureSkipVerify: false
