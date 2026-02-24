@@ -35,22 +35,49 @@ All components are containerized and deploy independently from the root. For des
 
 ## Quick Start
 
-### 🚀 Launch Platform (Production/Demo)
+### 🚀 **Demo Mode (Recommended for First-Time Users)**
 
-The easiest way to run the full Abada Platform (Engine, Tenda, Orun, Observability) is using our automated quickstart script. You only need Docker installed.
+**⚠️ Note:** The production profile is currently under active development. For demos, testing, and development, use the **dev profile** which is fully stable and functional.
+
+#### Option 1: Automated Quickstart (Easiest)
+
+The fastest way to run the full Abada Platform (Engine, Tenda, Orun, Observability) is using our automated quickstart script. You only need Docker installed.
+
+**Linux/macOS:**
+```bash
+curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/scripts/dev/quickstart.sh | bash
+```
+
+**Windows PowerShell:**
+```powershell
+irm https://raw.githubusercontent.com/bashizip/abada-engine/main/scripts/dev/quickstart.ps1 | iex
+```
+
+This script will:
+- ✅ Check prerequisites (Docker, Docker Compose)
+- ✅ Set up local TLS certificates (if mkcert is installed)
+- ✅ Start all services
+- ✅ Wait for services to be healthy
+- ✅ Display access URLs and credentials
+
+#### Option 2: Manual Quickstart
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.sh | bash
+# Clone the repository
+git clone https://github.com/bashizip/abada-engine.git
+cd abada-engine
+
+# Run the dev quickstart script
+./scripts/dev/quickstart.sh        # Linux/macOS
+# or
+.\scripts\dev\quickstart.ps1       # Windows PowerShell
 ```
 
-Windows PowerShell:
-```powershell
-irm https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.ps1 | iex
-```
+---
 
-### 💻 Development Environment
+### 💻 Full Development Environment
 
-Follow these steps for local development and contribution.
+For local development and contribution, use the development scripts directly.
 Scripts are grouped by environment under `scripts/dev`, `scripts/prod`, and `scripts/test`.
 
 **Option 1: Build & Run (Recommended)**
@@ -101,6 +128,8 @@ Restart Traefik (or the full dev stack) after generating the certs.
 | **Grafana** | [https://grafana.localhost](https://grafana.localhost) | Metrics & Dashboards |
 | **Jaeger** | [https://jaeger.localhost](https://jaeger.localhost) | Distributed Tracing UI |
 | **Traefik Dashboard** | [https://traefik.localhost](https://traefik.localhost) | Reverse-proxy dashboard |
+
+> **⚠️ Production Profile Status:** The production profile (`docker-compose.prod.yml`) is currently under active development with Traefik v3.6 migration and multi-tenant CORS architecture. For stable demos and testing, **use the dev profile**. Track progress in [`docs/development/cors-migration-plan.md`](docs/development/cors-migration-plan.md).
 
 ---
 
