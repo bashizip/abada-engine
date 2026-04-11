@@ -12,6 +12,86 @@ The Abada Engine is fully instrumented with OpenTelemetry to provide comprehensi
 
 ## Architecture
 
+
+The complete observability pipeline now follows this flow:
+
+```
+┌─────────────────┐
+│  Spring Boot    │
+│  Application    │
+└────────┬────────┘
+         │
+         ├─── Traces ───┐
+         ├─── Metrics ──┤
+         └─── Logs ─────┼───> [File System]
+                        │          │
+                        ▼          ▼
+              ┌──────────────────┐ ┌──────────┐
+              │ OpenTelemetry    │ │ Promtail │
+              │   Collector      │ └────┬─────┘
+              └────────┬─────────┘      │
+                       │                │
+         ┌─────────────┼─────────────┐  │
+         │             │             │  │
+         ▼             ▼             ▼  ▼
+    ┌────────┐   ┌──────────┐   ┌──────┐
+    │ Jaeger │   │Prometheus│   │ Loki │
+    └────────┘   └──────────┘   └──────┘
+         │             │             │
+         └─────────────┴─────────────┘
+                       │
+                       ▼
+                 ┌──────────┐
+                 │ Grafana  │
+                 └──────────┘
+```
+
+## Key Features
+
+### 1. Unified Observability Pipeline
+All telemetry data (traces, metrics, logs) flows through a single OpenTelemetry Collector, providing:
+- Consistent configuration
+- Centralized processing
+- Unified resource attribution
+
+### 2. Automatic Trace Correlation
+Logs automatically include `traceId` and `spanId` from the MDC context, enabling:
+- Jump from traces in Jaeger to related logs in Loki
+- Filter logs by specific trace IDs
+- Correlate distributed operations across services
+
+### 3. Efficient Log Storage
+Loki uses label-based indexing instead of full-text indexing:
+- Faster queries
+- Lower storage costs
+- Better performance at scale
+
+### 4. Seamless Grafana Integration
+All observability data is accessible in Grafana:
+- Metrics dashboards from Prometheus
+- Trace exploration from Jaeger
+- Log queries from Loki
+- Unified view of system behavior
+
+## Usage Examples
+
+### Querying Logs in Grafana
+
+1. Navigate to Grafana Explore view
+2. Select Loki as the data source
+3. Use LogQL queries:
+
+```logql
+# All logs from abada-engine
+{service_name="abada-engine"}
+
+# Filter by log level
+{service_name="abada-engine"} | json | level="ERROR"
+
+# Logs for a specific trace
+{service_name="abada-engine"} | json | traceId="abc123def456"
+```
+
 ### Components
 
 1. **ObservabilityConfig**: Main configuration class that sets up OpenTelemetry SDK
