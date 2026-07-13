@@ -163,6 +163,8 @@ Last reviewed: 2026-07-13.
   construct and semantic guarantee.
 - [ ] Run parser, engine unit, PostgreSQL integration, frontend lint/build and
   API compatibility checks on every pull request.
+- [x] Enforce zero known npm dependency vulnerabilities for Tenda and Orun in
+  CI with a low-severity audit gate.
 - [ ] Complete an independent security review with no unresolved critical
   findings.
 - [ ] Reach zero unresolved critical correctness defects.

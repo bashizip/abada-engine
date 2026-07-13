@@ -69,8 +69,8 @@ src/
 
 ### Prerequisites
 
-- Node.js (v18 or higher) - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-- npm or bun package manager
+- Node.js 24.18 LTS (use the repository `.nvmrc`)
+- npm 11 or newer
 
 ### Installation
 
