@@ -94,8 +94,9 @@ class PostgresRestartRecoveryTest {
 
             restartedEngine.claim(taskId, "alice", List.of("operators"));
 
-            // Poison both legacy caches after claiming. Completion must ignore these
-            // objects and reconstruct authoritative command state from PostgreSQL.
+            // Poison the detached task snapshot and the remaining process-instance
+            // compatibility cache. Completion must reconstruct authoritative command
+            // state from PostgreSQL.
             recoveredTasks.getFirst().setStatus(TaskStatus.COMPLETED);
             restartedEngine.getProcessInstanceById(processInstanceId)
                     .putAllVariables(Map.of("cacheOnly", "must-not-be-persisted"));
@@ -122,6 +123,56 @@ class PostgresRestartRecoveryTest {
             assertThat(history)
                     .extracting(ActivityHistoryEntity::getEventType)
                     .containsExactly("PROCESS_STARTED", "TASK_CLAIMED", "TASK_COMPLETED");
+        }
+    }
+
+    @Test
+    void serializesConcurrentClaimAndFailureAcrossTwoEngineReplicas() throws Exception {
+        try (ConfigurableApplicationContext firstContext = startApplication()) {
+            firstContext.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine firstEngine = firstContext.getBean(AbadaEngine.class);
+            deployRestartProcess(firstEngine);
+
+            ProcessInstance instance = firstEngine.startProcess(
+                    "postgres-restart-recovery", "alice", Map.of());
+            String taskId = firstEngine.getTaskManager()
+                    .getVisibleTasksForUser("alice", List.of("operators"))
+                    .getFirst()
+                    .getId();
+
+            try (ConfigurableApplicationContext secondContext = startApplication()) {
+                AbadaEngine secondEngine = secondContext.getBean(AbadaEngine.class);
+
+                assertThat(runConcurrentAttempts(
+                        claimAttempt(firstEngine, taskId),
+                        claimAttempt(secondEngine, taskId)))
+                        .containsExactlyInAnyOrder(true, false);
+                assertThat(firstContext.getBean(TaskRepository.class).findById(taskId))
+                        .isPresent()
+                        .get()
+                        .extracting(TaskEntity::getStatus)
+                        .isEqualTo(TaskStatus.CLAIMED);
+
+                assertThat(runConcurrentAttempts(
+                        failureAttempt(firstEngine, taskId),
+                        failureAttempt(secondEngine, taskId)))
+                        .containsExactlyInAnyOrder(true, false);
+                assertThat(firstContext.getBean(TaskRepository.class).findById(taskId))
+                        .isPresent()
+                        .get()
+                        .extracting(TaskEntity::getStatus)
+                        .isEqualTo(TaskStatus.FAILED);
+
+                List<ActivityHistoryEntity> history = firstContext
+                        .getBean(ActivityHistoryRepository.class)
+                        .findByProcessInstanceIdOrderByOccurredAtAsc(instance.getId());
+                assertThat(history)
+                        .filteredOn(event -> "TASK_CLAIMED".equals(event.getEventType()))
+                        .hasSize(1);
+                assertThat(history)
+                        .filteredOn(event -> "TASK_FAILED".equals(event.getEventType()))
+                        .hasSize(1);
+            }
         }
     }
 
@@ -192,6 +243,55 @@ class PostgresRestartRecoveryTest {
             } catch (ProcessEngineException alreadyCompleted) {
                 return false;
             }
+        };
+    }
+
+    private Callable<Boolean> claimAttempt(AbadaEngine engine, String taskId) {
+        return () -> {
+            try {
+                engine.claim(taskId, "alice", List.of("operators"));
+                return true;
+            } catch (ProcessEngineException alreadyClaimed) {
+                return false;
+            }
+        };
+    }
+
+    private Callable<Boolean> failureAttempt(AbadaEngine engine, String taskId) {
+        return () -> {
+            try {
+                engine.failTask(taskId);
+                return true;
+            } catch (ProcessEngineException alreadyFailed) {
+                return false;
+            }
+        };
+    }
+
+    private List<Boolean> runConcurrentAttempts(
+            Callable<Boolean> firstAttempt, Callable<Boolean> secondAttempt) throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        Callable<Boolean> gatedFirst = gatedAttempt(firstAttempt, ready, start);
+        Callable<Boolean> gatedSecond = gatedAttempt(secondAttempt, ready, start);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> firstResult = executor.submit(gatedFirst);
+            Future<Boolean> secondResult = executor.submit(gatedSecond);
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            return List.of(
+                    firstResult.get(10, TimeUnit.SECONDS),
+                    secondResult.get(10, TimeUnit.SECONDS));
+        }
+    }
+
+    private Callable<Boolean> gatedAttempt(Callable<Boolean> attempt,
+            CountDownLatch ready, CountDownLatch start) {
+        return () -> {
+            ready.countDown();
+            assertThat(start.await(10, TimeUnit.SECONDS)).isTrue();
+            return attempt.call();
         };
     }
 

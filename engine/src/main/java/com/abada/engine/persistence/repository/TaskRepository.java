@@ -9,11 +9,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<TaskEntity, String> {
-    List<TaskEntity> findByProcessInstanceId(String processInstanceId);
+    List<TaskEntity> findByProcessInstanceIdAndStatusNotIn(
+            String processInstanceId, Collection<TaskStatus> terminalStatuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM TaskEntity t WHERE t.id = :taskId")
@@ -37,4 +39,42 @@ public interface TaskRepository extends JpaRepository<TaskEntity, String> {
     
     @Query("SELECT t FROM TaskEntity t WHERE t.assignee = :assignee OR :assignee MEMBER OF t.candidateUsers")
     List<TaskEntity> findTasksForUser(@Param("assignee") String assignee);
+
+    @Query("""
+            SELECT DISTINCT t
+            FROM TaskEntity t
+            LEFT JOIN t.candidateUsers candidateUser
+            LEFT JOIN t.candidateGroups candidateGroup
+            WHERE t.status IN :activeStatuses
+              AND (
+                    t.assignee = :user
+                    OR (
+                        t.assignee IS NULL
+                        AND (
+                            candidateUser = :user
+                            OR (:hasGroups = true AND candidateGroup IN :groups)
+                        )
+                    )
+                  )
+            ORDER BY t.startDate ASC
+            """)
+    List<TaskEntity> findVisibleTasks(
+            @Param("user") String user,
+            @Param("groups") Collection<String> groups,
+            @Param("hasGroups") boolean hasGroups,
+            @Param("activeStatuses") Collection<TaskStatus> activeStatuses);
+
+    @Query("""
+            SELECT t.taskDefinitionKey AS taskDefinitionKey, COUNT(t) AS taskCount
+            FROM TaskEntity t
+            WHERE t.status IN :activeStatuses
+            GROUP BY t.taskDefinitionKey
+            """)
+    List<ActiveTaskCount> countActiveTasksByDefinitionKey(
+            @Param("activeStatuses") Collection<TaskStatus> activeStatuses);
+
+    interface ActiveTaskCount {
+        String getTaskDefinitionKey();
+        long getTaskCount();
+    }
 }

@@ -2,8 +2,9 @@ package com.abada.engine.core;
 
 import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
+import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
-import com.abada.engine.persistence.entity.TaskEntity;
+import com.abada.engine.persistence.repository.TaskRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
@@ -16,20 +17,23 @@ public class StateReloadService {
     private final PersistenceService persistenceService;
     private final AbadaEngine abadaEngine;
     private final com.abada.engine.observability.EngineMetrics engineMetrics;
+    private final TaskRepository taskRepository;
 
     public StateReloadService(PersistenceService persistenceService, AbadaEngine abadaEngine,
-            com.abada.engine.observability.EngineMetrics engineMetrics) {
+            com.abada.engine.observability.EngineMetrics engineMetrics,
+            TaskRepository taskRepository) {
         this.persistenceService = persistenceService;
         this.abadaEngine = abadaEngine;
         this.engineMetrics = engineMetrics;
+        this.taskRepository = taskRepository;
     }
 
     @PostConstruct
     public void reloadStateAtStartup() throws IOException {
         engineMetrics.resetActiveState();
-        reloadProcessDefinitions();  // 🚨 Reload definitions FIRST
-        reloadProcessInstances();    // 🚨 Then reload instances
-        reloadTasks();               // 🚨 Then reload tasks
+        reloadProcessDefinitions();
+        reloadProcessInstances();
+        restoreTaskMetrics();
     }
 
     private void reloadProcessDefinitions() throws IOException {
@@ -46,10 +50,10 @@ public class StateReloadService {
         }
     }
 
-    private void reloadTasks() {
-        List<TaskEntity> tasks = persistenceService.findAllTasks();
-        for (TaskEntity taskEntity : tasks) {
-            abadaEngine.rehydrateTaskInstance(taskEntity);
-        }
+    private void restoreTaskMetrics() {
+        taskRepository.countActiveTasksByDefinitionKey(
+                        List.of(TaskStatus.AVAILABLE, TaskStatus.CLAIMED))
+                .forEach(count -> engineMetrics.restoreActiveTasks(
+                        count.getTaskDefinitionKey(), count.getTaskCount()));
     }
 }

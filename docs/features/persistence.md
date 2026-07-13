@@ -1,68 +1,51 @@
-# 🧠 Persistence and Recovery in Abada Engine
+# Persistence and Recovery
 
-This document describes how Abada Engine stores runtime state (process instances and tasks) and how it recovers them after a restart.
+Abada persists production workflow state in PostgreSQL. Flyway owns the schema
+and Hibernate validates it at startup. H2 remains available for local
+convenience, but PostgreSQL Testcontainers tests are the persistence and
+concurrency reference.
 
----
+## Stored state
 
-## 🗃️ Where State Is Stored
+- Immutable, versioned BPMN process definitions and their raw XML
+- Process instances, variables, active tokens and gateway join state
+- User tasks and candidate users/groups
+- Message and signal subscriptions
+- Timer jobs and external tasks with lease and retry state
+- Append-only activity history and idempotency records
 
-- **Process Instances** are persisted in the `process_instance` table via the `ProcessInstanceEntity` class.
-- **User Tasks** are stored in the `task` table via the `TaskEntity` class.
-- Both are persisted automatically by the `PersistenceService` interface (currently using a JDBC-backed H2 implementation).
+## User-task lifecycle
 
----
+User tasks are not rehydrated into an engine-wide memory map. Task list and
+detail reads query PostgreSQL and return detached snapshots. Claim, completion
+and failure commands lock the target task row, validate its committed status,
+apply the transition to a command-local object and persist it in the command
+transaction.
 
-## 🔁 How Recovery Works on Startup
+This makes concurrent replicas deterministic: after one replica commits a
+transition, another waiting replica reads the new status and cannot repeat an
+invalid transition. Indexes cover process-instance, assignee, candidate-user
+and candidate-group task lookups.
 
-The `StateReloadService` handles runtime memory reconstruction by:
+## Startup recovery
 
-1. Fetching all persisted `ProcessInstanceEntity` rows.
-2. Rebuilding `ProcessInstance` objects in memory (via `ProcessInstance` + `ParsedProcessDefinition`).
-3. Re-parsing the associated BPMN XML for each process (stored in the DB as a string).
-4. Fetching all tasks for each instance and recreating `TaskInstance` objects in memory.
-5. Registering both process and tasks in the in-memory engine (used by `AbadaEngine` and `TaskManager`).
+Startup currently reloads immutable definitions and the remaining
+process-instance compatibility state. It does not reload user-task objects.
+Active-task metrics are reconstructed with a grouped count query rather than
+materializing all tasks.
 
-The recovery process is triggered at application startup via `@PostConstruct`.
+Process-instance startup rehydration is transitional and is the next runtime
+cache scheduled for removal. The final architecture will load mutable instance
+state only for the command handling it.
 
----
+## Guarantees and remaining work
 
-## 📄 BPMN Storage Format
+PostgreSQL tests currently cover restart recovery and concurrent task claim,
+completion and failure across two application contexts. Full multi-replica
+certification still requires database-authoritative process commands, atomic
+event correlation, timer/external-work acquisition and failure testing around
+transaction commits.
 
-- Each deployed BPMN file is stored **as raw XML** in the `bpmnXml` field of the `ProcessDefinitionEntity`.
-- On reload, this XML is parsed again using `BpmnParser` to reconstruct task definitions and flows.
-
----
-
-## ⚠️ Limitations in `0.5.0-alpha`
-
-- **Only user tasks are supported.**
-    - No support yet for service tasks, gateways, timers, or event subprocesses.
-- **All recovery is in-memory after startup.**
-    - Runtime changes (e.g., new process deployment) are persisted and recovered next time.
-- **Task metadata**
-    - `candidateUsers` and `candidateGroups` are currently loaded as collections, but query optimizations are still minimal.
-- **No historic audit log yet** (only active runtime state is persisted).
-
----
-
-## ✅ What's Covered
-
-| Feature | Supported |
-|--------|------------|
-| User Task recovery | ✅ |
-| Process instance resumption | ✅ |
-| BPMN re-parsing from DB | ✅ |
-| Task visibility by user/group after restart | ✅ |
-| Full test coverage for reboot scenario | ✅ (`AbadaEnginePersistenceIntegrationTest`) |
-
----
-
-## 🔮 Next Steps
-
-- Add service task execution logic and recovery
-- Introduce activity history table
-- Externalize BPMN viewer/editor via `GET /processes/{id}/diagram`
-
----
-
-ℹ️ See `DatabaseInitializer.java` and `StateReloadService.java` for the bootstrapping logic.
+See [Runtime State Architecture](../architecture/runtime-state.md) and the
+[Reliable OSS Core Roadmap](../development/roadmap.md) for the exact migration
+boundary and acceptance gates.

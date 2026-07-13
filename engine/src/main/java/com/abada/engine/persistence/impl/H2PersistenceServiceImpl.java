@@ -57,11 +57,6 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     }
 
     @Override
-    public TaskEntity findTaskById(String taskId) {
-        return taskRepository.findById(taskId).orElse(null);
-    }
-
-    @Override
     public TaskEntity findTaskByIdForUpdate(String taskId) {
         return taskRepository.findByIdForUpdate(taskId).orElse(null);
     }
@@ -82,11 +77,6 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     }
 
     @Override
-    public List<TaskEntity> findTasksByProcessInstanceId(String instanceId) {
-        return taskRepository.findByProcessInstanceId(instanceId);
-    }
-
-    @Override
     public List<ProcessDefinitionEntity> findAllProcessDefinitions() {
         return processDefinitionRepository.findAllByOrderByProcessKeyAscVersionDesc();
     }
@@ -96,8 +86,4 @@ public class H2PersistenceServiceImpl implements PersistenceService {
         return processInstanceRepository.findAll();
     }
 
-    @Override
-    public List<TaskEntity> findAllTasks() {
-        return taskRepository.findAll();
-    }
 }

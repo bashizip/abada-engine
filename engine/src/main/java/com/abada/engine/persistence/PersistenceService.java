@@ -4,7 +4,6 @@ import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
 
-
 import java.util.List;
 
 public interface PersistenceService {
@@ -17,8 +16,6 @@ public interface PersistenceService {
 
     TaskEntity saveTask(TaskEntity task);
 
-    TaskEntity findTaskById(String taskId);
-
     TaskEntity findTaskByIdForUpdate(String taskId);
 
     ProcessDefinitionEntity findProcessDefinitionById(String definitionId);
@@ -27,12 +24,8 @@ public interface PersistenceService {
 
     ProcessInstanceEntity findProcessInstanceById(String instanceId);
 
-    List<TaskEntity> findTasksByProcessInstanceId(String instanceId);
-
     List<ProcessDefinitionEntity> findAllProcessDefinitions();
 
     List<ProcessInstanceEntity> findAllProcessInstances();
-
-    List<TaskEntity> findAllTasks();
 
 }

@@ -44,6 +44,10 @@ Last reviewed: 2026-07-13.
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 - [ ] Remove runtime-wide mutable instance, task, subscription and scheduling
   maps; load authoritative state from PostgreSQL for each command.
+  - [x] Remove the user-task map; query visible tasks from PostgreSQL and lock
+    task rows for claim, completion and failure. Evidence:
+    [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
+  - [ ] Remove the process-instance compatibility map and startup rehydration.
 - [ ] Make every engine command a single atomic load, validate, advance,
   persist and commit transaction.
 - [ ] Retain only immutable parsed definition caches in memory, keyed by

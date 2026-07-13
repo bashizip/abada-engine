@@ -301,8 +301,14 @@ public class EngineMetrics {
     }
 
     public void restoreActiveTask(String taskDefinitionKey) {
-        // Increment active count
-        activeTasks.incrementAndGet();
+        restoreActiveTasks(taskDefinitionKey, 1);
+    }
+
+    public void restoreActiveTasks(String taskDefinitionKey, long count) {
+        if (count <= 0) {
+            return;
+        }
+        activeTasks.addAndGet(count);
 
         // Ensure the counter exists in the map so completion metrics work later
         taskCreatedCounters.computeIfAbsent(taskDefinitionKey, key -> Counter.builder("abada.tasks.created")

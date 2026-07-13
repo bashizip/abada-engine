@@ -64,37 +64,41 @@ already durable; an idempotency record makes a duplicate request return the
 same logical result. External side effects remain at-least-once unless the
 external system participates through an idempotent protocol.
 
-## Implemented slice: user-task completion
+## Implemented slice: user-task lifecycle
 
-User-task completion is the first command migrated to this model:
+The user-task lifecycle is the first runtime area migrated to this model:
 
-1. `completeTask` obtains a PostgreSQL write lock on the task row.
-2. It materializes a command-local task and process instance from database
-   entities and the immutable definition version.
-3. It validates task ownership/status and process suspension, applies
-   variables, advances tokens, and creates command-local successor tasks.
-4. It persists task state, process state, successor tasks, subscriptions,
-   timers, external work and activity history in the same Spring transaction.
-5. It publishes the result to legacy compatibility maps only after commit.
+1. Task reads query PostgreSQL by task ID, process instance, assignee,
+   candidate user or candidate group. They return detached snapshots and do
+   not populate a runtime-wide map.
+2. `claim`, `completeTask` and `failTask` obtain a PostgreSQL write lock on the
+   target task row and materialize one command-local task object.
+3. Each command validates the committed task status before changing it. Task
+   completion also reconstructs the process instance from its database row,
+   advances the BPMN model and persists successor work in the transaction.
+4. Task state and activity history commit atomically. Concurrent replicas wait
+   for the same row lock and observe the winning status after it commits.
+5. Startup does not rehydrate task objects. Active-task metrics are restored
+   with a grouped database count instead of loading every task.
 
-A concurrent completion on another engine waits for the task lock, then reads
-the committed `COMPLETED` status and is rejected. The PostgreSQL integration
-test verifies that two engine application contexts produce one successful
-completion and one `TASK_COMPLETED` history record.
+A concurrent task command on another engine waits for the task lock, then
+reads the committed status and is rejected when the transition is no longer
+valid. PostgreSQL integration tests verify single winners for claim, failure
+and completion across two application contexts, with one corresponding
+history event.
 
-The compatibility-map publication is temporary. It keeps existing read paths
-working while commands are migrated, but it is not a cross-replica cache
-coherence mechanism.
+The process-instance compatibility map remains temporary. It is not consulted
+for task state and is the next mutable runtime cache scheduled for removal.
 
 ## Current migration status
 
 | Area | Current behavior | 1.0 target |
 |---|---|---|
 | Parsed process definitions | Immutable versions are persisted and parsed definitions are cached in each replica | Keep immutable cache keyed only by definition version/deployment ID |
-| User-task completion | Loads and locks task plus process state from PostgreSQL; mutates command-local objects; publishes legacy cache after commit | Retain this command model and add deterministic idempotent responses |
-| Startup | Rehydrates process-instance and task maps from PostgreSQL | Load definitions only; do not rehydrate mutable runtime maps |
-| Task claim/failure and process control | Several paths still read and mutate replica-local maps before persisting | Convert each command to authoritative database load and transactional mutation |
-| Instance/task query APIs | Several reads are served by replica-local maps and can be stale across replicas | Query PostgreSQL-backed projections with pagination and filtering |
+| User-task lifecycle | Claim, completion and failure lock PostgreSQL task rows and mutate command-local snapshots | Add deterministic idempotency to claim/failure and retain this command model |
+| Startup | Rehydrates process instances; tasks remain in PostgreSQL and task metrics use an aggregate query | Load definitions only; do not rehydrate mutable runtime maps |
+| Process control | Several paths still read and mutate the replica-local process-instance map before persisting | Convert each command to authoritative database load and transactional mutation |
+| Query APIs | Task reads use PostgreSQL-backed user/group queries; instance reads still use a compatibility map | Add pagination/projections and remove instance-map reads |
 | Message/signal correlation | Subscriptions are durable, but all correlation paths are not yet proven command-local and concurrent-safe | Lock/consume subscriptions and advance the instance transactionally |
 | Timers/external work | Durable job and lease fields exist | Prove atomic multi-replica acquisition, expiry recovery and idempotent completion |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |

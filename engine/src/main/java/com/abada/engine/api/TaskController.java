@@ -59,7 +59,6 @@ public class TaskController {
     ) {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
-        engine.refreshTaskCache();
         List<TaskInstance> visible = engine
             .getTaskManager()
             .getVisibleTasksForUser(user, groups, status);

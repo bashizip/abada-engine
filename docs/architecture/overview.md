@@ -142,9 +142,9 @@ management:
 - Process instances are persisted to database
 - Each engine instance maintains its own connection pool
 - Shared state through database transactions
-- Parsed definitions may be cached in memory. User-task completion now loads
-  authoritative command state from PostgreSQL, while other commands and reads
-  are still being migrated away from legacy mutable maps.
+- Parsed definitions may be cached in memory. User-task reads and lifecycle
+  commands now use PostgreSQL directly; process-instance commands and reads
+  are still being migrated away from the remaining compatibility map.
 - The [runtime state architecture](runtime-state.md) defines the target command
   model, current migration boundary, locking policy and acceptance criteria.
   Multi-replica execution remains an acceptance-tested release gate.

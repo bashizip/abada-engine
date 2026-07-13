@@ -4,7 +4,7 @@
 |---|---|---|---|
 | H2, one engine | Local development and tests | Disabled or trusted local proxy | Restart recovery; not a production topology |
 | PostgreSQL, one engine | Self-hosted production candidate | Direct OIDC JWT validation | Durable definitions, tokens, joins, tasks, subscriptions and timers; command migration is incomplete |
-| PostgreSQL, multiple engines | Pre-production/experimental | Direct OIDC JWT validation | Database-authoritative user-task completion plus partial optimistic/lease protection; full HA certification remains a 0.10 release gate |
+| PostgreSQL, multiple engines | Pre-production/experimental | Direct OIDC JWT validation | Database-authoritative user-task reads, claim, completion and failure plus partial optimistic/lease protection; full HA certification remains a 0.10 release gate |
 | Trusted proxy | Controlled private network only | OAuth2 Proxy headers | Engine must not be reachable except through the proxy |
 
 Production defaults to `ABADA_SECURITY_MODE=oidc` and requires
