@@ -12,8 +12,6 @@ public interface PersistenceService {
 
     ProcessDefinitionEntity saveProcessDefinition(ProcessDefinitionEntity definition);
 
-    void saveProcessInstance(ProcessInstanceEntity instance);
-
     TaskEntity saveTask(TaskEntity task);
 
     TaskEntity findTaskByIdForUpdate(String taskId);
@@ -23,6 +21,8 @@ public interface PersistenceService {
     ProcessDefinitionEntity findProcessDefinitionByDeploymentId(String deploymentId);
 
     ProcessInstanceEntity findProcessInstanceById(String instanceId);
+
+    ProcessInstanceEntity findProcessInstanceByIdForUpdate(String instanceId);
 
     List<ProcessDefinitionEntity> findAllProcessDefinitions();
 

@@ -43,12 +43,6 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     }
 
     @Override
-    @Transactional
-    public void saveProcessInstance(ProcessInstanceEntity instance) {
-        saveOrUpdateProcessInstance(instance);
-    }
-
-    @Override
     public TaskEntity saveTask(TaskEntity task) {
         if (task == null) {
             throw new IllegalArgumentException("task cannot be null");
@@ -74,6 +68,11 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     @Override
     public ProcessInstanceEntity findProcessInstanceById(String instanceId) {
         return processInstanceRepository.findById(instanceId).orElse(null);
+    }
+
+    @Override
+    public ProcessInstanceEntity findProcessInstanceByIdForUpdate(String instanceId) {
+        return processInstanceRepository.findByIdForUpdate(instanceId).orElse(null);
     }
 
     @Override

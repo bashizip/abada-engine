@@ -94,12 +94,13 @@ class PostgresRestartRecoveryTest {
 
             restartedEngine.claim(taskId, "alice", List.of("operators"));
 
-            // Poison the detached task snapshot and the remaining process-instance
-            // compatibility cache. Completion must reconstruct authoritative command
-            // state from PostgreSQL.
+            // Poison detached query snapshots. A later command must reconstruct its
+            // authoritative state from PostgreSQL rather than observing these changes.
             recoveredTasks.getFirst().setStatus(TaskStatus.COMPLETED);
-            restartedEngine.getProcessInstanceById(processInstanceId)
-                    .putAllVariables(Map.of("cacheOnly", "must-not-be-persisted"));
+            ProcessInstance detachedInstance = restartedEngine.getProcessInstanceById(processInstanceId);
+            detachedInstance.putAllVariables(Map.of("memoryOnly", "must-not-be-persisted"));
+            assertThat(restartedEngine.getProcessInstanceById(processInstanceId).getVariables())
+                    .doesNotContainKey("memoryOnly");
 
             restartedEngine.completeTask(taskId, "alice", List.of("operators"),
                     Map.of("approved", true));
@@ -109,7 +110,7 @@ class PostgresRestartRecoveryTest {
             assertThat(completed.getVariables())
                     .containsEntry("requestId", "request-42")
                     .containsEntry("approved", true)
-                    .doesNotContainKey("cacheOnly");
+                    .doesNotContainKey("memoryOnly");
 
             assertThat(restartedContext.getBean(TaskRepository.class).findById(taskId))
                     .isPresent()
@@ -232,6 +233,39 @@ class PostgresRestartRecoveryTest {
         }
     }
 
+    @Test
+    void preservesConcurrentVariableUpdatesAcrossTwoEngineReplicas() throws Exception {
+        try (ConfigurableApplicationContext firstContext = startApplication()) {
+            firstContext.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine firstEngine = firstContext.getBean(AbadaEngine.class);
+            deployRestartProcess(firstEngine);
+
+            ProcessInstance instance = firstEngine.startProcess(
+                    "postgres-restart-recovery", "alice", Map.of("initial", true));
+
+            try (ConfigurableApplicationContext secondContext = startApplication()) {
+                AbadaEngine secondEngine = secondContext.getBean(AbadaEngine.class);
+
+                assertThat(runConcurrentAttempts(
+                        variableUpdateAttempt(firstEngine, instance.getId(), "fromFirstReplica", 1),
+                        variableUpdateAttempt(secondEngine, instance.getId(), "fromSecondReplica", 2)))
+                        .containsExactly(true, true);
+
+                assertThat(firstEngine.getProcessInstanceById(instance.getId()).getVariables())
+                        .containsEntry("initial", true)
+                        .containsEntry("fromFirstReplica", 1)
+                        .containsEntry("fromSecondReplica", 2);
+
+                List<ActivityHistoryEntity> history = firstContext
+                        .getBean(ActivityHistoryRepository.class)
+                        .findByProcessInstanceIdOrderByOccurredAtAsc(instance.getId());
+                assertThat(history)
+                        .filteredOn(event -> "VARIABLES_UPDATED".equals(event.getEventType()))
+                        .hasSize(2);
+            }
+        }
+    }
+
     private Callable<Boolean> completionAttempt(AbadaEngine engine, String taskId,
             CountDownLatch ready, CountDownLatch start) {
         return () -> {
@@ -265,6 +299,14 @@ class PostgresRestartRecoveryTest {
             } catch (ProcessEngineException alreadyFailed) {
                 return false;
             }
+        };
+    }
+
+    private Callable<Boolean> variableUpdateAttempt(
+            AbadaEngine engine, String processInstanceId, String variableName, Object value) {
+        return () -> {
+            engine.updateProcessVariables(processInstanceId, Map.of(variableName, value));
+            return true;
         };
     }
 

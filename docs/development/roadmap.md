@@ -39,15 +39,17 @@ Last reviewed: 2026-07-13.
 - [x] Persist external tasks with locking, completion and failure state.
 - [x] Record append-only activity history.
 - [x] Make user-task completion load locked task and process state from
-  PostgreSQL, mutate command-local objects, and publish legacy compatibility
-  state only after commit. Evidence:
+  PostgreSQL and mutate only command-local objects. Evidence:
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Remove runtime-wide mutable instance, task, subscription and scheduling
+- [x] Remove runtime-wide mutable instance, task, subscription and scheduling
   maps; load authoritative state from PostgreSQL for each command.
   - [x] Remove the user-task map; query visible tasks from PostgreSQL and lock
     task rows for claim, completion and failure. Evidence:
     [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-  - [ ] Remove the process-instance compatibility map and startup rehydration.
+  - [x] Remove the process-instance compatibility map and startup rehydration;
+    lock process rows for mutations and return detached database snapshots for
+    queries. Evidence:
+    [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 - [ ] Make every engine command a single atomic load, validate, advance,
   persist and commit transaction.
 - [ ] Retain only immutable parsed definition caches in memory, keyed by

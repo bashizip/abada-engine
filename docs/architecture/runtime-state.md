@@ -64,9 +64,10 @@ already durable; an idempotency record makes a duplicate request return the
 same logical result. External side effects remain at-least-once unless the
 external system participates through an idempotent protocol.
 
-## Implemented slice: user-task lifecycle
+## Implemented slice: tasks and process instances
 
-The user-task lifecycle is the first runtime area migrated to this model:
+User tasks and process instances are the first runtime areas migrated to this
+model:
 
 1. Task reads query PostgreSQL by task ID, process instance, assignee,
    candidate user or candidate group. They return detached snapshots and do
@@ -78,8 +79,12 @@ The user-task lifecycle is the first runtime area migrated to this model:
    advances the BPMN model and persists successor work in the transaction.
 4. Task state and activity history commit atomically. Concurrent replicas wait
    for the same row lock and observe the winning status after it commits.
-5. Startup does not rehydrate task objects. Active-task metrics are restored
-   with a grouped database count instead of loading every task.
+5. Process detail and list reads query PostgreSQL and return detached
+   snapshots. Process control, variable updates, event resume and task-driven
+   advancement lock the process row before reconstructing tokens, joins and
+   variables.
+6. Startup does not rehydrate task or process objects. Active gauges are
+   restored with grouped database counts instead of loading mutable state.
 
 A concurrent task command on another engine waits for the task lock, then
 reads the committed status and is rejected when the transition is no longer
@@ -87,8 +92,10 @@ valid. PostgreSQL integration tests verify single winners for claim, failure
 and completion across two application contexts, with one corresponding
 history event.
 
-The process-instance compatibility map remains temporary. It is not consulted
-for task state and is the next mutable runtime cache scheduled for removal.
+Concurrent variable-update tests across two application contexts verify that
+the process lock preserves both replicas' changes instead of losing the first
+committed update. Mutating a detached process query result also has no effect
+on a later read or command.
 
 ## Current migration status
 
@@ -96,9 +103,9 @@ for task state and is the next mutable runtime cache scheduled for removal.
 |---|---|---|
 | Parsed process definitions | Immutable versions are persisted and parsed definitions are cached in each replica | Keep immutable cache keyed only by definition version/deployment ID |
 | User-task lifecycle | Claim, completion and failure lock PostgreSQL task rows and mutate command-local snapshots | Add deterministic idempotency to claim/failure and retain this command model |
-| Startup | Rehydrates process instances; tasks remain in PostgreSQL and task metrics use an aggregate query | Load definitions only; do not rehydrate mutable runtime maps |
-| Process control | Several paths still read and mutate the replica-local process-instance map before persisting | Convert each command to authoritative database load and transactional mutation |
-| Query APIs | Task reads use PostgreSQL-backed user/group queries; instance reads still use a compatibility map | Add pagination/projections and remove instance-map reads |
+| Startup | Loads immutable definitions only; active process/task gauges use aggregate queries | Retain this model and extend durable recovery evidence |
+| Process control | Instance mutations load and lock PostgreSQL rows and use command-local state | Add deterministic idempotency and transaction-aware metrics |
+| Query APIs | Task and instance reads use PostgreSQL and return detached snapshots | Add pagination and purpose-built projections |
 | Message/signal correlation | Subscriptions are durable, but all correlation paths are not yet proven command-local and concurrent-safe | Lock/consume subscriptions and advance the instance transactionally |
 | Timers/external work | Durable job and lease fields exist | Prove atomic multi-replica acquisition, expiry recovery and idempotent completion |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |
@@ -131,10 +138,9 @@ Allowed caches contain immutable parsed process definitions. They may be
 discarded and reconstructed from a stored BPMN definition without changing
 execution semantics.
 
-Mutable process instances, tasks, subscriptions, jobs and variables must not be
-runtime-wide cache entries in the final architecture. During migration, any
-remaining compatibility map is non-authoritative and cannot be consulted by a
-migrated mutation command. It must be updated only after transaction commit.
+Mutable process instances, tasks, subscriptions, jobs and variables are not
+runtime-wide cache entries. Command-local maps inside a materialized process
+instance hold variables and join state only for the lifetime of that command.
 
 ## Completion criteria
 

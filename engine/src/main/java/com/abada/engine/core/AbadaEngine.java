@@ -29,8 +29,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,7 +57,6 @@ public class AbadaEngine {
     private final Map<String, ParsedProcessDefinition> processDefinitions = new ConcurrentHashMap<>();
     private final Map<String, ParsedProcessDefinition> definitionsByDeploymentId = new ConcurrentHashMap<>();
     private final Map<String, String> latestDeploymentByProcessKey = new ConcurrentHashMap<>();
-    private final Map<String, ProcessInstance> instances = new ConcurrentHashMap<>();
 
     @Autowired
     public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, @Lazy EventManager eventManager,
@@ -167,7 +164,6 @@ public class AbadaEngine {
             instance.setProcessDefinitionDeploymentId(latestDeploymentByProcessKey.get(processDefinitionId));
             instance.putAllVariables(initialVariables);
             instance.setStartedBy(username != null && !username.isBlank() ? username : "system");
-            instances.put(instance.getId(), instance);
 
             span.setAttribute("process.instance.id", instance.getId());
             span.setAttribute("process.definition.id", processDefinitionId);
@@ -233,7 +229,8 @@ public class AbadaEngine {
         taskManager.checkCanComplete(currentTask, user, groups);
 
         String processInstanceId = currentTask.getProcessInstanceId();
-        ProcessInstanceEntity authoritativeInstance = persistenceService.findProcessInstanceById(processInstanceId);
+        ProcessInstanceEntity authoritativeInstance =
+                persistenceService.findProcessInstanceByIdForUpdate(processInstanceId);
         if (authoritativeInstance == null) {
             // This is an internal consistency error, not a client error.
             throw new IllegalStateException("No process instance found for id=" + processInstanceId);
@@ -269,7 +266,6 @@ public class AbadaEngine {
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
         createExternalTaskJobs(instance);
-        publishProcessStateAfterCommit(instance);
     }
 
     @Transactional
@@ -283,7 +279,7 @@ public class AbadaEngine {
 
     @Transactional
     public boolean failProcess(String processInstanceId) {
-        ProcessInstance instance = getProcessInstanceById(processInstanceId);
+        ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
         if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED
                 || instance.getStatus() == ProcessStatus.FAILED
                 || instance.getStatus() == ProcessStatus.CANCELLED) {
@@ -307,7 +303,7 @@ public class AbadaEngine {
     @Transactional
     public void cancelProcessInstance(String processInstanceId, String reason) {
         log.info("Cancelling process instance {} for reason: {}", processInstanceId, reason);
-        ProcessInstance instance = getProcessInstanceById(processInstanceId);
+        ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
         if (instance == null) {
             throw new ProcessEngineException("Process instance not found: " + processInstanceId);
         }
@@ -329,7 +325,7 @@ public class AbadaEngine {
     @Transactional
     public void suspendProcessInstance(String processInstanceId, boolean suspended) {
         log.info("Setting suspension state for process instance {} to {}", processInstanceId, suspended);
-        ProcessInstance instance = getProcessInstanceById(processInstanceId);
+        ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
         if (instance == null) {
             throw new ProcessEngineException("Process instance not found: " + processInstanceId);
         }
@@ -356,7 +352,7 @@ public class AbadaEngine {
 
     @Transactional
     public void updateProcessVariables(String processInstanceId, Map<String, Object> modifications) {
-        ProcessInstance instance = getProcessInstanceById(processInstanceId);
+        ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
         if (instance == null) throw new ProcessEngineException("Process instance not found: " + processInstanceId);
         instance.putAllVariables(modifications);
         persistRuntimeState(instance);
@@ -367,7 +363,7 @@ public class AbadaEngine {
     @Transactional
     public void resumeFromEvent(String processInstanceId, String eventId, Map<String, Object> variables) {
         log.info("Resuming process instance {} from event {}", processInstanceId, eventId);
-        ProcessInstance instance = getProcessInstanceById(processInstanceId);
+        ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
         if (instance == null) {
             throw new ProcessEngineException("No process instance found for id=" + processInstanceId);
         }
@@ -394,15 +390,6 @@ public class AbadaEngine {
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
         createExternalTaskJobs(instance);
-    }
-
-    public void rehydrateProcessInstance(ProcessInstanceEntity entity) {
-        ProcessInstance instance = materializeProcessInstance(entity);
-        instances.put(instance.getId(), instance);
-
-        if (instance.getStatus() == ProcessStatus.RUNNING || instance.getStatus() == ProcessStatus.SUSPENDED) {
-            engineMetrics.restoreActiveProcess(instance.getDefinition().getId());
-        }
     }
 
     private ProcessInstance materializeProcessInstance(ProcessInstanceEntity entity) {
@@ -433,20 +420,6 @@ public class AbadaEngine {
         instance.setJoinExpectedTokens(readIntegerMap(entity.getJoinExpectedTokensJson()));
         instance.setJoinArrivedTokens(readSetMap(entity.getJoinArrivedTokensJson()));
         return instance;
-    }
-
-    private void publishProcessStateAfterCommit(ProcessInstance instance) {
-        Runnable publish = () -> instances.put(instance.getId(), instance);
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    publish.run();
-                }
-            });
-        } else {
-            publish.run();
-        }
     }
 
     private void createAndPersistTask(UserTaskPayload task, String processInstanceId) {
@@ -569,30 +542,29 @@ public class AbadaEngine {
         return materializeProcessInstance(entity);
     }
 
+    private ProcessInstance loadProcessInstanceForUpdate(String processInstanceId) {
+        ProcessInstanceEntity entity = persistenceService.findProcessInstanceByIdForUpdate(processInstanceId);
+        return entity == null ? null : materializeProcessInstance(entity);
+    }
+
     private void persistTask(TaskInstance task) {
         TaskEntity saved = persistenceService.saveTask(convertToEntity(task));
         task.setEntityVersion(saved.getEntityVersion());
     }
 
     public void clearMemory() {
-        instances.clear();
         processDefinitions.clear(); // Ensure definitions are cleared between tests
         definitionsByDeploymentId.clear();
         latestDeploymentByProcessKey.clear();
     }
 
+    @Transactional(readOnly = true)
     public ProcessInstance getProcessInstanceById(@SpanTag("process.instance.id") String id) {
         Span span = tracer.spanBuilder("abada.process.get").startSpan();
         try (var scope = span.makeCurrent()) {
             span.setAttribute("process.instance.id", id);
-            ProcessInstance instance = instances.get(id);
-            if (instance == null) {
-                ProcessInstanceEntity entity = persistenceService.findProcessInstanceById(id);
-                if (entity != null) {
-                    rehydrateProcessInstance(entity);
-                    instance = instances.get(id);
-                }
-            }
+            ProcessInstanceEntity entity = persistenceService.findProcessInstanceById(id);
+            ProcessInstance instance = entity == null ? null : materializeProcessInstance(entity);
             if (instance != null) {
                 span.setAttribute("process.definition.id", instance.getDefinition().getId());
                 span.setAttribute("process.status", instance.getStatus().toString());
@@ -603,14 +575,11 @@ public class AbadaEngine {
         }
     }
 
+    @Transactional(readOnly = true)
     public Collection<ProcessInstance> getAllProcessInstances() {
-        persistenceService.findAllProcessInstances().forEach(entity -> {
-            ProcessInstance cached = instances.get(entity.getId());
-            if (cached == null || cached.getEntityVersion() < entity.getEntityVersion()) {
-                rehydrateProcessInstance(entity);
-            }
-        });
-        return instances.values();
+        return persistenceService.findAllProcessInstances().stream()
+                .map(this::materializeProcessInstance)
+                .toList();
     }
 
     public TaskManager getTaskManager() {

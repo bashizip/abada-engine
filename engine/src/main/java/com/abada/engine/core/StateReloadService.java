@@ -3,7 +3,8 @@ package com.abada.engine.core;
 import com.abada.engine.persistence.PersistenceService;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.core.model.TaskStatus;
-import com.abada.engine.persistence.entity.ProcessInstanceEntity;
+import com.abada.engine.core.model.ProcessStatus;
+import com.abada.engine.persistence.repository.ProcessInstanceRepository;
 import com.abada.engine.persistence.repository.TaskRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
@@ -18,21 +19,24 @@ public class StateReloadService {
     private final AbadaEngine abadaEngine;
     private final com.abada.engine.observability.EngineMetrics engineMetrics;
     private final TaskRepository taskRepository;
+    private final ProcessInstanceRepository processInstanceRepository;
 
     public StateReloadService(PersistenceService persistenceService, AbadaEngine abadaEngine,
             com.abada.engine.observability.EngineMetrics engineMetrics,
-            TaskRepository taskRepository) {
+            TaskRepository taskRepository,
+            ProcessInstanceRepository processInstanceRepository) {
         this.persistenceService = persistenceService;
         this.abadaEngine = abadaEngine;
         this.engineMetrics = engineMetrics;
         this.taskRepository = taskRepository;
+        this.processInstanceRepository = processInstanceRepository;
     }
 
     @PostConstruct
     public void reloadStateAtStartup() throws IOException {
         engineMetrics.resetActiveState();
         reloadProcessDefinitions();
-        reloadProcessInstances();
+        restoreProcessMetrics();
         restoreTaskMetrics();
     }
 
@@ -43,11 +47,11 @@ public class StateReloadService {
         }
     }
 
-    private void reloadProcessInstances() {
-        List<ProcessInstanceEntity> instances = persistenceService.findAllProcessInstances();
-        for (ProcessInstanceEntity entity : instances) {
-            abadaEngine.rehydrateProcessInstance(entity);
-        }
+    private void restoreProcessMetrics() {
+        processInstanceRepository.countActiveProcessesByDefinitionId(
+                        List.of(ProcessStatus.RUNNING, ProcessStatus.SUSPENDED))
+                .forEach(count -> engineMetrics.restoreActiveProcesses(
+                        count.getProcessDefinitionId(), count.getInstanceCount()));
     }
 
     private void restoreTaskMetrics() {

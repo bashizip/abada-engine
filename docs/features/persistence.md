@@ -14,7 +14,7 @@ concurrency reference.
 - Timer jobs and external tasks with lease and retry state
 - Append-only activity history and idempotency records
 
-## User-task lifecycle
+## Command-local runtime state
 
 User tasks are not rehydrated into an engine-wide memory map. Task list and
 detail reads query PostgreSQL and return detached snapshots. Claim, completion
@@ -27,16 +27,19 @@ transition, another waiting replica reads the new status and cannot repeat an
 invalid transition. Indexes cover process-instance, assignee, candidate-user
 and candidate-group task lookups.
 
+Process-instance detail and list queries likewise materialize detached
+snapshots directly from PostgreSQL. Completion, cancellation, failure,
+suspension, variable updates and event resumption take a write lock on the
+instance row before reconstructing tokens, joins and variables. Concurrent
+commands therefore see the previous command's committed version instead of a
+replica-local object.
+
 ## Startup recovery
 
-Startup currently reloads immutable definitions and the remaining
-process-instance compatibility state. It does not reload user-task objects.
-Active-task metrics are reconstructed with a grouped count query rather than
-materializing all tasks.
-
-Process-instance startup rehydration is transitional and is the next runtime
-cache scheduled for removal. The final architecture will load mutable instance
-state only for the command handling it.
+Startup reloads only immutable parsed process definitions. It does not reload
+user-task or process-instance objects. Active process and task metrics are
+reconstructed with grouped count queries rather than materializing workflow
+state.
 
 ## Guarantees and remaining work
 

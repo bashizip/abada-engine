@@ -209,8 +209,14 @@ public class EngineMetrics {
     }
 
     public void restoreActiveProcess(String processDefinitionId) {
-        // Increment active count
-        activeProcessInstances.incrementAndGet();
+        restoreActiveProcesses(processDefinitionId, 1);
+    }
+
+    public void restoreActiveProcesses(String processDefinitionId, long count) {
+        if (count <= 0) {
+            return;
+        }
+        activeProcessInstances.addAndGet(count);
 
         // Ensure the counter exists in the map so completion metrics work later
         processStartedCounters.computeIfAbsent(processDefinitionId,

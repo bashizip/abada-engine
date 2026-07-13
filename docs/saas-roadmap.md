@@ -33,7 +33,7 @@ The engine is single-tenant by design. There is no concept of an "organization" 
 **1b. Engine-Level Changes**
 - Add `tenantId` to all JPA entities: `ProcessDefinitionEntity`, `ProcessInstanceEntity`, `TaskEntity`, `ExternalTaskEntity`
 - Pass `tenantId` through `AbadaEngine` operations and filter all queries by it
-- `StateReloadService` must scope rehydration per-tenant
+- Startup metric aggregation and every command/query must be tenant-scoped
 
 **1c. Identity & Auth — Keycloak Multi-Realm**
 - Provision one Keycloak realm per tenant on signup → strong isolation for SSO/OIDC
