@@ -142,8 +142,12 @@ management:
 - Process instances are persisted to database
 - Each engine instance maintains its own connection pool
 - Shared state through database transactions
-- Parsed definitions may be cached in memory; PostgreSQL is the runtime source
-  of truth. Multi-replica execution remains an acceptance-tested release gate.
+- Parsed definitions may be cached in memory. User-task completion now loads
+  authoritative command state from PostgreSQL, while other commands and reads
+  are still being migrated away from legacy mutable maps.
+- The [runtime state architecture](runtime-state.md) defines the target command
+  model, current migration boundary, locking policy and acceptance criteria.
+  Multi-replica execution remains an acceptance-tested release gate.
 
 #### 3. Task Management System
 

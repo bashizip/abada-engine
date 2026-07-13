@@ -62,6 +62,11 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     }
 
     @Override
+    public TaskEntity findTaskByIdForUpdate(String taskId) {
+        return taskRepository.findByIdForUpdate(taskId).orElse(null);
+    }
+
+    @Override
     public ProcessDefinitionEntity findProcessDefinitionById(String definitionId) {
         return processDefinitionRepository.findFirstByProcessKeyOrderByVersionDesc(definitionId).orElse(null);
     }

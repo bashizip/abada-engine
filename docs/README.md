@@ -9,6 +9,7 @@ Welcome to the Abada Engine documentation. This documentation is organized to he
 High-level design and architectural decisions.
 
 - [Overview](architecture/overview.md) - The big picture of Abada Engine's architecture and deployment.
+- [Runtime State](architecture/runtime-state.md) - PostgreSQL-authoritative target architecture, command lifecycle, and migration status.
 - [Authentication Service](architecture/auth-service.md) - How authentication and authorization work.
 - [Event Delivery](architecture/event-delivery.md) - Mechanics of event processing and delivery.
 - [SPI Design](architecture/spi-design.md) - Service Provider Interface design for extensibility.

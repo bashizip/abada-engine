@@ -30,6 +30,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -231,19 +233,20 @@ public class AbadaEngine {
     @Transactional
     public void completeTask(String taskId, String user, List<String> groups, Map<String, Object> variables) {
         log.info("Completing task {} with variables: {}", taskId, variables);
-        ensureTaskLoaded(taskId);
-
-        taskManager.checkCanComplete(taskId, user, groups);
-
-        TaskInstance currentTask = taskManager.getTask(taskId)
-                .orElseThrow(() -> new ProcessEngineException("Task not found: " + taskId));
+        TaskEntity authoritativeTask = persistenceService.findTaskByIdForUpdate(taskId);
+        if (authoritativeTask == null) {
+            throw new ProcessEngineException("Task not found: " + taskId);
+        }
+        TaskInstance currentTask = materializeTask(authoritativeTask);
+        taskManager.checkCanComplete(currentTask, user, groups);
 
         String processInstanceId = currentTask.getProcessInstanceId();
-        ProcessInstance instance = getProcessInstanceById(processInstanceId);
-        if (instance == null) {
+        ProcessInstanceEntity authoritativeInstance = persistenceService.findProcessInstanceById(processInstanceId);
+        if (authoritativeInstance == null) {
             // This is an internal consistency error, not a client error.
             throw new IllegalStateException("No process instance found for id=" + processInstanceId);
         }
+        ProcessInstance instance = materializeProcessInstance(authoritativeInstance);
 
         if (instance.isSuspended()) {
             throw new ProcessEngineException("Process instance is suspended: " + processInstanceId);
@@ -253,7 +256,7 @@ public class AbadaEngine {
             instance.putAllVariables(variables);
         }
 
-        taskManager.completeTask(taskId);
+        taskManager.completeTask(currentTask);
         persistTask(currentTask);
         historyService.record("TASK_COMPLETED", instance, currentTask.getTaskDefinitionKey(), Map.of());
         persistRuntimeState(instance);
@@ -264,13 +267,19 @@ public class AbadaEngine {
         }
         persistRuntimeState(instance);
 
+        List<TaskInstance> createdTasks = new ArrayList<>();
         for (UserTaskPayload task : nextTasks) {
-            createAndPersistTask(task, processInstanceId);
+            TaskInstance createdTask = taskManager.createTaskSnapshot(
+                    task.taskDefinitionKey(), task.name(), processInstanceId, task.assignee(),
+                    task.candidateUsers(), task.candidateGroups());
+            persistTask(createdTask);
+            createdTasks.add(createdTask);
         }
 
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
         createExternalTaskJobs(instance);
+        publishCommandStateAfterCommit(instance, currentTask, createdTasks);
     }
 
     @Transactional
@@ -401,6 +410,16 @@ public class AbadaEngine {
     }
 
     public void rehydrateProcessInstance(ProcessInstanceEntity entity) {
+        ProcessInstance instance = materializeProcessInstance(entity);
+        instances.put(instance.getId(), instance);
+
+        // Restore metrics for active processes
+        if (instance.getStatus() == ProcessStatus.RUNNING || instance.getStatus() == ProcessStatus.SUSPENDED) {
+            engineMetrics.restoreActiveProcess(instance.getDefinition().getId());
+        }
+    }
+
+    private ProcessInstance materializeProcessInstance(ProcessInstanceEntity entity) {
         ParsedProcessDefinition def = entity.getProcessDefinitionDeploymentId() == null
                 ? processDefinitions.get(entity.getProcessDefinitionId())
                 : definitionsByDeploymentId.get(entity.getProcessDefinitionDeploymentId());
@@ -427,15 +446,20 @@ public class AbadaEngine {
         instance.setActiveTokens(readList(entity.getActiveTokensJson(), activeTokens));
         instance.setJoinExpectedTokens(readIntegerMap(entity.getJoinExpectedTokensJson()));
         instance.setJoinArrivedTokens(readSetMap(entity.getJoinArrivedTokensJson()));
-        instances.put(instance.getId(), instance);
-
-        // Restore metrics for active processes
-        if (instance.getStatus() == ProcessStatus.RUNNING || instance.getStatus() == ProcessStatus.SUSPENDED) {
-            engineMetrics.restoreActiveProcess(instance.getDefinition().getId());
-        }
+        return instance;
     }
 
     public void rehydrateTaskInstance(TaskEntity entity) {
+        TaskInstance task = materializeTask(entity);
+        taskManager.addTask(task);
+
+        // Restore metrics for active tasks
+        if (task.getStatus() == TaskStatus.AVAILABLE || task.getStatus() == TaskStatus.CLAIMED) {
+            engineMetrics.restoreActiveTask(task.getTaskDefinitionKey());
+        }
+    }
+
+    private TaskInstance materializeTask(TaskEntity entity) {
         TaskInstance task = new TaskInstance();
         task.setId(entity.getId());
         task.setProcessInstanceId(entity.getProcessInstanceId());
@@ -448,13 +472,47 @@ public class AbadaEngine {
         task.setStartDate(entity.getStartDate());
         task.setEndDate(entity.getEndDate());
         task.setEntityVersion(entity.getEntityVersion());
+        return task;
+    }
 
-        taskManager.addTask(task);
-
-        // Restore metrics for active tasks
-        if (task.getStatus() == TaskStatus.AVAILABLE || task.getStatus() == TaskStatus.CLAIMED) {
-            engineMetrics.restoreActiveTask(task.getTaskDefinitionKey());
+    private void publishCommandStateAfterCommit(ProcessInstance instance, TaskInstance completedTask,
+            List<TaskInstance> createdTasks) {
+        Runnable publish = () -> {
+            instances.put(instance.getId(), instance);
+            publishCommittedTask(completedTask);
+            createdTasks.forEach(taskManager::addTask);
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publish.run();
+                }
+            });
+        } else {
+            publish.run();
         }
+    }
+
+    private void publishCommittedTask(TaskInstance committedTask) {
+        TaskInstance cachedTask = taskManager.getTask(committedTask.getId()).orElse(null);
+        if (cachedTask == null) {
+            taskManager.addTask(committedTask);
+            return;
+        }
+
+        // Preserve references returned by the legacy task API while ensuring that
+        // only committed, database-derived state becomes visible through them.
+        cachedTask.setProcessInstanceId(committedTask.getProcessInstanceId());
+        cachedTask.setTaskDefinitionKey(committedTask.getTaskDefinitionKey());
+        cachedTask.setName(committedTask.getName());
+        cachedTask.setAssignee(committedTask.getAssignee());
+        cachedTask.setStatus(committedTask.getStatus());
+        cachedTask.setStartDate(committedTask.getStartDate());
+        cachedTask.setEndDate(committedTask.getEndDate());
+        cachedTask.setCandidateUsers(new ArrayList<>(committedTask.getCandidateUsers()));
+        cachedTask.setCandidateGroups(new ArrayList<>(committedTask.getCandidateGroups()));
+        cachedTask.setEntityVersion(committedTask.getEntityVersion());
     }
 
     private void createAndPersistTask(UserTaskPayload task, String processInstanceId) {

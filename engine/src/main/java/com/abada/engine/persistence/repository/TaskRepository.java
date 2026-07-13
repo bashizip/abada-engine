@@ -2,15 +2,22 @@ package com.abada.engine.persistence.repository;
 
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.persistence.entity.TaskEntity;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<TaskEntity, String> {
     List<TaskEntity> findByProcessInstanceId(String processInstanceId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM TaskEntity t WHERE t.id = :taskId")
+    Optional<TaskEntity> findByIdForUpdate(@Param("taskId") String taskId);
     
     // User-specific queries
     List<TaskEntity> findByAssigneeAndStatus(String assignee, TaskStatus status);
