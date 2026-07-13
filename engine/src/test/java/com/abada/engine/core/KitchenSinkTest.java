@@ -35,6 +35,7 @@ public class KitchenSinkTest {
     @Autowired
 
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Autowired
     private TaskManager taskManager;
@@ -53,6 +54,7 @@ public class KitchenSinkTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        databaseTestHelper.cleanup();
         abadaEngine.clearMemory();
         externalTaskRepository.deleteAll();
         when(context.getUsername()).thenReturn("test-user");
@@ -110,6 +112,8 @@ public class KitchenSinkTest {
         ProcessInstance finalPi = abadaEngine.getProcessInstanceById(pi.getId());
         assertTrue(finalPi.isCompleted(), "Process should be completed");
         assertEquals(true, finalPi.getVariable("externalTaskDone"));
-        assertEquals(0, externalTaskRepository.count(), "External task should be deleted");
+        assertEquals(com.abada.engine.persistence.entity.ExternalTaskEntity.Status.COMPLETED,
+                externalTaskRepository.findById(lockedTask.id()).orElseThrow().getStatus(),
+                "External task should be retained as completed");
     }
 }

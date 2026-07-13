@@ -1,68 +1,36 @@
-# Roadmap to Beta (1.0.0)
+# Abada Reliable OSS Core Roadmap
 
-This document outlines the development roadmap from the current feature-complete alpha to the first public beta release.
+This is the authoritative public roadmap. SaaS, DMN/CMMN and public agentic
+runtime work are deferred until the core reaches the corresponding release
+gates.
 
----
+## 0.9 — Durable runtime
 
-### Current Version: `0.8.2-alpha`
+- Flyway-owned PostgreSQL schema and immutable definition versions
+- Complete token and gateway-join persistence
+- Optimistic concurrency on mutable runtime records
+- Durable event subscriptions, leased timer jobs and activity history
+- Explicit BPMN support validation
 
-**Status:**
--   The core engine is considered feature-solid. All major BPMN constructs are implemented and tested, including gateways (Exclusive, Inclusive, Parallel), events (Message, Timer, Signal), and service tasks (embedded and external).
--   The REST API for external task workers is complete.
--   The BPMN parser and internal data models are stable.
+## 0.10 — Cluster safety
 
-While the engine is powerful, it is currently a "headless" system. The next phases focus on building the necessary user interfaces and validating the engine through real-world use.
+- Atomic acquisition for every engine and external-worker work type
+- Idempotency records for public mutation commands
+- Replica failover and concurrent-correlation Testcontainers suites
+- Transactional outbox publication and expired-lease recovery
 
----
+## 0.11 — Stable contracts
 
-### 🛠️ Pre-Beta Roadmap
+- Frozen `/api/v1` and external-worker protocol
+- Direct OIDC validation, permission enforcement and security tests
+- Java worker SDK and aligned Tenda/Orun clients
 
-#### `0.8.3-alpha` → Observability & Insights
+## 1.0 RC and 1.0
 
-*   **Goal**: Provide deep visibility into the engine's runtime behavior and ensure issues can be diagnosed in production.
-*   **Key Features**:
-    *   **Structured Logging**: Centralized log aggregation using Loki, with automatic trace context injection.
-    *   **Distributed Tracing**: Full trace propagation across service tasks and external workers using OpenTelemetry standards.
-    *   **Metrics Dashboard**: Real-time Grafana dashboards visualizing process instance counts, activity duration, and error rates.
+- Published BPMN conformance results and reproducible PostgreSQL benchmarks
+- Upgrade, backup/restore and operational evidence
+- No duplicate or lost workflow progress during replica termination, duplicate
+  requests, concurrent correlation or supported rolling upgrades
 
-#### `0.8.4-alpha` → Tenda MVP (Tasklist)
-
-*   **Goal**: Validate the user task lifecycle and APIs from an end-user perspective.
-*   **Key Features**:
-    *   A minimal web-based tasklist UI named "Tenda".
-    *   List all active user tasks available to the current user.
-    *   Provide functionality to claim and complete tasks.
-    *   Display input variables for a task and allow users to submit output variables upon completion.
-
-#### `0.8.5-alpha` → Orun MVP (Cockpit)
-
-*   **Goal**: Validate the process monitoring and history APIs.
-*   **Key Features**:
-    *   A minimal web-based cockpit UI named "Orun".
-    *   List all deployed process definitions.
-    *   View all running and completed process instances.
-    *   Display a high-level execution history or audit log for a selected process instance.
-
-#### `0.9.0-alpha` → End-to-End Validation
-
-*   **Goal**: Harden the engine and its APIs by running realistic business workflows through the entire ecosystem.
-*   **Key Activities**:
-    *   Execute complex sample processes from start to finish using:
-        *   **Tenda** for all human-based tasks.
-        *   **Orun** for monitoring the process state in real-time.
-        *   External workers for all asynchronous service tasks.
-    *   Identify and fix API inconsistencies, usability pain points, and subtle bugs discovered during this "dogfooding" phase.
-    *   Stabilize all REST API contracts and DTOs.
-
---- 
-
-### 🚀 `1.0.0-beta` → Early Adopter Release
-
-*   **Goal**: Announce that the Abada Engine is feature-complete and stable enough for real-world experiments.
-*   **Release Bundle**:
-    *   The core Abada Engine (as a Docker image and executable JAR).
-    *   A basic Java SDK for external task workers.
-    *   The minimal, functional versions of the **Tenda** and **Orun** web applications.
-    *   Comprehensive documentation covering all supported BPMN features, APIs, and the future roadmap.
-*   **Positioning**:
-    > "Abada Engine is stable enough for real experiments with user & process UIs. Feedback from early adopters is welcome as we move towards the final 1.0.0 release."
+See [BPMN support](../reference/bpmn-support.md) and
+[deployment support](../reference/deployment-support.md) for current guarantees.

@@ -225,7 +225,8 @@ Production environment uses Traefik for load balancing:
 - **Strategy**: Round-robin
 - **Health Checks**: `/api/actuator/health`
 - **Path**: `/abada` prefix
-- **Sticky Sessions**: Disabled (stateless design)
+- **Sticky Sessions**: Not required for the supported single-engine-replica
+  topology; this is not a claim of cluster-safe stateless execution
 
 ### Health Checks
 

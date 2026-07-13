@@ -2,6 +2,8 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.observability.EngineMetrics;
+import com.abada.engine.persistence.entity.EventSubscriptionEntity;
+import com.abada.engine.persistence.repository.EventSubscriptionRepository;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.tracing.annotation.SpanTag;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -11,11 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Instant;
 
 @Component
 public class EventManager {
@@ -25,18 +27,15 @@ public class EventManager {
     private AbadaEngine abadaEngine;
     private final EngineMetrics engineMetrics;
     private final Tracer tracer;
+    private final EventSubscriptionRepository subscriptionRepository;
 
     @Autowired
-    public EventManager(EngineMetrics engineMetrics, Tracer tracer) {
+    public EventManager(EngineMetrics engineMetrics, Tracer tracer,
+            EventSubscriptionRepository subscriptionRepository) {
         this.engineMetrics = engineMetrics;
         this.tracer = tracer;
+        this.subscriptionRepository = subscriptionRepository;
     }
-
-    // Registry for message-based event subscriptions: <MessageName, <CorrelationKey, WaitingInstance>>
-    private final Map<String, Map<String, WaitingInstance>> messageSubscriptions = new ConcurrentHashMap<>();
-
-    // Registry for signal-based event subscriptions: <SignalName, List<WaitingInstance>>
-    private final Map<String, List<WaitingInstance>> signalSubscriptions = new ConcurrentHashMap<>();
 
     public void setAbadaEngine(AbadaEngine abadaEngine) {
         this.abadaEngine = abadaEngine;
@@ -45,6 +44,7 @@ public class EventManager {
     /**
      * Registers a process instance that is waiting for one or more events.
      */
+    @Transactional
     public void registerWaitStates(ProcessInstance instance) {
         for (String tokenId : instance.getActiveTokens()) {
             if (instance.getDefinition().isCatchEvent(tokenId)) {
@@ -67,18 +67,28 @@ public class EventManager {
             log.warn("Instance {} is waiting for message '{}' but has no correlationKey variable.", instance.getId(), eventMeta.definitionRef());
             return;
         }
-        String messageName = eventMeta.definitionRef();
-        messageSubscriptions.computeIfAbsent(messageName, k -> new ConcurrentHashMap<>()).put(correlationKey, new WaitingInstance(instance.getId(), eventMeta.id()));
-        log.info("Registered instance {} waiting for message '{}' with key '{}'", instance.getId(), messageName, correlationKey);
+        persistSubscription(instance, eventMeta, EventSubscriptionEntity.Type.MESSAGE, correlationKey);
     }
 
     private void registerSignalSubscription(ProcessInstance instance, EventMeta eventMeta) {
-        String signalName = eventMeta.definitionRef();
-        signalSubscriptions.computeIfAbsent(signalName, k -> new ArrayList<>()).add(new WaitingInstance(instance.getId(), eventMeta.id()));
-        log.info("Registered instance {} waiting for signal '{}'", instance.getId(), signalName);
+        persistSubscription(instance, eventMeta, EventSubscriptionEntity.Type.SIGNAL, null);
+    }
+
+    private void persistSubscription(ProcessInstance instance, EventMeta eventMeta,
+            EventSubscriptionEntity.Type type, String correlationKey) {
+        if (subscriptionRepository.existsByProcessInstanceIdAndActivityId(instance.getId(), eventMeta.id())) return;
+        EventSubscriptionEntity subscription = new EventSubscriptionEntity();
+        subscription.setProcessInstanceId(instance.getId());
+        subscription.setActivityId(eventMeta.id());
+        subscription.setEventType(type);
+        subscription.setEventName(eventMeta.definitionRef());
+        subscription.setCorrelationKey(correlationKey);
+        subscriptionRepository.save(subscription);
+        log.info("Registered instance {} waiting for {} '{}'", instance.getId(), type, eventMeta.definitionRef());
     }
 
     @WithSpan("abada.event.correlate.message")
+    @Transactional
     public void correlateMessage(@SpanTag("event.name") String messageName, 
                                 @SpanTag("correlation.key") String correlationKey, 
                                 Map<String, Object> variables) {
@@ -92,22 +102,22 @@ public class EventManager {
             // Record event consumption
             engineMetrics.recordEventConsumed("MESSAGE", messageName);
             
-            Map<String, WaitingInstance> subs = messageSubscriptions.get(messageName);
-            if (subs != null) {
-                WaitingInstance waitingInstance = subs.remove(correlationKey);
-                if (waitingInstance != null) {
-                    span.setAttribute("process.instance.id", waitingInstance.processInstanceId);
-                    span.setAttribute("event.id", waitingInstance.eventId);
+            var subscription = subscriptionRepository
+                    .findFirstByEventTypeAndEventNameAndCorrelationKeyAndConsumedAtIsNull(
+                            EventSubscriptionEntity.Type.MESSAGE, messageName, correlationKey);
+            if (subscription.isPresent()) {
+                    EventSubscriptionEntity waiting = subscription.get();
+                    waiting.setConsumedAt(Instant.now());
+                    subscriptionRepository.save(waiting);
+                    span.setAttribute("process.instance.id", waiting.getProcessInstanceId());
+                    span.setAttribute("event.id", waiting.getActivityId());
                     
-                    log.info("Correlated message '{}' with key '{}' to instance {}. Resuming...", messageName, correlationKey, waitingInstance.processInstanceId);
-                    abadaEngine.resumeFromEvent(waitingInstance.processInstanceId, waitingInstance.eventId, variables);
+                    log.info("Correlated message '{}' with key '{}' to instance {}. Resuming...", messageName, correlationKey, waiting.getProcessInstanceId());
+                    abadaEngine.resumeFromEvent(waiting.getProcessInstanceId(), waiting.getActivityId(), variables);
                     
                     engineMetrics.recordEventCorrelated("MESSAGE", messageName);
-                } else {
-                    span.setAttribute("correlation.result", "no_matching_instance");
-                }
             } else {
-                span.setAttribute("correlation.result", "no_subscriptions");
+                span.setAttribute("correlation.result", "no_matching_subscription");
             }
         } catch (Exception e) {
             span.recordException(e);
@@ -119,6 +129,7 @@ public class EventManager {
     }
 	
     @WithSpan("abada.event.broadcast.signal")
+    @Transactional
     public void broadcastSignal(@SpanTag("event.name") String signalName, Map<String, Object> variables) {
         Span span = tracer.spanBuilder("abada.event.broadcast.signal").startSpan();
         
@@ -129,12 +140,15 @@ public class EventManager {
             // Record event consumption
             engineMetrics.recordEventConsumed("SIGNAL", signalName);
             
-            List<WaitingInstance> subs = signalSubscriptions.remove(signalName);
+            List<EventSubscriptionEntity> subs = subscriptionRepository
+                    .findByEventTypeAndEventNameAndConsumedAtIsNull(EventSubscriptionEntity.Type.SIGNAL, signalName);
             if (subs != null && !subs.isEmpty()) {
                 span.setAttribute("instances.count", subs.size());
                 log.info("Broadcasting signal '{}' to {} waiting instances.", signalName, subs.size());
-                for (WaitingInstance waitingInstance : subs) {
-                    abadaEngine.resumeFromEvent(waitingInstance.processInstanceId, waitingInstance.eventId, variables);
+                for (EventSubscriptionEntity waiting : subs) {
+                    waiting.setConsumedAt(Instant.now());
+                    subscriptionRepository.save(waiting);
+                    abadaEngine.resumeFromEvent(waiting.getProcessInstanceId(), waiting.getActivityId(), variables);
                     engineMetrics.recordEventCorrelated("SIGNAL", signalName);
                 }
             } else {
@@ -227,6 +241,4 @@ public class EventManager {
             span.end();
         }
     }
-
-    private record WaitingInstance(String processInstanceId, String eventId) {}
 }

@@ -16,6 +16,9 @@ public class ProcessInstance {
     private Instant endDate;
     private ProcessStatus status;
     private boolean suspended = false;
+    private String processDefinitionDeploymentId;
+    private long entityVersion;
+    private String startedBy = "system";
 
     private final List<String> activeTokens = new ArrayList<>();
     private final Map<String, Integer> joinExpectedTokens = new HashMap<>();
@@ -51,6 +54,19 @@ public class ProcessInstance {
         return definition;
     }
 
+    public String getProcessDefinitionDeploymentId() {
+        return processDefinitionDeploymentId;
+    }
+
+    public void setProcessDefinitionDeploymentId(String processDefinitionDeploymentId) {
+        this.processDefinitionDeploymentId = processDefinitionDeploymentId;
+    }
+
+    public long getEntityVersion() { return entityVersion; }
+    public void setEntityVersion(long entityVersion) { this.entityVersion = entityVersion; }
+    public String getStartedBy() { return startedBy; }
+    public void setStartedBy(String startedBy) { this.startedBy = startedBy; }
+
     public List<String> getActiveTokens() {
         return Collections.unmodifiableList(activeTokens);
     }
@@ -58,6 +74,26 @@ public class ProcessInstance {
     public void setActiveTokens(List<String> tokens) {
         activeTokens.clear();
         activeTokens.addAll(tokens);
+    }
+
+    public Map<String, Integer> getJoinExpectedTokens() {
+        return Collections.unmodifiableMap(joinExpectedTokens);
+    }
+
+    public void setJoinExpectedTokens(Map<String, Integer> state) {
+        joinExpectedTokens.clear();
+        if (state != null) joinExpectedTokens.putAll(state);
+    }
+
+    public Map<String, Set<String>> getJoinArrivedTokens() {
+        Map<String, Set<String>> snapshot = new HashMap<>();
+        joinArrivedTokens.forEach((key, value) -> snapshot.put(key, Set.copyOf(value)));
+        return Collections.unmodifiableMap(snapshot);
+    }
+
+    public void setJoinArrivedTokens(Map<String, Set<String>> state) {
+        joinArrivedTokens.clear();
+        if (state != null) state.forEach((key, value) -> joinArrivedTokens.put(key, new HashSet<>(value)));
     }
 
     public Instant getStartDate() {
@@ -154,6 +190,7 @@ public class ProcessInstance {
                 ServiceTaskMeta serviceTaskMeta = definition.getServiceTask(pointer);
                 boolean isExternalServiceTask = serviceTaskMeta != null && serviceTaskMeta.topicName() != null;
                 boolean isEmbeddedServiceTask = serviceTaskMeta != null && serviceTaskMeta.className() != null;
+                ScriptTaskMeta scriptTaskMeta = definition.getScriptTask(pointer);
 
                 if (definition.isUserTask(pointer) || definition.isCatchEvent(pointer) || isExternalServiceTask) {
                     if (Objects.equals(pointer, resumedNodeId)) {
@@ -180,6 +217,11 @@ public class ProcessInstance {
                     } catch (Exception e) {
                         throw new RuntimeException("Error executing JavaDelegate " + serviceTaskMeta.className(), e);
                     }
+                } else if (scriptTaskMeta != null) {
+                    executeScript(scriptTaskMeta);
+                    previousPointer = pointer;
+                    List<SequenceFlow> outgoing = definition.getOutgoing(pointer);
+                    current = outgoing.isEmpty() ? null : outgoing.get(0).getTargetRef();
                 } else if (definition.isExclusiveGateway(pointer)) {
                     GatewaySelector selector = new GatewaySelector();
                     GatewayMeta gw = definition.getGateways().get(pointer);
@@ -247,6 +289,24 @@ public class ProcessInstance {
         }
 
         return newUserTasks;
+    }
+
+    private void executeScript(ScriptTaskMeta task) {
+        javax.script.ScriptEngine engine = new javax.script.ScriptEngineManager().getEngineByName("JavaScript");
+        if (engine == null) throw new IllegalStateException("JavaScript engine is unavailable");
+        Map<String, Object> scriptVariables = new HashMap<>(variables);
+        javax.script.Bindings bindings = engine.createBindings();
+        bindings.putAll(scriptVariables);
+        bindings.put("variables", scriptVariables);
+        try {
+            engine.eval(task.script(), bindings);
+            variables.putAll(scriptVariables);
+            bindings.forEach((key, value) -> {
+                if (!"variables".equals(key)) variables.put(key, value);
+            });
+        } catch (javax.script.ScriptException ex) {
+            throw new IllegalStateException("Script task failed: " + task.id(), ex);
+        }
     }
 
     private class DelegateExecutionImpl implements DelegateExecution {

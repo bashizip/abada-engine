@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 # Configuration
 RELEASE_URL="https://raw.githubusercontent.com/bashizip/abada-engine/main/release/docker-compose.release.yml"
 TLS_SETUP_URL="https://raw.githubusercontent.com/bashizip/abada-engine/main/scripts/dev/setup-local-tls.sh"
-LocalFile="docker-compose.release.yml"
+LOCAL_FILE="docker-compose.release.yml"
 
 print_header() {
     echo -e "${BLUE}"
@@ -52,9 +52,9 @@ check_prerequisites() {
 download_compose() {
     print_step "Downloading latest configuration..."
     if command -v curl &> /dev/null; then
-        curl -sSL "$RELEASE_URL" -o "$LocalFile"
+        curl -sSL "$RELEASE_URL" -o "$LOCAL_FILE"
     elif command -v wget &> /dev/null; then
-        wget -q "$RELEASE_URL" -O "$LocalFile"
+        wget -q "$RELEASE_URL" -O "$LOCAL_FILE"
     else
         echo -e "${RED}Error: curl or wget is required to download the configuration.${NC}"
         exit 1
@@ -62,12 +62,44 @@ download_compose() {
     echo "✓ Configuration downloaded"
 }
 
+
+check_release_assets() {
+    local required_paths=(
+        "./docker/grafana/provisioning"
+        "./docker/grafana/dashboards"
+        "./docker/loki-config-prod.yaml"
+        "./docker/otel-collector-config.yaml"
+        "./docker/prometheus.yml"
+        "./docker/promtail-config.yaml"
+        "./docker/traefik/dynamic.yml"
+        "./docker/traefik/traefik.yml"
+    )
+
+    local missing=()
+    for path in "${required_paths[@]}"; do
+        if [ ! -e "$path" ]; then
+            missing+=("$path")
+        fi
+    done
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${RED}Error: release assets are missing for docker-compose.release.yml.${NC}"
+        echo "Run this quickstart from the repository root, or use a release bundle that includes the docker/ directory."
+        echo "Missing paths:"
+        for path in "${missing[@]}"; do
+            echo "  - $path"
+        done
+        exit 1
+    fi
+
+    mkdir -p ./logs
+}
 setup_local_tls() {
     print_step "Preparing local HTTPS certificates..."
 
     # Prefer local helper when running from a cloned repository.
     if [ -x "./scripts/dev/setup-local-tls.sh" ]; then
-        ./scripts/dev/setup-local-tls.sh "$LocalFile" || true
+        ./scripts/dev/setup-local-tls.sh "$LOCAL_FILE"
         return
     fi
 
@@ -94,23 +126,90 @@ setup_local_tls() {
     fi
 
     chmod +x "$tmp_script"
-    "$tmp_script" "$LocalFile" || true
+    "$tmp_script" "$LOCAL_FILE"
     rm -f "$tmp_script"
+}
+
+verify_local_tls() {
+    print_step "Verifying local TLS certificate and trust..."
+
+    local cert_file="./docker/traefik/certs/localhost.pem"
+    local key_file="./docker/traefik/certs/localhost-key.pem"
+
+    if ! command -v mkcert &> /dev/null; then
+        echo -e "${RED}Error: mkcert is required to generate trusted local HTTPS certificates.${NC}"
+        echo "Install mkcert, then rerun quickstart."
+        exit 1
+    fi
+
+    local caroot
+    caroot="$(mkcert -CAROOT 2>/dev/null || true)"
+    if [ -z "$caroot" ] || [ ! -f "$caroot/rootCA.pem" ]; then
+        echo -e "${RED}Error: mkcert root CA is not installed correctly on this machine.${NC}"
+        echo "Run 'mkcert -install' and rerun quickstart."
+        exit 1
+    fi
+
+    if [ ! -s "$cert_file" ] || [ ! -s "$key_file" ]; then
+        echo -e "${RED}Error: local TLS cert files are missing.${NC}"
+        echo "Expected:"
+        echo "  - $cert_file"
+        echo "  - $key_file"
+        exit 1
+    fi
+
+    if command -v openssl &> /dev/null; then
+        local required_names=(
+            "localhost"
+            "tenda.localhost"
+            "orun.localhost"
+            "grafana.localhost"
+            "keycloak.localhost"
+            "jaeger.localhost"
+            "traefik.localhost"
+        )
+
+        local cert_text
+        cert_text="$(openssl x509 -in "$cert_file" -text -noout 2>/dev/null || true)"
+        if [ -z "$cert_text" ]; then
+            echo -e "${RED}Error: unable to read TLS certificate at $cert_file.${NC}"
+            exit 1
+        fi
+
+        local name
+        for name in "${required_names[@]}"; do
+            if ! printf '%s\n' "$cert_text" | grep -Fq "DNS:${name}"; then
+                echo -e "${RED}Error: TLS certificate is missing SAN '${name}'.${NC}"
+                exit 1
+            fi
+        done
+
+        if ! openssl verify -CAfile "$caroot/rootCA.pem" "$cert_file" >/dev/null 2>&1; then
+            echo -e "${RED}Error: certificate verification failed with mkcert root CA.${NC}"
+            exit 1
+        fi
+    fi
+
+    echo "✓ Local HTTPS certificate is installed and valid for *.localhost"
 }
 
 start_platform() {
     print_step "Starting Abada Platform..."
-    docker compose -f "$LocalFile" up -d
+    docker compose -f "$LOCAL_FILE" up -d
 
     if [ $? -eq 0 ]; then
         echo ""
         print_step "Platform available at:"
-        echo -e "  - ${BLUE}Engine  ${NC}: http://localhost:5601/api/"
-        echo -e "  - ${BLUE}Tenda   ${NC}: http://localhost:5602"
-        echo -e "  - ${BLUE}Orun    ${NC}: http://localhost:5603"
-        echo -e "  - ${BLUE}Grafana ${NC}: http://localhost:3000"
+        echo -e "  - ${BLUE}Engine API      ${NC}: https://localhost/api/"
+        echo -e "  - ${BLUE}Swagger UI      ${NC}: https://localhost/api/swagger-ui.html"
+        echo -e "  - ${BLUE}Tenda UI        ${NC}: https://tenda.localhost"
+        echo -e "  - ${BLUE}Orun UI         ${NC}: https://orun.localhost"
+        echo -e "  - ${BLUE}Grafana         ${NC}: https://grafana.localhost"
+        echo -e "  - ${BLUE}Keycloak        ${NC}: https://keycloak.localhost"
+        echo -e "  - ${BLUE}Jaeger          ${NC}: https://jaeger.localhost"
+        echo -e "  - ${BLUE}Traefik         ${NC}: https://traefik.localhost"
         echo ""
-        echo "Run 'docker compose -f $LocalFile down' to stop."
+        echo "Run 'docker compose -f $LOCAL_FILE down' to stop."
     else
         echo -e "${RED}Error: Failed to start platform.${NC}"
         exit 1
@@ -121,5 +220,7 @@ start_platform() {
 print_header
 check_prerequisites
 download_compose
+check_release_assets
 setup_local_tls
+verify_local_tls
 start_platform

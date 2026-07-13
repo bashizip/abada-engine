@@ -17,6 +17,7 @@ public class BpmnParser {
     public ParsedProcessDefinition parse(InputStream bpmnXml) {
         try {
             BpmnModelInstance model = Bpmn.readModelFromStream(bpmnXml);
+            SupportedBpmnValidator.validate(model);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             Bpmn.writeModelToStream(out, model);
             String rawXml = out.toString(StandardCharsets.UTF_8);
@@ -72,6 +73,15 @@ public class BpmnParser {
                     serviceTasks.put(serviceTask.getId(),
                             new ServiceTaskMeta(serviceTask.getId(), serviceTask.getName(), null, topicName));
                 }
+            }
+
+            Map<String, ScriptTaskMeta> scriptTasks = new HashMap<>();
+            for (ScriptTask scriptTask : model.getModelElementsByType(ScriptTask.class)) {
+                String script = scriptTask.getScript() == null
+                        ? null
+                        : scriptTask.getScript().getTextContent();
+                scriptTasks.put(scriptTask.getId(), new ScriptTaskMeta(scriptTask.getId(), scriptTask.getName(),
+                        scriptTask.getScriptFormat(), script));
             }
 
             List<SequenceFlow> flows = new ArrayList<>();
@@ -147,13 +157,15 @@ public class BpmnParser {
             }
 
             ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, documentation, startEventId,
-                    userTasks, serviceTasks, flows, gateways, events, endEvents, rawXml, candidateStarterGroups,
+                    userTasks, serviceTasks, scriptTasks, flows, gateways, events, endEvents, rawXml, candidateStarterGroups,
                     candidateStarterUsers);
             for (SequenceFlow flow : flows) {
                 definition.addOutgoing(flow.getSourceRef(), flow);
             }
             return definition;
 
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse BPMN", e);
         }

@@ -14,6 +14,9 @@ public class ProcessInstanceEntity {
 
     private String processDefinitionId;
 
+    @Column(name = "process_definition_deployment_id")
+    private String processDefinitionDeploymentId;
+
     private String currentActivityId;
 
     @Enumerated(EnumType.STRING)
@@ -28,12 +31,24 @@ public class ProcessInstanceEntity {
     @Column(name = "started_by", nullable = false)
     private String startedBy = "system";
 
-    @Lob
-    @Column(name = "variables_json", nullable = false)
+    @Column(name = "variables_json", nullable = false, columnDefinition = "TEXT")
     private String variablesJson; // Jackson-serialized Map
 
     @Column(name = "suspended", nullable = false)
     private boolean suspended = false;
+
+    @Column(name = "active_tokens_json", nullable = false, columnDefinition = "TEXT")
+    private String activeTokensJson = "[]";
+
+    @Column(name = "join_expected_tokens_json", nullable = false, columnDefinition = "TEXT")
+    private String joinExpectedTokensJson = "{}";
+
+    @Column(name = "join_arrived_tokens_json", nullable = false, columnDefinition = "TEXT")
+    private String joinArrivedTokensJson = "{}";
+
+    @Version
+    @Column(name = "entity_version", nullable = false)
+    private long entityVersion;
 
     // Constructors
     public ProcessInstanceEntity() {
@@ -70,6 +85,14 @@ public class ProcessInstanceEntity {
 
     public void setProcessDefinitionId(String processDefinitionId) {
         this.processDefinitionId = processDefinitionId;
+    }
+
+    public String getProcessDefinitionDeploymentId() {
+        return processDefinitionDeploymentId;
+    }
+
+    public void setProcessDefinitionDeploymentId(String processDefinitionDeploymentId) {
+        this.processDefinitionDeploymentId = processDefinitionDeploymentId;
     }
 
     public String getCurrentActivityId() {
@@ -119,4 +142,13 @@ public class ProcessInstanceEntity {
     public void setSuspended(boolean suspended) {
         this.suspended = suspended;
     }
+
+    public String getActiveTokensJson() { return activeTokensJson; }
+    public void setActiveTokensJson(String activeTokensJson) { this.activeTokensJson = activeTokensJson; }
+    public String getJoinExpectedTokensJson() { return joinExpectedTokensJson; }
+    public void setJoinExpectedTokensJson(String value) { this.joinExpectedTokensJson = value; }
+    public String getJoinArrivedTokensJson() { return joinArrivedTokensJson; }
+    public void setJoinArrivedTokensJson(String value) { this.joinArrivedTokensJson = value; }
+    public long getEntityVersion() { return entityVersion; }
+    public void setEntityVersion(long entityVersion) { this.entityVersion = entityVersion; }
 }

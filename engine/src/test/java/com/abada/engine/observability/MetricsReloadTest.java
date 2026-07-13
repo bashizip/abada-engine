@@ -30,6 +30,7 @@ public class MetricsReloadTest {
 
     @Autowired
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Autowired
     private StateReloadService stateReloadService;
@@ -43,7 +44,9 @@ public class MetricsReloadTest {
     @BeforeEach
     void setupContext() {
         // Clear any existing state from previous tests
+        databaseTestHelper.cleanup();
         abadaEngine.clearMemory();
+        engineMetrics.resetActiveState();
 
         when(context.getUsername()).thenReturn("alice");
         when(context.getGroups()).thenReturn(List.of("customers"));
@@ -110,20 +113,16 @@ public class MetricsReloadTest {
         // 3. Reload engine state
         stateReloadService.reloadStateAtStartup();
 
-        // 4. Verify metrics increased (simulating restoration)
-        // Note: In a real restart, they start at 0 and go to 1.
-        // Here, they start at 1 and should go to 2 because we didn't reset the metrics
-        // bean.
-        // This proves the restore logic was executed.
+        // 4. Reload resets and reconstructs the gauges from persisted state.
         assertEquals(
-            activeProcessesBeforeReload + 1.0,
+            activeProcessesBeforeReload,
             engineMetrics.getActiveProcessInstances(),
-            "Active processes should increment after reload (simulating restore)"
+            "Active processes should be reconstructed without double counting"
         );
         assertEquals(
-            activeTasksBeforeReload + 1.0,
+            activeTasksBeforeReload,
             engineMetrics.getActiveTasks(),
-            "Active tasks should increment after reload (simulating restore)"
+            "Active tasks should be reconstructed without double counting"
         );
 
         // 5. Complete the process to verify metrics decrement correctly

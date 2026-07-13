@@ -12,6 +12,7 @@ public class ParsedProcessDefinition implements Serializable {
     private final String startEventId;
     private final Map<String, TaskMeta> userTasks;
     private final Map<String, ServiceTaskMeta> serviceTasks;
+    private final Map<String, ScriptTaskMeta> scriptTasks;
     private final List<SequenceFlow> sequenceFlows;
     private final Map<String, GatewayMeta> gateways;
     private final Map<String, EventMeta> events;
@@ -42,12 +43,28 @@ public class ParsedProcessDefinition implements Serializable {
             String rawXml,
             List<String> candidateStarterGroups,
             List<String> candidateStarterUsers) {
+        this(id, name, documentation, startEventId, userTasks, serviceTasks, Map.of(), sequenceFlows, gateways,
+                events, endEvents, rawXml, candidateStarterGroups, candidateStarterUsers);
+    }
+
+    public ParsedProcessDefinition(String id, String name, String documentation, String startEventId,
+            Map<String, TaskMeta> userTasks,
+            Map<String, ServiceTaskMeta> serviceTasks,
+            Map<String, ScriptTaskMeta> scriptTasks,
+            List<SequenceFlow> sequenceFlows,
+            Map<String, GatewayMeta> gateways,
+            Map<String, EventMeta> events,
+            Map<String, Object> endEvents,
+            String rawXml,
+            List<String> candidateStarterGroups,
+            List<String> candidateStarterUsers) {
         this.id = id;
         this.name = name;
         this.documentation = documentation;
         this.startEventId = startEventId;
         this.userTasks = Collections.unmodifiableMap(new HashMap<>(userTasks));
         this.serviceTasks = Collections.unmodifiableMap(new HashMap<>(serviceTasks));
+        this.scriptTasks = Collections.unmodifiableMap(new HashMap<>(scriptTasks));
         this.sequenceFlows = Collections.unmodifiableList(new ArrayList<>(sequenceFlows));
         this.gateways = Collections.unmodifiableMap(new HashMap<>(gateways));
         this.events = Collections.unmodifiableMap(new HashMap<>(events));
@@ -149,6 +166,9 @@ public class ParsedProcessDefinition implements Serializable {
         return serviceTasks.get(taskId);
     }
 
+    public ScriptTaskMeta getScriptTask(String taskId) { return scriptTasks.get(taskId); }
+    public boolean isScriptTask(String id) { return scriptTasks.containsKey(id); }
+
     public List<String> getNextActivities(String fromId) {
         return flowGraph.getOrDefault(fromId, Collections.emptyList());
     }
@@ -172,6 +192,7 @@ public class ParsedProcessDefinition implements Serializable {
         Set<String> ids = new HashSet<>();
         ids.addAll(userTasks.keySet());
         ids.addAll(serviceTasks.keySet());
+        ids.addAll(scriptTasks.keySet());
         ids.addAll(flowGraph.keySet());
         flowGraph.values().forEach(ids::addAll);
         return ids;
@@ -247,6 +268,7 @@ public class ParsedProcessDefinition implements Serializable {
         if (serviceTasks.containsKey(id)) {
             return serviceTasks.get(id).name();
         }
+        if (scriptTasks.containsKey(id)) return scriptTasks.get(id).name();
         if (events.containsKey(id)) {
             return events.get(id).name();
         }

@@ -18,7 +18,7 @@ public class Mapper {
                     pi.isSuspended(),
                     pi.getStartDate(),
                     pi.getEndDate(),
-                    "system", // This will be populated from the database entity in the future
+                    pi.getStartedBy(),
                     pi.getVariables());
         }
     }

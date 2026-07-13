@@ -21,6 +21,7 @@ public class TaskInstance {
     private Instant endDate;
     private List<String> candidateUsers = new ArrayList<>();
     private List<String> candidateGroups = new ArrayList<>();
+    private long entityVersion;
     
     @JsonIgnore
     private Timer.Sample waitingTimeSample;
@@ -112,6 +113,9 @@ public class TaskInstance {
     public void setCandidateGroups(List<String> candidateGroups) {
         this.candidateGroups = candidateGroups;
     }
+
+    public long getEntityVersion() { return entityVersion; }
+    public void setEntityVersion(long entityVersion) { this.entityVersion = entityVersion; }
 
     public Timer.Sample getWaitingTimeSample() {
         return waitingTimeSample;

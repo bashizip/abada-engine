@@ -36,6 +36,7 @@ public class EventControllerTest {
 
     @Autowired
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Autowired
     private TaskManager taskManager;
@@ -44,6 +45,7 @@ public class EventControllerTest {
 
     @BeforeEach
     void setUp() {
+        databaseTestHelper.cleanup();
         abadaEngine.clearMemory();
         headers = new HttpHeaders();
         headers.set("X-User", "test-user");

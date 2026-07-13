@@ -6,6 +6,11 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.List;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface ExternalTaskRepository extends JpaRepository<ExternalTaskEntity, String> {
@@ -20,6 +25,14 @@ public interface ExternalTaskRepository extends JpaRepository<ExternalTaskEntity
      * @param now        The current time, to check for expired locks.
      * @return An Optional containing an available task, if one exists.
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ExternalTaskEntity> findFirstByTopicNameAndStatusOrTopicNameAndLockExpirationTimeLessThan(String topicName,
             ExternalTaskEntity.Status status, String topicName2, Instant now);
+
+    boolean existsByProcessInstanceIdAndActivityIdAndStatusIn(
+            String processInstanceId, String activityId, List<ExternalTaskEntity.Status> statuses);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select task from ExternalTaskEntity task where task.id = :id")
+    Optional<ExternalTaskEntity> findByIdForUpdate(@Param("id") String id);
 }

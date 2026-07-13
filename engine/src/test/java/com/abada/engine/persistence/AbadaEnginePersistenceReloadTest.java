@@ -31,6 +31,7 @@ public class AbadaEnginePersistenceReloadTest {
 
     @Autowired
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Autowired
     private StateReloadService stateReloadService;
@@ -43,6 +44,8 @@ public class AbadaEnginePersistenceReloadTest {
 
     @BeforeEach
     void setupContext() {
+        databaseTestHelper.cleanup();
+        abadaEngine.clearMemory();
         // Default user to "alice" before each test
         when(context.getUsername()).thenReturn("alice");
         when(context.getGroups()).thenReturn(List.of("customers"));

@@ -48,6 +48,10 @@ public class TaskEntity {
     @Column(name = "end_date")
     private Instant endDate;
 
+    @Version
+    @Column(name = "entity_version", nullable = false)
+    private long entityVersion;
+
     public TaskStatus getStatus() {
         return status;
     }
@@ -128,4 +132,7 @@ public class TaskEntity {
     public void setEndDate(Instant endDate) {
         this.endDate = endDate;
     }
+
+    public long getEntityVersion() { return entityVersion; }
+    public void setEntityVersion(long entityVersion) { this.entityVersion = entityVersion; }
 }

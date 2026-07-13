@@ -35,6 +35,7 @@ public class ExternalTaskTest {
 
     @Autowired
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Autowired
     private ExternalTaskRepository externalTaskRepository;
@@ -43,6 +44,7 @@ public class ExternalTaskTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        databaseTestHelper.cleanup();
         abadaEngine.clearMemory();
         externalTaskRepository.deleteAll();
         headers = new HttpHeaders();
@@ -93,8 +95,9 @@ public class ExternalTaskTest {
         assertEquals("FinalTask", resumedPi.getActiveTokens().get(0));
         assertEquals("SUCCESS", resumedPi.getVariable("externalTaskResult"));
 
-        // 6. Assert that the external task job has been deleted
-        assertEquals(0, externalTaskRepository.count());
+        // 6. Durable work records remain available for audit and replay handling.
+        assertEquals(ExternalTaskEntity.Status.COMPLETED,
+                externalTaskRepository.findById(lockedTask.id()).orElseThrow().getStatus());
     }
 
     @Test

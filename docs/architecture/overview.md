@@ -19,12 +19,14 @@
 
 ## Overview
 
-The Abada Engine is a BPMN 2.0 compliant process engine built with Spring Boot 3, featuring comprehensive observability through OpenTelemetry, and designed for cloud-native deployment with Docker and Kubernetes.
+The Abada Engine executes a documented BPMN 2.0 subset on Spring Boot 3, with
+OpenTelemetry observability and Docker-based deployment. Kubernetes and full
+multi-replica certification are future release gates.
 
 ### Key Features
 
-- **BPMN 2.0 Compliance**: Full support for process definitions, tasks, gateways, and events
-- **Stateless Design**: Horizontally scalable with shared database state
+- **BPMN 2.0 Subset**: Explicitly supported tasks, gateways, and events
+- **Durable Design**: PostgreSQL-backed state with cluster hardening in progress
 - **Comprehensive Observability**: Metrics, traces, and logs via OpenTelemetry
 - **Multi-Environment Support**: Development, test, and production configurations
 - **Load Balancing**: Traefik-based load balancing for high availability
@@ -140,7 +142,8 @@ management:
 - Process instances are persisted to database
 - Each engine instance maintains its own connection pool
 - Shared state through database transactions
-- Stateless design enables horizontal scaling
+- Parsed definitions may be cached in memory; PostgreSQL is the runtime source
+  of truth. Multi-replica execution remains an acceptance-tested release gate.
 
 #### 3. Task Management System
 
@@ -682,20 +685,17 @@ Traefik sends distributed traces to the OTEL Collector using OTLP protocol, whic
 
 **Horizontal Scaling:**
 
-```bash
-# Scale to 5 instances
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale abada-engine=5
+Do not scale the engine above one replica for guaranteed deployments yet. The
+PostgreSQL lease and locking foundation is present, but multi-replica failover,
+duplicate-request and concurrent-correlation acceptance tests are still a 0.10
+release gate.
 
-# Scale down to 2 instances
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --scale abada-engine=2
-```
-
-**Stateless Design:**
+**Runtime State:**
 
 - No session affinity required
-- Shared database state
-- Any instance can handle any request
-- Automatic failover
+- Shared authoritative PostgreSQL state
+- Immutable parsed definitions may be cached per replica
+- Automatic failover is not yet a published guarantee
 
 ## Security Considerations
 
@@ -782,11 +782,15 @@ JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:+UseStringDeduplication
 
 **Application Scaling:**
 
-- Stateless design enables unlimited scaling
-- Load balancer distributes requests
-- Health checks ensure availability
+- Keep one engine replica for the currently supported topology
+- Load balancers and health checks do not themselves make workflow execution
+  cluster-safe
+- Follow the versioned release gates before enabling multiple replicas
 
 ### Auto-Scaling (Kubernetes)
+
+Kubernetes packaging and auto-scaling are deferred until the same engine image
+passes multi-replica PostgreSQL acceptance tests under Docker/Testcontainers.
 
 **HPA Configuration:**
 

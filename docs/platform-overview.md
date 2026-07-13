@@ -106,7 +106,7 @@ graph TB
 ## Key Features
 
 ### BPMN 2.0 Compliance
-- Full support for process definitions, tasks, gateways, and events
+- A documented subset of process definitions, tasks, gateways, and events
 - Support for User/Service/Script tasks, Parallel/XOR gateways, and Message/Signal events
 - Process instantiation, execution, and task management
 
@@ -125,7 +125,7 @@ graph TB
 - OAuth2 Proxy for token validation
 
 ### Scalability
-- Stateless engine design enabling horizontal scaling
+- Durable database state with multi-replica certification in progress
 - Shared database state for process persistence
 - Traefik-based load balancing for high availability
 - Connection pooling for database efficiency
@@ -232,7 +232,9 @@ graph TB
 
 ## Performance & Scalability
 
-Preliminary benchmarks show the engine capable of handling hundreds of transactions per second (TPS) in a standard cluster configuration. The current bottleneck is database I/O, with plans to integrate Redis/Kafka for high-frequency eventing in future versions.
+Performance and scalability claims are not release guarantees until the
+benchmark harness and environment are published reproducibly. PostgreSQL-based
+correctness is prioritized before adding Redis or Kafka.
 
 ## API Reference
 

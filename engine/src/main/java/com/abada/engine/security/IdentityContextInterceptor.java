@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Arrays;
@@ -19,6 +21,12 @@ import java.util.Optional;
 @Component
 public class IdentityContextInterceptor implements HandlerInterceptor {
 
+    private final String securityMode;
+
+    public IdentityContextInterceptor(@Value("${abada.security.mode:disabled}") String securityMode) {
+        this.securityMode = securityMode;
+    }
+
     // OAuth2 Proxy headers (from oauth2-proxy ForwardAuth)
     private static final String OAUTH2_USER_HEADER = "X-Auth-Request-User";
     private static final String OAUTH2_GROUPS_HEADER = "X-Auth-Request-Groups";
@@ -31,23 +39,31 @@ public class IdentityContextInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
             @NonNull Object handler) {
-        // Priority: oauth2-proxy headers > legacy headers > anonymous
-        String username = Optional.ofNullable(request.getHeader(OAUTH2_USER_HEADER))
-                .or(() -> Optional.ofNullable(request.getHeader(USER_HEADER)))
-                .or(() -> Optional.ofNullable(request.getHeader(OAUTH2_EMAIL_HEADER)))
-                .orElse("anonymous");
-
-        // Try oauth2-proxy groups header first, then fall back to legacy header
-        List<String> groups = Optional.ofNullable(request.getHeader(OAUTH2_GROUPS_HEADER))
-                .or(() -> Optional.ofNullable(request.getHeader(GROUPS_HEADER)))
-                .map(header -> Arrays.stream(header.split(","))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .toList())
-                .orElse(Collections.emptyList());
+        String username;
+        List<String> groups;
+        if ("oidc".equalsIgnoreCase(securityMode)) {
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            username = authentication != null && authentication.isAuthenticated()
+                    ? authentication.getName() : "anonymous";
+            groups = authentication == null ? List.of() : authentication.getAuthorities().stream()
+                    .map(Object::toString).toList();
+        } else if ("proxy".equalsIgnoreCase(securityMode)) {
+            username = Optional.ofNullable(request.getHeader(OAUTH2_USER_HEADER))
+                    .or(() -> Optional.ofNullable(request.getHeader(OAUTH2_EMAIL_HEADER)))
+                    .orElse("anonymous");
+            groups = splitHeader(request.getHeader(OAUTH2_GROUPS_HEADER));
+        } else {
+            username = Optional.ofNullable(request.getHeader(USER_HEADER)).orElse("anonymous");
+            groups = splitHeader(request.getHeader(GROUPS_HEADER));
+        }
 
         IdentityContext.set(new Identity(username, groups));
         return true;
+    }
+
+    private List<String> splitHeader(String value) {
+        if (value == null) return Collections.emptyList();
+        return Arrays.stream(value.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 
     @Override

@@ -31,34 +31,44 @@ public class H2PersistenceServiceImpl implements PersistenceService {
 
     @Override
     @Transactional
-    public void saveOrUpdateProcessInstance(ProcessInstanceEntity instance) {
+    public ProcessInstanceEntity saveOrUpdateProcessInstance(ProcessInstanceEntity instance) {
         if (instance == null) {
             throw new IllegalArgumentException("ProcessInstance cannot be null");
         }
-        processInstanceRepository.save(instance);
+        return processInstanceRepository.saveAndFlush(instance);
     }
     @Override
-    public void saveProcessDefinition(ProcessDefinitionEntity definition) {
-        processDefinitionRepository.save(definition);
+    public ProcessDefinitionEntity saveProcessDefinition(ProcessDefinitionEntity definition) {
+        return processDefinitionRepository.save(definition);
     }
 
     @Override
     @Transactional
     public void saveProcessInstance(ProcessInstanceEntity instance) {
-          saveOrUpdateProcessInstance(instance);
+        saveOrUpdateProcessInstance(instance);
     }
 
     @Override
-    public void saveTask(TaskEntity task) {
+    public TaskEntity saveTask(TaskEntity task) {
         if (task == null) {
             throw new IllegalArgumentException("task cannot be null");
         }
-        taskRepository.save(task);
+        return taskRepository.saveAndFlush(task);
+    }
+
+    @Override
+    public TaskEntity findTaskById(String taskId) {
+        return taskRepository.findById(taskId).orElse(null);
     }
 
     @Override
     public ProcessDefinitionEntity findProcessDefinitionById(String definitionId) {
-        return processDefinitionRepository.findById(definitionId).orElse(null);
+        return processDefinitionRepository.findFirstByProcessKeyOrderByVersionDesc(definitionId).orElse(null);
+    }
+
+    @Override
+    public ProcessDefinitionEntity findProcessDefinitionByDeploymentId(String deploymentId) {
+        return processDefinitionRepository.findById(deploymentId).orElse(null);
     }
 
     @Override
@@ -73,7 +83,7 @@ public class H2PersistenceServiceImpl implements PersistenceService {
 
     @Override
     public List<ProcessDefinitionEntity> findAllProcessDefinitions() {
-        return processDefinitionRepository.findAll();
+        return processDefinitionRepository.findAllByOrderByProcessKeyAscVersionDesc();
     }
 
     @Override

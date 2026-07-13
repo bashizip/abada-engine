@@ -69,9 +69,7 @@ function Setup-LocalTls {
     }
 
     if (-not (Test-Command "mkcert")) {
-        Write-Host "Warning: mkcert is not installed. Install mkcert to avoid browser SSL warnings for https://*.localhost."
-        Write-Host "https://github.com/FiloSottile/mkcert"
-        return
+        throw "mkcert is required to generate trusted local HTTPS certificates. Install from https://github.com/FiloSottile/mkcert"
     }
 
     $certDir = "docker/traefik/certs"
@@ -80,26 +78,109 @@ function Setup-LocalTls {
 
     New-Item -ItemType Directory -Force -Path $certDir | Out-Null
 
+    $needsGenerate = $true
     if ((Test-Path $certFile) -and (Test-Path $keyFile)) {
-        Write-Host "i Local TLS certs already exist at $certDir."
-        return
+        $needsGenerate = $false
     }
 
-    Write-Step "Installing mkcert local CA (if not already installed)..."
-    & mkcert -install
+    if ($needsGenerate) {
+        Write-Step "Installing mkcert local CA (if not already installed)..."
+        & mkcert -install
 
-    Write-Step "Generating TLS certificate for localhost domains..."
-    & mkcert `
-        -cert-file $certFile `
-        -key-file $keyFile `
-        localhost `
-        "*.localhost" `
-        tenda.localhost `
-        orun.localhost `
-        keycloak.localhost `
-        traefik.localhost
+        Write-Step "Generating TLS certificate for localhost domains..."
+        & mkcert `
+            -cert-file $certFile `
+            -key-file $keyFile `
+            localhost `
+            "*.localhost" `
+            tenda.localhost `
+            orun.localhost `
+            grafana.localhost `
+            jaeger.localhost `
+            keycloak.localhost `
+            traefik.localhost
 
-    Write-Step "Local TLS certs ready at $certDir"
+        Write-Step "Local TLS certs ready at $certDir"
+    } else {
+        Write-Host "i Local TLS certs already exist at $certDir."
+    }
+}
+
+function Check-ReleaseAssets {
+    $requiredPaths = @(
+        "docker/grafana/provisioning",
+        "docker/grafana/dashboards",
+        "docker/loki-config-prod.yaml",
+        "docker/otel-collector-config.yaml",
+        "docker/prometheus.yml",
+        "docker/promtail-config.yaml",
+        "docker/traefik/dynamic.yml",
+        "docker/traefik/traefik.yml"
+    )
+
+    $missing = @()
+    foreach ($path in $requiredPaths) {
+        if (-not (Test-Path $path)) {
+            $missing += $path
+        }
+    }
+
+    if ($missing.Count -gt 0) {
+        Write-Host "Error: release assets are missing for docker-compose.release.yml."
+        Write-Host "Run this quickstart from the repository root, or use a release bundle that includes the docker/ directory."
+        Write-Host "Missing paths:"
+        foreach ($path in $missing) {
+            Write-Host "  - $path"
+        }
+        throw "Required release assets are missing."
+    }
+
+    New-Item -ItemType Directory -Force -Path "logs" | Out-Null
+}
+
+function Verify-LocalTls {
+    Write-Step "Verifying local TLS certificate and trust..."
+
+    if (-not (Test-Command "mkcert")) {
+        throw "mkcert is required to verify trusted local HTTPS certificates."
+    }
+
+    $certFile = "docker/traefik/certs/localhost.pem"
+    $keyFile = "docker/traefik/certs/localhost-key.pem"
+    if (-not (Test-Path $certFile) -or -not (Test-Path $keyFile)) {
+        throw "Local TLS cert files are missing: $certFile and/or $keyFile"
+    }
+
+    $caroot = (& mkcert -CAROOT).Trim()
+    if ([string]::IsNullOrWhiteSpace($caroot)) {
+        throw "mkcert CAROOT not found. Run 'mkcert -install' and retry."
+    }
+
+    $rootCa = Join-Path $caroot "rootCA.pem"
+    if (-not (Test-Path $rootCa)) {
+        throw "mkcert root CA not found at $rootCa. Run 'mkcert -install' and retry."
+    }
+
+    if (Test-Command "certutil") {
+        $dump = & certutil -dump $certFile 2>$null
+        $requiredDns = @(
+            "localhost",
+            "tenda.localhost",
+            "orun.localhost",
+            "grafana.localhost",
+            "keycloak.localhost",
+            "jaeger.localhost",
+            "traefik.localhost"
+        )
+
+        foreach ($dns in $requiredDns) {
+            if ($dump -notmatch [regex]::Escape($dns)) {
+                throw "TLS certificate is missing SAN '$dns'."
+            }
+        }
+    }
+
+    Write-Host "Local HTTPS certificate is installed and valid for *.localhost"
 }
 
 function Start-Platform {
@@ -108,10 +189,14 @@ function Start-Platform {
 
     Write-Host ""
     Write-Step "Platform available at:"
-    Write-Host "  - Engine : http://localhost:5601/api/"
-    Write-Host "  - Tenda  : http://localhost:5602"
-    Write-Host "  - Orun   : http://localhost:5603"
-    Write-Host "  - Grafana: http://localhost:3000"
+    Write-Host "  - Engine API : https://localhost/api/"
+    Write-Host "  - Swagger UI : https://localhost/api/swagger-ui.html"
+    Write-Host "  - Tenda UI   : https://tenda.localhost"
+    Write-Host "  - Orun UI    : https://orun.localhost"
+    Write-Host "  - Grafana    : https://grafana.localhost"
+    Write-Host "  - Keycloak   : https://keycloak.localhost"
+    Write-Host "  - Jaeger     : https://jaeger.localhost"
+    Write-Host "  - Traefik    : https://traefik.localhost"
     Write-Host ""
     Write-Host "Run 'docker compose -f $LocalFile down' to stop."
 }
@@ -119,5 +204,7 @@ function Start-Platform {
 Write-Header
 Check-Prerequisites
 Download-Compose
+Check-ReleaseAssets
 Setup-LocalTls
+Verify-LocalTls
 Start-Platform

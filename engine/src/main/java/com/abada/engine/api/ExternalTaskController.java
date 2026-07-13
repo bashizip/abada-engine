@@ -4,6 +4,8 @@ import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.dto.ExternalTaskFailureDto;
 import com.abada.engine.dto.FetchAndLockRequest;
 import com.abada.engine.dto.LockedExternalTask;
+import com.abada.engine.dto.ExtendLockRequest;
+import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.persistence.entity.ExternalTaskEntity;
 import com.abada.engine.persistence.repository.ExternalTaskRepository;
 import org.springframework.http.ResponseEntity;
@@ -91,15 +93,21 @@ public class ExternalTaskController {
      * @return An HTTP 200 OK response on successful completion.
      */
     @PostMapping("/{id}/complete")
+    @Transactional
     public ResponseEntity<Void> complete(@PathVariable String id, @RequestBody Map<String, Object> variables) {
-        ExternalTaskEntity task = externalTaskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("External task not found: " + id));
+        ExternalTaskEntity task = externalTaskRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ProcessEngineException("External task not found: " + id));
 
-        // The service task ID in the process is the token the instance is waiting on
-        String serviceTaskId = abadaEngine.getProcessInstanceById(task.getProcessInstanceId()).getActiveTokens().get(0);
+        if (task.getStatus() == ExternalTaskEntity.Status.COMPLETED) return ResponseEntity.ok().build();
+        if (task.getStatus() != ExternalTaskEntity.Status.LOCKED || task.getLockExpirationTime() == null
+                || task.getLockExpirationTime().isBefore(Instant.now())) {
+            throw new ProcessEngineException("External task is not locked or its lock has expired: " + id);
+        }
 
-        abadaEngine.resumeFromEvent(task.getProcessInstanceId(), serviceTaskId, variables);
-        externalTaskRepository.delete(task);
+        task.setStatus(ExternalTaskEntity.Status.COMPLETED);
+        task.setLockExpirationTime(null);
+        externalTaskRepository.saveAndFlush(task);
+        abadaEngine.resumeFromEvent(task.getProcessInstanceId(), task.getActivityId(), variables);
 
         return ResponseEntity.ok().build();
     }
@@ -113,14 +121,13 @@ public class ExternalTaskController {
      * @return An HTTP 200 OK response.
      */
     @PostMapping("/{id}/failure")
+    @Transactional
     public ResponseEntity<Void> handleFailure(@PathVariable String id, @RequestBody ExternalTaskFailureDto failureDto) {
-        ExternalTaskEntity task = externalTaskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("External task not found: " + id));
+        ExternalTaskEntity task = externalTaskRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ProcessEngineException("External task not found: " + id));
 
         if (task.getWorkerId() != null && !task.getWorkerId().equals(failureDto.workerId())) {
-            // In a real scenario, we might want to reject this, but for now we'll allow it
-            // or just log a warning
-            // throw new RuntimeException("Worker ID mismatch");
+            throw new ProcessEngineException("Worker ID mismatch for external task " + id);
         }
 
         task.setExceptionMessage(failureDto.errorMessage());
@@ -132,14 +139,28 @@ public class ExternalTaskController {
             task.setLockExpirationTime(null);
             task.setWorkerId(null);
         } else {
-            task.setStatus(ExternalTaskEntity.Status.OPEN);
-            task.setLockExpirationTime(null); // Release lock so it can be picked up again immediately or after timeout
+            boolean delayed = failureDto.retryTimeout() != null && failureDto.retryTimeout() > 0;
+            task.setStatus(delayed ? ExternalTaskEntity.Status.LOCKED : ExternalTaskEntity.Status.OPEN);
+            task.setLockExpirationTime(delayed ? Instant.now().plusMillis(failureDto.retryTimeout()) : null);
             task.setWorkerId(null);
-            // TODO: Implement retry timeout (backoff)
         }
 
         externalTaskRepository.save(task);
 
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/extend-lock")
+    @Transactional
+    public ResponseEntity<Void> extendLock(@PathVariable String id, @RequestBody ExtendLockRequest request) {
+        ExternalTaskEntity task = externalTaskRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ProcessEngineException("External task not found: " + id));
+        if (task.getStatus() != ExternalTaskEntity.Status.LOCKED
+                || !request.workerId().equals(task.getWorkerId())) {
+            throw new ProcessEngineException("Worker does not own external task lock: " + id);
+        }
+        task.setLockExpirationTime(Instant.now().plusMillis(request.lockDuration()));
+        externalTaskRepository.save(task);
+        return ResponseEntity.noContent().build();
     }
 }

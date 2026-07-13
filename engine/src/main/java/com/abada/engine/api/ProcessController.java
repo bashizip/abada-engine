@@ -3,6 +3,7 @@ package com.abada.engine.api;
 import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
+import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.dto.Mapper;
 import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
@@ -32,10 +33,12 @@ public class ProcessController {
 
     private final AbadaEngine engine;
     private final UserContextProvider context;
+    private final IdempotencyService idempotencyService;
 
-    public ProcessController(AbadaEngine engine, UserContextProvider context) {
+    public ProcessController(AbadaEngine engine, UserContextProvider context, IdempotencyService idempotencyService) {
         this.engine = engine;
         this.context = context;
+        this.idempotencyService = idempotencyService;
     }
 
     /**
@@ -47,8 +50,12 @@ public class ProcessController {
      */
     @PostMapping(value = "/deploy", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> deploy(@RequestParam("file") MultipartFile file) throws IOException {
-        engine.deploy(file.getInputStream());
-        return ResponseEntity.ok(Map.of("status", "Deployed"));
+        ProcessDefinitionEntity deployed = engine.deploy(file.getInputStream());
+        return ResponseEntity.ok(Map.of(
+                "status", "Deployed",
+                "processDefinitionId", deployed.getProcessKey(),
+                "deploymentId", deployed.getDeploymentId(),
+                "version", deployed.getVersion()));
     }
 
     /**
@@ -73,18 +80,20 @@ public class ProcessController {
      * @return A JSON object with the new process instance ID.
      */
     @PostMapping("/start")
-    public ResponseEntity<Map<String, String>> startProcess(
+    public ResponseEntity<Map<String, Object>> startProcess(
             @RequestParam String processId,
             @RequestParam(required = false) String username,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestBody(required = false) Map<String, Object> variablesMap) {
 
-        ProcessInstance instance = engine.startProcess(processId, username);
-
-        if (variablesMap != null && !variablesMap.isEmpty()) {
-            instance.putAllVariables(variablesMap);
-        }
-
-        return ResponseEntity.ok(Map.of("processInstanceId", instance.getId()));
+        Map<String, Object> variables = variablesMap == null ? Map.of() : variablesMap;
+        Map<String, Object> response = idempotencyService.execute(idempotencyKey, "process.start",
+                Map.of("processId", processId, "username", username == null ? "" : username, "variables", variables),
+                () -> {
+                    ProcessInstance instance = engine.startProcess(processId, username, variables);
+                    return Map.of("processInstanceId", instance.getId());
+                });
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -143,14 +152,17 @@ public class ProcessController {
      *         the full 'bpmnXml'. Returns 404 Not Found if the ID is not found.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, String>> getProcessById(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> getProcessById(@PathVariable String id) {
         return engine.getProcessDefinitionById(id)
                 .map(def -> {
-                    Map<String, String> responseMap = new HashMap<>();
+                    Map<String, Object> responseMap = new HashMap<>();
                     responseMap.put("id", def.getId());
                     responseMap.put("name", def.getName());
                     responseMap.put("documentation", def.getDocumentation()); // Safely handles null
                     responseMap.put("bpmnXml", def.getBpmnXml());
+                    responseMap.put("deploymentId", def.getDeploymentId());
+                    responseMap.put("version", def.getVersion());
+                    responseMap.put("createdAt", def.getCreatedAt());
                     return responseMap;
                 })
                 .map(ResponseEntity::ok)

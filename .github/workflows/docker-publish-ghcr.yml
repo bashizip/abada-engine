@@ -8,6 +8,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: engine
+
     permissions:
       contents: read
       packages: write
@@ -39,6 +43,6 @@ jobs:
           IMAGE_ID=ghcr.io/${{ github.repository }}
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
 
-          docker build -t $IMAGE_ID:latest -t $IMAGE_ID:${{ env.VERSION }} .
+          docker build -f Dockerfile.prod.engine -t $IMAGE_ID:latest -t $IMAGE_ID:${{ env.VERSION }} .
           docker push $IMAGE_ID:latest
           docker push $IMAGE_ID:${{ env.VERSION }}

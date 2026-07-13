@@ -9,9 +9,11 @@ spring:
       password:
   jpa:
       hibernate:
-        ddl-auto: create-drop
+        ddl-auto: validate
         show-sql: true
       database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+      enabled: true
   h2:
       console:
         enabled: true
@@ -33,6 +35,8 @@ management:
         enabled: false  # Disable metrics export in tests
 
 otel:
+  sdk:
+    disabled: true
   resource:
     attributes:
       deployment.environment: test
@@ -41,9 +45,15 @@ otel:
     sampler.arg: 0.0  # No sampling in tests
   metrics:
     exporter: none  # Disable metrics export in tests
+  logs:
+    exporter: none
 
 logging:
   level:
-    root: DEBUG
+    root: INFO
     io.opentelemetry: WARN
     io.micrometer: WARN
+
+abada:
+  security:
+    mode: disabled

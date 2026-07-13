@@ -15,9 +15,13 @@ spring:
       max-lifetime: 1800000
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
       show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
 
 # OpenTelemetry Development Configuration
 management:
@@ -53,3 +57,10 @@ logging:
     io.opentelemetry: WARN
     io.micrometer: WARN
     com.abada.engine: DEBUG
+
+abada:
+  security:
+    mode: ${ABADA_SECURITY_MODE:oidc}
+    allowed-origins: ${ABADA_ALLOWED_ORIGINS}
+
+spring.security.oauth2.resourceserver.jwt.issuer-uri: ${OIDC_ISSUER_URI}

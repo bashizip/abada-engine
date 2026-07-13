@@ -44,6 +44,9 @@ Resources for developers building on or contributing to Abada Engine.
 - [Orun App Specification](development/orun-app-spec.md) - Specifications for the Orun application.
 - [Project Configuration](development/project-config.md) - Review of project configuration settings.
 - [Roadmap](development/roadmap.md) - Future plans and upcoming features.
+- [BPMN Support](reference/bpmn-support.md) - Guaranteed and rejected BPMN constructs.
+- [Deployment Support](reference/deployment-support.md) - Supported runtime and security modes.
+- [Upgrading](operations/upgrading.md) - Schema and deployment upgrade procedure.
 
 ### 📝 Release Notes
 

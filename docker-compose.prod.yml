@@ -122,10 +122,11 @@ services:
       keycloak-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
       interval: 30s
       timeout: 10s
       retries: 10
+      start_period: 60s
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`${KEYCLOAK_HOSTNAME}`)"
@@ -140,7 +141,7 @@ services:
       - "--client-id=${OAUTH2_PROXY_CLIENT_ID}"
       - "--client-secret=${OAUTH2_PROXY_CLIENT_SECRET}"
       - "--cookie-secret=${OAUTH2_PROXY_COOKIE_SECRET}"
-      - "--oidc-issuer-url=https://${KEYCLOAK_HOSTNAME}/realms/abada-prod"
+      - "--oidc-issuer-url=http://keycloak:8080/realms/abada"
       - "--redirect-url=https://${APP_HOSTNAME}/oauth2/callback"
       - "--upstream=http://abada-engine:5601"
       - "--http-address=0.0.0.0:4180"
@@ -151,6 +152,7 @@ services:
       - "--pass-authorization-header=true"
       - "--pass-access-token=true"
       - "--skip-jwt-bearer-tokens=true"
+      - "--insecure-oidc-skip-issuer-verification=true"
     environment:
       - OAUTH2_PROXY_COOKIE_DOMAINS=${APP_HOSTNAME}
     networks:
