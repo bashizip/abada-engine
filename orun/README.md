@@ -55,7 +55,7 @@
 
 ### Prerequisites
 
-- Node.js 20+ (for local development)
+- Node.js 24.18 LTS (use the repository `.nvmrc`)
 - Docker (for containerized deployment)
 - Abada Engine running and accessible
 
