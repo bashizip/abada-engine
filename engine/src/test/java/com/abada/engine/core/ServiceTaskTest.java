@@ -23,12 +23,14 @@ public class ServiceTaskTest {
 
     @Autowired
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Mock
     private UserContextProvider context;
 
     @BeforeEach
     void setUp() throws Exception {
+        databaseTestHelper.cleanup();
         abadaEngine.clearMemory();
         when(context.getUsername()).thenReturn("test-user");
         when(context.getGroups()).thenReturn(List.of("test-group"));

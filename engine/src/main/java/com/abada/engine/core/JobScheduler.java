@@ -13,10 +13,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.UUID;
 
 @Component
 public class JobScheduler {
@@ -27,6 +30,7 @@ public class JobScheduler {
     private final EngineMetrics engineMetrics;
     private final Tracer tracer;
     private AbadaEngine abadaEngine;
+    private final String leaseOwner = UUID.randomUUID().toString();
 
     @Autowired
     public JobScheduler(JobRepository jobRepository, EngineMetrics engineMetrics, Tracer tracer) {
@@ -50,6 +54,10 @@ public class JobScheduler {
         Span span = tracer.spanBuilder("abada.job.schedule").startSpan();
         
         try (var scope = span.makeCurrent()) {
+            if (jobRepository.existsByProcessInstanceIdAndEventIdAndStatusIn(processInstanceId, eventId,
+                    List.of(JobEntity.Status.AVAILABLE, JobEntity.Status.LEASED))) {
+                return;
+            }
             JobEntity job = new JobEntity(processInstanceId, eventId, executionTimestamp);
             jobRepository.save(job);
             
@@ -74,6 +82,7 @@ public class JobScheduler {
      */
     @Scheduled(fixedDelay = 60000) // Check every 60 seconds
     @WithSpan("abada.job.execute.due")
+    @Transactional
     public void executeDueJobs() {
         Span span = tracer.spanBuilder("abada.job.execute.due").startSpan();
         
@@ -83,7 +92,12 @@ public class JobScheduler {
                 return;
             }
             log.debug("Checking for due jobs...");
-            List<JobEntity> dueJobs = jobRepository.findByExecutionTimestampLessThanEqual(Instant.now());
+            Instant now = Instant.now();
+            List<JobEntity> dueJobs = new ArrayList<>(jobRepository
+                    .findByStatusAndExecutionTimestampLessThanEqualOrderByExecutionTimestampAsc(
+                            JobEntity.Status.AVAILABLE, now));
+            dueJobs.addAll(jobRepository.findByStatusAndLeaseExpiresAtLessThanEqualOrderByExecutionTimestampAsc(
+                    JobEntity.Status.LEASED, now));
 
             span.setAttribute("due.jobs.count", dueJobs.size());
 
@@ -98,13 +112,21 @@ public class JobScheduler {
                 Span jobSpan = tracer.spanBuilder("abada.job.execute").startSpan();
                 
                 try (var jobScope = jobSpan.makeCurrent()) {
+                    job.setStatus(JobEntity.Status.LEASED);
+                    job.setLeaseOwner(leaseOwner);
+                    job.setLeaseExpiresAt(Instant.now().plusSeconds(120));
+                    job.setAttempts(job.getAttempts() + 1);
+                    jobRepository.saveAndFlush(job);
                     jobSpan.setAttribute("job.id", job.getId());
                     jobSpan.setAttribute("process.instance.id", job.getProcessInstanceId());
                     jobSpan.setAttribute("event.id", job.getEventId());
                     jobSpan.setAttribute("job.type", "TIMER");
                     
                     abadaEngine.resumeFromEvent(job.getProcessInstanceId(), job.getEventId(), Map.of());
-                    jobRepository.delete(job);
+                    job.setStatus(JobEntity.Status.COMPLETED);
+                    job.setLeaseOwner(null);
+                    job.setLeaseExpiresAt(null);
+                    jobRepository.save(job);
                     
                     engineMetrics.recordJobExecuted("TIMER");
                     engineMetrics.recordJobExecutionTime(sample, "TIMER");
@@ -115,6 +137,12 @@ public class JobScheduler {
                     jobSpan.recordException(e);
                     jobSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
                     log.error("Failed to execute job {}: {}", job.getId(), e.getMessage(), e);
+                    job.setLastError(e.getMessage());
+                    job.setLeaseOwner(null);
+                    job.setLeaseExpiresAt(null);
+                    job.setStatus(job.getAttempts() >= job.getMaxAttempts()
+                            ? JobEntity.Status.FAILED : JobEntity.Status.AVAILABLE);
+                    jobRepository.save(job);
                 } finally {
                     jobSpan.end();
                 }

@@ -25,6 +25,7 @@ public class ParallelGatewayTest {
 
     @Autowired
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Autowired
     private TaskManager taskManager;
@@ -34,6 +35,7 @@ public class ParallelGatewayTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        databaseTestHelper.cleanup();
         abadaEngine.clearMemory();
         when(context.getUsername()).thenReturn("test-user");
         when(context.getGroups()).thenReturn(List.of("test-group"));

@@ -29,4 +29,28 @@ jobs:
           cache: maven
       # Step 3: Set up Maven
       - name: Build with Maven
-        run:  mvn clean install -DskipTests=false
+        working-directory: engine
+        run: ./mvnw clean verify
+
+  frontends:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [tenda, orun]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        run: npm ci
+      - name: Lint Tenda
+        if: matrix.app == 'tenda'
+        working-directory: tenda
+        run: npm run lint
+      - name: Build
+        working-directory: ${{ matrix.app }}
+        run: npm run build

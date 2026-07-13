@@ -4,6 +4,7 @@ import com.abada.engine.context.UserContextProvider;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.UserStatsService;
+import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.TaskDetailsDto;
@@ -29,15 +30,18 @@ public class TaskController {
     private final AbadaEngine engine;
     private final UserContextProvider context;
     private final UserStatsService userStatsService;
+    private final IdempotencyService idempotencyService;
 
     public TaskController(
         AbadaEngine engine,
         UserContextProvider context,
-        UserStatsService userStatsService
+        UserStatsService userStatsService,
+        IdempotencyService idempotencyService
     ) {
         this.engine = engine;
         this.context = context;
         this.userStatsService = userStatsService;
+        this.idempotencyService = idempotencyService;
     }
 
     /**
@@ -55,6 +59,7 @@ public class TaskController {
     ) {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
+        engine.refreshTaskCache();
         List<TaskInstance> visible = engine
             .getTaskManager()
             .getVisibleTasksForUser(user, groups, status);
@@ -84,9 +89,7 @@ public class TaskController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<TaskDetailsDto> getTaskById(@PathVariable String id) {
-        Optional<TaskInstance> taskOptional = engine
-            .getTaskManager()
-            .getTask(id);
+        Optional<TaskInstance> taskOptional = engine.getTaskById(id);
 
         if (taskOptional.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -127,17 +130,16 @@ public class TaskController {
     @PostMapping("/complete")
     public ResponseEntity<Map<String, Object>> complete(
         @RequestParam String taskId,
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
         @RequestBody(required = false) Map<String, Object> variables
     ) {
-        engine.completeTask(
-            taskId,
-            context.getUsername(),
-            context.getGroups(),
-            variables
-        );
-        return ResponseEntity.ok(
-            Map.of("status", "Completed", "taskId", taskId)
-        );
+        Map<String, Object> body = variables == null ? Map.of() : variables;
+        Map<String, Object> response = idempotencyService.execute(idempotencyKey, "task.complete",
+                Map.of("taskId", taskId, "variables", body), () -> {
+                    engine.completeTask(taskId, context.getUsername(), context.getGroups(), body);
+                    return Map.of("status", "Completed", "taskId", taskId);
+                });
+        return ResponseEntity.ok(response);
     }
 
     /**

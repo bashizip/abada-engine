@@ -422,6 +422,12 @@ public class EngineMetrics {
         return activeTasks.get();
     }
 
+    /** Resets gauges that are reconstructed from authoritative persisted state. */
+    public void resetActiveState() {
+        activeProcessInstances.set(0);
+        activeTasks.set(0);
+    }
+
     /**
      * Cleans up cached metrics that haven't been used recently.
      * This helps prevent memory leaks from discontinued processes, tasks, or jobs.

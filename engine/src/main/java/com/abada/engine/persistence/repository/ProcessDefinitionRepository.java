@@ -4,4 +4,11 @@ package com.abada.engine.persistence.repository;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface ProcessDefinitionRepository extends JpaRepository<ProcessDefinitionEntity, String> {}
+import java.util.List;
+import java.util.Optional;
+
+public interface ProcessDefinitionRepository extends JpaRepository<ProcessDefinitionEntity, String> {
+    Optional<ProcessDefinitionEntity> findFirstByProcessKeyOrderByVersionDesc(String processKey);
+    List<ProcessDefinitionEntity> findByProcessKeyOrderByVersionDesc(String processKey);
+    List<ProcessDefinitionEntity> findAllByOrderByProcessKeyAscVersionDesc();
+}

@@ -1,8 +1,6 @@
 package com.abada.engine.persistence.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -19,6 +17,23 @@ public class JobEntity {
     private String eventId;
 
     private Instant executionTimestamp;
+
+    @Enumerated(EnumType.STRING)
+    private Status status = Status.AVAILABLE;
+
+    private String leaseOwner;
+    private Instant leaseExpiresAt;
+    private int attempts;
+    private int maxAttempts = 3;
+
+    @Column(columnDefinition = "TEXT")
+    private String lastError;
+
+    @Version
+    @Column(name = "entity_version", nullable = false)
+    private long entityVersion;
+
+    public enum Status { AVAILABLE, LEASED, COMPLETED, FAILED }
 
     public JobEntity() {
         this.id = UUID.randomUUID().toString();
@@ -64,4 +79,18 @@ public class JobEntity {
     public void setExecutionTimestamp(Instant executionTimestamp) {
         this.executionTimestamp = executionTimestamp;
     }
+
+    public Status getStatus() { return status; }
+    public void setStatus(Status status) { this.status = status; }
+    public String getLeaseOwner() { return leaseOwner; }
+    public void setLeaseOwner(String leaseOwner) { this.leaseOwner = leaseOwner; }
+    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(Instant leaseExpiresAt) { this.leaseExpiresAt = leaseExpiresAt; }
+    public int getAttempts() { return attempts; }
+    public void setAttempts(int attempts) { this.attempts = attempts; }
+    public int getMaxAttempts() { return maxAttempts; }
+    public void setMaxAttempts(int maxAttempts) { this.maxAttempts = maxAttempts; }
+    public String getLastError() { return lastError; }
+    public void setLastError(String lastError) { this.lastError = lastError; }
+    public long getEntityVersion() { return entityVersion; }
 }

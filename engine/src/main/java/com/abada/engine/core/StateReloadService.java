@@ -7,9 +7,7 @@ import com.abada.engine.persistence.entity.TaskEntity;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Component
@@ -17,14 +15,18 @@ public class StateReloadService {
 
     private final PersistenceService persistenceService;
     private final AbadaEngine abadaEngine;
+    private final com.abada.engine.observability.EngineMetrics engineMetrics;
 
-    public StateReloadService(PersistenceService persistenceService, AbadaEngine abadaEngine) {
+    public StateReloadService(PersistenceService persistenceService, AbadaEngine abadaEngine,
+            com.abada.engine.observability.EngineMetrics engineMetrics) {
         this.persistenceService = persistenceService;
         this.abadaEngine = abadaEngine;
+        this.engineMetrics = engineMetrics;
     }
 
     @PostConstruct
     public void reloadStateAtStartup() throws IOException {
+        engineMetrics.resetActiveState();
         reloadProcessDefinitions();  // 🚨 Reload definitions FIRST
         reloadProcessInstances();    // 🚨 Then reload instances
         reloadTasks();               // 🚨 Then reload tasks
@@ -33,14 +35,7 @@ public class StateReloadService {
     private void reloadProcessDefinitions() throws IOException {
         List<ProcessDefinitionEntity> definitions = persistenceService.findAllProcessDefinitions();
         for (ProcessDefinitionEntity entity : definitions) {
-            ByteArrayInputStream bpmnXmlStream = new ByteArrayInputStream(entity.getBpmnXml().getBytes(StandardCharsets.UTF_8));
-
-           /* bpmnXmlStream.mark(1024); // Allow resetting
-            byte[] head = bpmnXmlStream.readNBytes(200);
-            System.out.println("--- BPMN XML Preview ---");
-            System.out.println(new String(head, StandardCharsets.UTF_8));
-            bpmnXmlStream.reset();*/
-            abadaEngine.deploy(bpmnXmlStream);
+            abadaEngine.registerPersistedDefinition(entity);
         }
     }
 

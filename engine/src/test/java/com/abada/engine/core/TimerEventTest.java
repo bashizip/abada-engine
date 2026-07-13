@@ -25,6 +25,7 @@ public class TimerEventTest {
 
     @Autowired
     private AbadaEngine abadaEngine;
+    @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
     @Autowired
     private TaskManager taskManager;
@@ -40,6 +41,7 @@ public class TimerEventTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        databaseTestHelper.cleanup();
         abadaEngine.clearMemory();
         jobRepository.deleteAll(); // Clear any previous jobs
         when(context.getUsername()).thenReturn("test-user");
@@ -76,8 +78,10 @@ public class TimerEventTest {
         assertEquals(1, finalTasks.size(), "Should have moved to the final task");
         assertEquals("FinalTask", finalTasks.get(0).getTaskDefinitionKey());
 
-        // 6. Assert that the job has been deleted
-        assertEquals(0, jobRepository.count(), "The job should be deleted after execution");
+        // 6. Durable jobs remain available as completed history.
+        assertEquals(com.abada.engine.persistence.entity.JobEntity.Status.COMPLETED,
+                jobRepository.findAll().get(0).getStatus(),
+                "The job should be retained as completed after execution");
 
         // 7. Complete the final task and assert the process is finished
         abadaEngine.completeTask(finalTasks.get(0).getId(), "test-user", List.of(), Map.of());

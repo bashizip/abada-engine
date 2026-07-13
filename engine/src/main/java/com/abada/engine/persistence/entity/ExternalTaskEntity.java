@@ -24,11 +24,9 @@ public class ExternalTaskEntity {
     private Instant lockExpirationTime;
 
     // Error tracking for incident management
-    @Lob
-    @Column(name = "exception_message")
+    @Column(name = "exception_message", columnDefinition = "TEXT")
     private String exceptionMessage;
 
-    @Lob
     @Column(name = "exception_stacktrace", columnDefinition = "TEXT")
     private String exceptionStacktrace;
 
@@ -38,9 +36,14 @@ public class ExternalTaskEntity {
     @Column(name = "activity_id")
     private String activityId; // BPMN element ID for visualization
 
+    @Version
+    @Column(name = "entity_version", nullable = false)
+    private long entityVersion;
+
     public enum Status {
         OPEN,
         LOCKED,
+        COMPLETED,
         FAILED // Added for failed jobs tracking
     }
 
@@ -136,4 +139,6 @@ public class ExternalTaskEntity {
     public void setActivityId(String activityId) {
         this.activityId = activityId;
     }
+
+    public long getEntityVersion() { return entityVersion; }
 }

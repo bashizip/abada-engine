@@ -2,12 +2,28 @@ package com.abada.engine.persistence.entity;
 
 import jakarta.persistence.*;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @Entity
 @Table(name = "process_definitions")
 public class ProcessDefinitionEntity {
 
     @Id
-    private String id;
+    @Column(name = "deployment_id")
+    private String deploymentId;
+
+    @Column(name = "process_key", nullable = false)
+    private String processKey;
+
+    @Column(nullable = false)
+    private int version;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(length = 64)
+    private String checksum;
 
     @Column(nullable = false)
     private String name;
@@ -24,12 +40,57 @@ public class ProcessDefinitionEntity {
     @Column(name = "candidate_starter_users")
     private String candidateStarterUsers;
 
+    public ProcessDefinitionEntity() {
+        this.deploymentId = UUID.randomUUID().toString();
+        this.createdAt = Instant.now();
+    }
+
     public String getId() {
-        return id;
+        return processKey;
     }
 
     public void setId(String id) {
-        this.id = id;
+        this.processKey = id;
+    }
+
+    public String getDeploymentId() {
+        return deploymentId;
+    }
+
+    public void setDeploymentId(String deploymentId) {
+        this.deploymentId = deploymentId;
+    }
+
+    public String getProcessKey() {
+        return processKey;
+    }
+
+    public void setProcessKey(String processKey) {
+        this.processKey = processKey;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getChecksum() {
+        return checksum;
+    }
+
+    public void setChecksum(String checksum) {
+        this.checksum = checksum;
     }
 
     public String getName() {

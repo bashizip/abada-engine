@@ -1,8 +1,12 @@
 # Abada Platform → SaaS Transformation Roadmap
 
+> **Deferred:** This document is not the active delivery roadmap. The reliable
+> OSS core roadmap in `docs/development/roadmap.md` is authoritative until 1.0.
+
 ## Overview
 
-The Abada Platform has an excellent technical foundation: a custom BPMN 2.0 engine, production-ready observability, a stateless horizontally-scalable architecture, and working UI components. What it currently lacks are the **SaaS-specific layers** that turn a self-hosted product into a multi-tenant, monetizable cloud service.
+This earlier proposal describes possible SaaS layers. It must not be read as a
+statement that the current runtime is already stateless or cluster-certified.
 
 Below are the 7 pillars required, ordered by priority and dependency.
 

@@ -8,6 +8,8 @@ import com.abada.engine.dto.CancelRequest;
 import com.abada.engine.dto.SuspensionRequest;
 import com.abada.engine.dto.ActivityInstanceTree;
 import com.abada.engine.dto.ChildActivityInstance;
+import com.abada.engine.persistence.entity.ActivityHistoryEntity;
+import com.abada.engine.persistence.repository.ActivityHistoryRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,9 +27,11 @@ import java.util.stream.Collectors;
 public class CockpitController {
 
     private final AbadaEngine engine;
+    private final ActivityHistoryRepository historyRepository;
 
-    public CockpitController(AbadaEngine engine) {
+    public CockpitController(AbadaEngine engine, ActivityHistoryRepository historyRepository) {
         this.engine = engine;
+        this.historyRepository = historyRepository;
     }
 
     /**
@@ -76,7 +80,7 @@ public class CockpitController {
                         Map.Entry::getKey,
                         entry -> entry.getValue().toObject()));
 
-        instance.putAllVariables(modifications);
+        engine.updateProcessVariables(instanceId, modifications);
 
         return ResponseEntity.ok().build();
     }
@@ -149,5 +153,11 @@ public class CockpitController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(new ActivityInstanceTree(id, children));
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<ActivityHistoryEntity>> getHistory(@PathVariable String id) {
+        if (engine.getProcessInstanceById(id) == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(historyRepository.findByProcessInstanceIdOrderByOccurredAtAsc(id));
     }
 }

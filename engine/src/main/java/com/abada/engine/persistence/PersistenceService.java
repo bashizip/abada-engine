@@ -9,15 +9,19 @@ import java.util.List;
 
 public interface PersistenceService {
 
-    void saveOrUpdateProcessInstance(ProcessInstanceEntity instance);
+    ProcessInstanceEntity saveOrUpdateProcessInstance(ProcessInstanceEntity instance);
 
-    void saveProcessDefinition(ProcessDefinitionEntity definition);
+    ProcessDefinitionEntity saveProcessDefinition(ProcessDefinitionEntity definition);
 
     void saveProcessInstance(ProcessInstanceEntity instance);
 
-    void saveTask(TaskEntity task);
+    TaskEntity saveTask(TaskEntity task);
+
+    TaskEntity findTaskById(String taskId);
 
     ProcessDefinitionEntity findProcessDefinitionById(String definitionId);
+
+    ProcessDefinitionEntity findProcessDefinitionByDeploymentId(String deploymentId);
 
     ProcessInstanceEntity findProcessInstanceById(String instanceId);
 

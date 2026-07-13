@@ -34,12 +34,14 @@ public class InstanceManagementTest {
 
         @Autowired
         private AbadaEngine abadaEngine;
+        @Autowired private com.abada.engine.util.DatabaseTestHelper databaseTestHelper;
 
         private String instanceId;
         private HttpHeaders aliceHeaders;
 
         @BeforeEach
         void setup() throws IOException {
+                databaseTestHelper.cleanup();
                 abadaEngine.clearMemory();
 
                 aliceHeaders = new HttpHeaders();

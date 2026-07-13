@@ -41,7 +41,7 @@ Abada provides that execution layer.
 Rather than replacing BPMN with AI agents, Abada combines both:
 
 - **Agents reason**
-- **BPMN orchestrates**
+- **BPMN orchestrates a documented, tested subset**
 - **Humans supervise**
 - **Telemetry explains everything**
 
@@ -129,7 +129,7 @@ Abada is a modular monorepo.
 
 | Component | Description |
 |-----------|-------------|
-| **engine/** | BPMN execution engine |
+| **engine/** | Durable BPMN execution engine |
 | **tenda/** | Human task application |
 | **orun/** | Operations & observability dashboard |
 | **admin/** | Administration UI (external repository) |
@@ -248,6 +248,10 @@ The BPMN execution core is operational, while APIs and platform capabilities con
 - ✅ Traefik
 - ✅ Keycloak Authentication
 
+The exact guaranteed semantics are published in the
+[BPMN support matrix](docs/reference/bpmn-support.md). Unsupported constructs
+are rejected at deployment instead of being silently ignored.
+
 ## Planned
 
 - ⏳ Complete BPMN 2.0 coverage
@@ -262,14 +266,16 @@ The BPMN execution core is operational, while APIs and platform capabilities con
 
 ---
 
-# High Availability
+# Deployment and High Availability
 
-Abada is designed for production deployment.
+Abada is being hardened for production deployment. PostgreSQL is authoritative,
+definitions are versioned immutably, and runtime records use optimistic
+concurrency. Complete multi-replica certification remains a 0.10 release gate.
 
 Current capabilities include:
 
-- Stateless execution engine
-- Horizontal scaling
+- Durable PostgreSQL runtime state
+- Leased timer acquisition and durable event subscriptions
 - Traefik load balancing
 - PostgreSQL persistence
 - Connection pooling
@@ -278,13 +284,15 @@ Current capabilities include:
 - Containerized runtime
 - Workflow-aware telemetry
 
+See the [deployment support matrix](docs/reference/deployment-support.md) before
+choosing a production topology.
+
 ---
 
 # Performance
 
-Internal benchmarks show the current engine capable of processing **hundreds of workflow operations per second** in representative cluster configurations.
-
-These are engineering benchmarks and **not yet published reproducible performance benchmarks**.
+No performance or scalability number is a 1.0 guarantee until its harness,
+hardware, database configuration and results are published reproducibly.
 
 Current optimization work focuses on:
 
