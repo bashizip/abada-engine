@@ -40,6 +40,18 @@ public class TaskManager {
                           @SpanTag("process.instance.id") String processInstanceId,
                            String assignee, List<String> candidateUsers, List<String> candidateGroups) {
 
+        addTask(createTaskSnapshot(taskDefinitionKey, name, processInstanceId, assignee,
+                candidateUsers, candidateGroups));
+    }
+
+    /**
+     * Builds a task for a database-backed command without publishing it to the
+     * legacy runtime cache before the surrounding transaction commits.
+     */
+    public TaskInstance createTaskSnapshot(String taskDefinitionKey, String name,
+            String processInstanceId, String assignee, List<String> candidateUsers,
+            List<String> candidateGroups) {
+
         Timer.Sample waitingTimeSample = engineMetrics.startTaskWaitingTimer();
         Span span = tracer.spanBuilder("abada.task.create").startSpan();
         
@@ -65,8 +77,6 @@ public class TaskManager {
             if (candidateGroups != null) {
                 task.getCandidateGroups().addAll(candidateGroups);
             }
-
-            tasks.put(task.getId(), task);
             
             span.setAttribute("task.id", task.getId());
             span.setAttribute("task.definition.key", taskDefinitionKey);
@@ -81,6 +91,7 @@ public class TaskManager {
             
             // Store the waiting time sample for later use when task is claimed
             task.setWaitingTimeSample(waitingTimeSample);
+            return task;
         } catch (Exception e) {
             span.recordException(e);
             span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
@@ -145,6 +156,10 @@ public class TaskManager {
         if (task == null) {
             throw new ProcessEngineException("Task not found: " + taskId);
         }
+        checkCanComplete(task, user, userGroups);
+    }
+
+    public void checkCanComplete(TaskInstance task, String user, List<String> userGroups) {
         if (task.isCompleted()) {
             throw new ProcessEngineException("Task is already completed.");
         }
@@ -153,32 +168,34 @@ public class TaskManager {
         boolean isEligibleAndAvailable = task.getStatus() == TaskStatus.AVAILABLE && isUserEligible(task, user, userGroups);
 
         if (!isAssignee && !isEligibleAndAvailable) {
-            throw new ProcessEngineException("User " + user + " is not authorized to complete task " + taskId);
+            throw new ProcessEngineException("User " + user + " is not authorized to complete task " + task.getId());
         }
     }
 
     @WithSpan("abada.task.complete")
     public void completeTask(@SpanTag("task.id") String taskId) {
+        TaskInstance task = tasks.get(taskId);
+        if (task != null) completeTask(task);
+    }
+
+    public void completeTask(TaskInstance task) {
         Span span = tracer.spanBuilder("abada.task.complete").startSpan();
         
         try (var scope = span.makeCurrent()) {
-            TaskInstance task = tasks.get(taskId);
-            if (task != null) {
-                task.setStatus(TaskStatus.COMPLETED);
-                task.setEndDate(Instant.now());
-                
-                span.setAttribute("task.id", taskId);
-                span.setAttribute("task.definition.key", task.getTaskDefinitionKey());
-                span.setAttribute("task.name", task.getName());
-                span.setAttribute("user.name", task.getAssignee());
-                span.setAttribute("process.instance.id", task.getProcessInstanceId());
-                
-                engineMetrics.recordTaskCompleted(task.getTaskDefinitionKey());
-                
-                // Record processing time
-                if (task.getProcessingTimeSample() != null) {
-                    engineMetrics.recordTaskProcessingTime(task.getProcessingTimeSample(), task.getTaskDefinitionKey());
-                }
+            task.setStatus(TaskStatus.COMPLETED);
+            task.setEndDate(Instant.now());
+
+            span.setAttribute("task.id", task.getId());
+            span.setAttribute("task.definition.key", task.getTaskDefinitionKey());
+            span.setAttribute("task.name", task.getName());
+            span.setAttribute("user.name", task.getAssignee());
+            span.setAttribute("process.instance.id", task.getProcessInstanceId());
+
+            engineMetrics.recordTaskCompleted(task.getTaskDefinitionKey());
+
+            // Record processing time
+            if (task.getProcessingTimeSample() != null) {
+                engineMetrics.recordTaskProcessingTime(task.getProcessingTimeSample(), task.getTaskDefinitionKey());
             }
         } catch (Exception e) {
             span.recordException(e);

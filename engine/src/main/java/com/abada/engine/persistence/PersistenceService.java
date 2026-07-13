@@ -19,6 +19,8 @@ public interface PersistenceService {
 
     TaskEntity findTaskById(String taskId);
 
+    TaskEntity findTaskByIdForUpdate(String taskId);
+
     ProcessDefinitionEntity findProcessDefinitionById(String definitionId);
 
     ProcessDefinitionEntity findProcessDefinitionByDeploymentId(String deploymentId);

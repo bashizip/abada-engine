@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_PostgresRestartRecovery"
+                  targetNamespace="http://abada.dev/bpmn">
+  <bpmn:process id="postgres-restart-recovery" name="PostgreSQL restart recovery" isExecutable="true">
+    <bpmn:startEvent id="start">
+      <bpmn:outgoing>to-approval</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="to-approval" sourceRef="start" targetRef="approval" />
+    <bpmn:userTask id="approval" name="Approve durable workflow" camunda:candidateGroups="operators">
+      <bpmn:incoming>to-approval</bpmn:incoming>
+      <bpmn:outgoing>to-end</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="to-end" sourceRef="approval" targetRef="end" />
+    <bpmn:endEvent id="end">
+      <bpmn:incoming>to-end</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+</bpmn:definitions>
