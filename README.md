@@ -1,178 +1,358 @@
 # Abada Platform
 
-A modular, culturally-rooted BPMN 2.0 process automation platform built on **Java 21** and **Spring Boot 3**. Abada provides a lightweight, embeddable workflow engine with **first-class observability** and production-ready Docker deployment for dev, test, and prod.
+**The observable BPMN orchestration core for next-generation organic and agentic workflows.**
 
-For a comprehensive overview of the platform, see [`docs/platform-overview.md`](docs/platform-overview.md). For a deep technical overview and deployment architecture, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
+Abada is a modular, cloud-native workflow platform built with **Java 21** and **Spring Boot 3**. It provides a lightweight BPMN execution engine for coordinating humans, services, business rules, events, and emerging AI-agent workloads within durable, auditable processes.
 
----
+Abada is designed around a simple principle: autonomous agents may reason and act dynamically, but production workflows still require deterministic control over state, sequencing, permissions, timeouts, approvals, recovery, and observability.
 
-## 🚀 Built-in Observability
+The open-source platform currently includes the BPMN execution core, task management, operational monitoring, secure containerized deployment, and workflow-aware telemetry.
 
-Abada is designed for the modern cloud-native stack. Observability is not an add-on; it is woven into the core execution engine.
+> **🚧 Agentic development status**
+>
+> The next-generation **agentic orchestration capabilities** currently under active development are **not yet open sourced**. They are being built on top of the public Abada BPMN core and will be released progressively as the architecture, APIs, and SDKs mature.
 
-*   **OpenTelemetry Native**: The engine emits rich OTLP traces, metrics, and logs out of the box. No sidecars or agents required for basic visibility.
-*   **Full-Stack Visibility**: Trace every process instance from REST API call → BPMN Element → Database Query, with correlated logs at every step.
-*   **Modern Stack**: Integrated with Jaeger (Tracing), Prometheus (Metrics), Loki (Logs), and Grafana (Visualization).
-*   **Actionable Metrics**: Pre-configured metrics for process duration, task throughput, and error rates.
-*   **Unified Logging**: Centralized log aggregation with automatic trace correlation for debugging distributed workflows.
+📚 **Documentation**
 
-👉 **See the [Observability Reference Guide](docs/operations/observability.md) for full configuration details.**
-
----
-
-## Project Architecture
-
-Abada is a modular platform composed of subdirectories in this monorepo:
-- `engine/`: Core BPMN execution engine (REST API)
-- `orun/`: Monitoring and observability dashboard (frontend)
-- `tenda/`: End-user task UI (frontend)
-- `admin`: Process administration (frontend, external repo)
-- `semaflow`: Natural-language to BPMN tooling (external repo)
-
-All components are containerized and deploy independently from the root. For design, boundaries, and runtime topology, see [`docs/architecture/overview.md`](docs/architecture/overview.md).
+- [Platform Overview](docs/platform-overview.md)
+- [Architecture & Deployment Guide](docs/architecture/overview.md)
+- [API Documentation](docs/development/api.md)
+- [Observability Guide](docs/operations/observability.md)
 
 ---
 
-## Quick Start
+# Why Abada?
 
-### 🚀 **Demo Mode (Recommended for First-Time Users)**
+Large Language Models and AI agents are excellent at reasoning, selecting tools, and adapting to incomplete information.
 
-**⚠️ Note:** The production profile is currently under active development. For demos, testing, and development, use the **dev profile** which is fully stable and functional.
+Production systems, however, still require:
 
-#### Option 1: Automated Quickstart (Easiest)
+- deterministic execution
+- durable state
+- approvals and human oversight
+- auditability
+- retries and compensation
+- event correlation
+- observability
+- operational safety
 
-The fastest way to run the full Abada Platform (Engine, Tenda, Orun, Observability) is using our automated quickstart script. You only need Docker installed.
+Abada provides that execution layer.
 
-**Linux/macOS:**
-```bash
-curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/scripts/dev/quickstart.sh | bash
+Rather than replacing BPMN with AI agents, Abada combines both:
+
+- **Agents reason**
+- **BPMN orchestrates**
+- **Humans supervise**
+- **Telemetry explains everything**
+
+---
+
+# Organic & Agentic Workflows
+
+Abada introduces the concept of **Organic Workflows**.
+
+An Organic Workflow is a business process where execution can naturally involve:
+
+- Humans
+- Services
+- Events
+- Business Rules
+- AI Agents
+- External Systems
+
+Unlike rigid workflow engines, execution can evolve dynamically while remaining deterministic and fully observable.
+
+Examples include:
+
+- AI proposes → Human approves
+- Human delegates → Agent executes
+- Event triggers → Workflow continues
+- Policy blocks → Human intervention
+- Agent fails → Compensation path executes
+
+The BPMN engine remains the authoritative execution model while AI agents become intelligent participants within the workflow.
+
+---
+
+# Built-in Observability
+
+Observability is not an afterthought.
+
+It is part of Abada's execution model.
+
+The engine emits **workflow-aware telemetry** using **OpenTelemetry**, allowing operators to follow execution from API request to BPMN activity, event correlation, task lifecycle, persistence layer, and infrastructure.
+
+## Features
+
+- ✅ Native OpenTelemetry instrumentation
+- ✅ Process-aware distributed tracing
+- ✅ Metrics for workflows, tasks, events and jobs
+- ✅ Full-stack trace correlation
+- ✅ Centralized structured logging
+- ✅ Grafana dashboards
+- ✅ Jaeger distributed tracing
+- ✅ Prometheus metrics
+- ✅ Loki log aggregation
+
+Current telemetry includes:
+
+- Process instances started
+- Process completion
+- Process failures
+- Process duration
+- Task creation
+- Task waiting time
+- Task processing time
+- Task completion
+- Message correlation
+- Signal broadcasting
+- Job execution
+- Job failures
+
+Future releases will extend telemetry to include:
+
+- AI model invocations
+- Tool execution
+- Token usage
+- Decision latency
+- Agent retries
+- Human intervention
+- Agent-to-agent delegation
+
+See the [Observability Guide](docs/operations/observability.md).
+
+---
+
+# Platform Architecture
+
+Abada is a modular monorepo.
+
+| Component | Description |
+|-----------|-------------|
+| **engine/** | BPMN execution engine |
+| **tenda/** | Human task application |
+| **orun/** | Operations & observability dashboard |
+| **admin/** | Administration UI (external repository) |
+| **semaflow/** | Natural Language → BPMN tooling (external repository) |
+
+```
+                Users / Systems / Events
+                         │
+                         ▼
+                 Abada BPMN Core
+                         │
+         ┌───────────────┼───────────────┐
+         ▼               ▼               ▼
+      Humans         Services       AI Agents
+                         │
+                         ▼
+            Policies • Tools • Models • APIs
+                         │
+                         ▼
+          OpenTelemetry Execution Graph
 ```
 
-**Windows PowerShell:**
-```powershell
-irm https://raw.githubusercontent.com/bashizip/abada-engine/main/scripts/dev/quickstart.ps1 | iex
-```
+Every public component is independently deployable using Docker.
 
-This script will:
-- ✅ Check prerequisites (Docker, Docker Compose)
-- ✅ Set up local TLS certificates (if mkcert is installed)
-- ✅ Start all services
-- ✅ Wait for services to be healthy
-- ✅ Display access URLs and credentials
+For runtime topology, deployment strategies and system architecture, see the [Architecture Guide](docs/architecture/overview.md).
 
-#### Option 2: Manual Quickstart
+---
+
+# Quick Start
+
+## Clone & Launch
 
 ```bash
-# Clone the repository
 git clone https://github.com/bashizip/abada-engine.git
 cd abada-engine
+./release/quickstart.sh
+```
 
-# Run the dev quickstart script
-./scripts/dev/quickstart.sh        # Linux/macOS
-# or
-.\scripts\dev\quickstart.ps1       # Windows PowerShell
+## One-line Installation
+
+```bash
+curl -sSL https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.sh | bash
+```
+
+Windows:
+
+```powershell
+irm https://raw.githubusercontent.com/bashizip/abada-engine/main/release/quickstart.ps1 | iex
 ```
 
 ---
 
-### 💻 Full Development Environment
+# Development
 
-For local development and contribution, use the development scripts directly.
-Scripts are grouped by environment under `scripts/dev`, `scripts/prod`, and `scripts/test`.
+Build and launch the complete stack.
 
-**Option 1: Build & Run (Recommended)**
-Builds the engine, tenda, and orun from subdirectories and launches the **complete** stack with Keycloak and Observability.
 ```bash
 ./scripts/dev/build-and-run-dev.sh
 ```
 
-**Option 2: Start Only**
-Starts the containers if the images are already built.
+Start previously built images.
+
 ```bash
 ./scripts/dev/start-dev.sh
 ```
 
-**Local HTTPS (mkcert)**
-To avoid browser SSL warnings for `https://*.localhost`, generate and mount a locally trusted certificate.
+Generate trusted localhost certificates.
+
 ```bash
 ./scripts/dev/setup-local-tls.sh docker-compose.dev.yml
 ```
 
-Manual equivalent:
-```bash
-mkdir -p docker/traefik/certs
-mkcert -install
-mkcert \
-  -cert-file docker/traefik/certs/localhost.pem \
-  -key-file docker/traefik/certs/localhost-key.pem \
-  localhost \
-  "*.localhost" \
-  tenda.localhost \
-  orun.localhost \
-  keycloak.localhost \
-  traefik.localhost \
-  grafana.localhost \
-  jaeger.localhost \
-  prometheus.localhost
+---
+
+# Local Services
+
+| Service | URL |
+|---------|-----|
+| Gateway | https://localhost |
+| Engine API | https://localhost/api |
+| Swagger | https://localhost/api/swagger-ui.html |
+| Tenda | https://tenda.localhost |
+| Orun | https://orun.localhost |
+| Keycloak | https://keycloak.localhost |
+| Grafana | http://localhost:3000 |
+| Jaeger | http://localhost:16686 |
+
+---
+
+# Current Status (v0.8.4-alpha)
+
+Abada is under active alpha development.
+
+The BPMN execution core is operational, while APIs and platform capabilities continue to evolve.
+
+## Implemented
+
+- ✅ BPMN execution engine
+- ✅ Process persistence
+- ✅ User Tasks
+- ✅ Service Tasks
+- ✅ Script Tasks
+- ✅ Message Events
+- ✅ Signal Events
+- ✅ Parallel Gateways
+- ✅ Exclusive Gateways
+- ✅ REST APIs
+- ✅ PostgreSQL
+- ✅ H2
+- ✅ OpenTelemetry
+- ✅ Prometheus
+- ✅ Grafana
+- ✅ Jaeger
+- ✅ Loki
+- ✅ Docker
+- ✅ Traefik
+- ✅ Keycloak Authentication
+
+## Planned
+
+- ⏳ Complete BPMN 2.0 coverage
+- ⏳ Stable SDKs
+- ⏳ DMN
+- ⏳ CMMN
+- ⏳ Public Agentic Runtime
+- ⏳ AI Worker SDK
+- ⏳ Agent Memory Integrations
+- ⏳ Policy Engine
+- ⏳ Stable 1.0 APIs
+
+---
+
+# High Availability
+
+Abada is designed for production deployment.
+
+Current capabilities include:
+
+- Stateless execution engine
+- Horizontal scaling
+- Traefik load balancing
+- PostgreSQL persistence
+- Connection pooling
+- Health checks
+- Environment-specific deployments
+- Containerized runtime
+- Workflow-aware telemetry
+
+---
+
+# Performance
+
+Internal benchmarks show the current engine capable of processing **hundreds of workflow operations per second** in representative cluster configurations.
+
+These are engineering benchmarks and **not yet published reproducible performance benchmarks**.
+
+Current optimization work focuses on:
+
+- Database I/O
+- Event correlation
+- Job execution
+- Horizontal scaling
+- Redis integration
+- Kafka integration
+
+---
+
+# API
+
+Documentation:
+
+- [API Reference](docs/development/api.md)
+
+Health endpoint:
+
 ```
-Restart Traefik (or the full dev stack) after generating the certs.
+/api/v1/info
+```
 
-| Service | URL | Note  |
-| :--- | :--- | :--- |
-| **Abada Gateway** (Traefik) | [https://localhost](https://localhost) | Entry point for all services |
-| **Abada Engine** (API) | [https://localhost/api](https://localhost/api) | Swagger/Docs at `/api/swagger-ui.html`; build from `engine/` |
-| **Abada Tenda** (Task UI) | [https://tenda.localhost](https://tenda.localhost) | End-user task management; build from `tenda/` |
-| **Abada Orun** (Monitoring) | [https://orun.localhost](https://orun.localhost) | Process monitoring dashboard; build from `orun/` |
-| **Keycloak Admin** | [https://keycloak.localhost](https://keycloak.localhost) | Identity & Access Management |
-| **Swagger UI** | [https://localhost/api/swagger-ui.html](https://localhost/api/swagger-ui.html) | Interactive API documentation |
-| **Grafana** | [https://grafana.localhost](https://grafana.localhost) | Metrics & Dashboards |
-| **Jaeger** | [https://jaeger.localhost](https://jaeger.localhost) | Distributed Tracing UI |
-| **Traefik Dashboard** | [https://traefik.localhost](https://traefik.localhost) | Reverse-proxy dashboard |
+Swagger:
 
-> **⚠️ Production Profile Status:** The production profile (`docker-compose.prod.yml`) is currently under active development with Traefik v3.6 migration and multi-tenant CORS architecture. For stable demos and testing, **use the dev profile**. Track progress in [`docs/development/cors-migration-plan.md`](docs/development/cors-migration-plan.md).
+```
+/api/swagger-ui.html
+```
 
 ---
 
-## Engine Status (v0.8.4-alpha)
+# Roadmap
 
-- **Execution Core**: BPMN 2.0 compliant; Support for User/Service/Script tasks, Parallel/XOR gateways, and Message/Signal events.
-- **Persistence**: H2 for local development; PostgreSQL for production with optimized pooling.
-- **Security**: OIDC-compliant authentication via **Keycloak**. JWT validation and role-based access control (RBAC) in progress.
-- **High Availability**: Stateless engine design, horizontally scalable with Traefik load-balancing.
-- **Capabilities**:
-    - [x] BPMN 2.0 (Core)
-    - [ ] CMMN (Planned)
-    - [ ] DMN (Planned)
+The public roadmap covers the progression from the current BPMN execution engine toward a fully featured cloud-native orchestration platform.
 
-### Performance & Scalability
-Preliminary benchmarks show the engine capable of handling **hundreds of transactions per second (TPS)** in a standard cluster configuration. The current bottleneck is database I/O, with plans to integrate Redis/Kafka for high-frequency eventing in future versions.
+The **agentic orchestration layer** is currently under active private development and **is intentionally not yet open sourced**. It builds on top of the public BPMN core and will be released progressively as its APIs, runtime model, and SDKs stabilize.
+
+See the complete roadmap:
+
+- [Roadmap](docs/development/roadmap.md)
 
 ---
 
-## API Reference
+# Contributing
 
-For endpoints, authentication, and examples, see [`docs/development/api.md`](docs/development/api.md). Check the engine heartbeat at `/api/v1/info`.
+This repository contains the public components of the Abada Platform.
+
+Contributions are welcome.
+
+Please:
+
+- Include tests
+- Update documentation
+- Keep pull requests focused
+- Specify the affected component (`engine`, `tenda`, `orun`, etc.)
+
+Example commit messages:
+
+```
+engine: add timer persistence
+engine: improve message correlation
+observability: add workflow latency dashboard
+tenda: improve task claiming
+```
 
 ---
 
-## Release Notes
+# License
 
-*   [Version 0.8.4-alpha](docs/release-notes/0.8.4-alpha-release-notes.md) - Tenda MVP & Keycloak Integration
-*   [Version 0.8.3-alpha](docs/release-notes/0.8.3-alpha-release-notes.md)
-*   [Version 0.8.2-alpha](docs/release-notes/0.8.2-alpha-release-notes.md)
-
----
-
-## Roadmap
-
-See [`docs/development/roadmap.md`](docs/development/roadmap.md) for the staged milestones from `0.8.4-alpha` to `1.0.0-beta`.
-
----
-
-## Contributing
-
-This is now a monorepo containing engine, tenda, and orun. Issues and PRs are welcome for any subdirectory. Please include tests for any new behavior, and specify the component (e.g., engine, tenda, orun) in your commit messages.
-
-## License
-
-MIT
+MIT License
