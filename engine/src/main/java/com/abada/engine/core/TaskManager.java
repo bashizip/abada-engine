@@ -146,6 +146,15 @@ public class TaskManager {
         }
     }
 
+    public void unclaimTask(TaskInstance task, String user) {
+        if (task.getStatus() != TaskStatus.CLAIMED || task.getAssignee() == null)
+            throw new ProcessEngineException("Task is not currently assigned");
+        if (user == null || !user.equals(task.getAssignee()))
+            throw new ProcessEngineException("Only the current assignee may unclaim the task");
+        task.setAssignee(null);
+        task.setStatus(TaskStatus.AVAILABLE);
+    }
+
     public void checkCanComplete(TaskInstance task, String user, List<String> userGroups) {
         if (task.getStatus() == TaskStatus.COMPLETED) {
             throw new ProcessEngineException("Task is already completed.");

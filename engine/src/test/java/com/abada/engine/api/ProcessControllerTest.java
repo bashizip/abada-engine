@@ -70,6 +70,8 @@ public class ProcessControllerTest {
         ResponseEntity<Map> deployResponse = restTemplate.postForEntity("/v1/processes/deploy", requestEntity,
                 Map.class);
         assertThat(deployResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(deployResponse.getBody()).containsKeys("definitionFormatVersion", "compatibilityProfiles",
+                "compatibilityReport");
     }
 
     /**

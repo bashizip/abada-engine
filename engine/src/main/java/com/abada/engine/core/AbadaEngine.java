@@ -88,9 +88,14 @@ public class AbadaEngine {
 
     @AtomicRuntimeCommand
     public ProcessDefinitionEntity deploy(InputStream bpmnXml) {
+        return deploy(bpmnXml, BpmnParseOptions.defaults());
+    }
+
+    @AtomicRuntimeCommand
+    public ProcessDefinitionEntity deploy(InputStream bpmnXml, BpmnParseOptions options) {
         Span span = tracer.spanBuilder("abada.process.deploy").startSpan();
         try (var scope = span.makeCurrent()) {
-            BpmnParseResult parseResult = parser.parseDetailed(bpmnXml, BpmnParseOptions.defaults());
+            BpmnParseResult parseResult = parser.parseDetailed(bpmnXml, options);
             ParsedProcessDefinition definition = parseResult.definition();
             ProcessDefinitionEntity persisted = saveProcessDefinition(parseResult);
             historyService.record("PROCESS_DEFINITION_DEPLOYED", null, definition.getId(), null,
@@ -223,6 +228,15 @@ public class AbadaEngine {
         persistTask(task);
         historyService.record("TASK_CLAIMED", loadProcessInstance(task.getProcessInstanceId()),
                 task.getTaskDefinitionKey(), Map.of("assignee", user));
+    }
+
+    @AtomicRuntimeCommand
+    public void unclaim(String taskId, String user) {
+        TaskInstance task = loadTaskForUpdate(taskId);
+        taskManager.unclaimTask(task, user);
+        persistTask(task);
+        historyService.record("TASK_UNCLAIMED", loadProcessInstance(task.getProcessInstanceId()),
+                task.getTaskDefinitionKey(), Map.of("previousAssignee", user));
     }
 
     @AtomicRuntimeCommand

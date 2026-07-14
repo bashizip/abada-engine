@@ -1,6 +1,7 @@
 package com.abada.engine.api;
 
 import com.abada.engine.core.exception.ProcessEngineException;
+import com.abada.engine.bpmn.compatibility.BpmnValidationException;
 import com.abada.engine.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,17 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BpmnValidationException.class)
+    public ResponseEntity<java.util.Map<String, Object>> handleBpmnValidation(
+            BpmnValidationException ex, WebRequest request) {
+        return ResponseEntity.badRequest().body(java.util.Map.of(
+                "status", HttpStatus.BAD_REQUEST.value(),
+                "code", "BPMN_VALIDATION_FAILED",
+                "message", "BPMN validation failed",
+                "path", request.getDescription(false).replace("uri=", ""),
+                "issues", ex.getIssues()));
+    }
 
     /**
      * Handles known business rule violations from the process engine.

@@ -128,6 +128,12 @@ public class TaskController {
         return ResponseEntity.ok(Map.of("status", "Claimed", "taskId", taskId));
     }
 
+    @PostMapping("/unclaim")
+    public ResponseEntity<Map<String, Object>> unclaim(@RequestParam String taskId) {
+        engine.unclaim(taskId, context.getUsername());
+        return ResponseEntity.ok(Map.of("status", "Unclaimed", "taskId", taskId));
+    }
+
     /**
      * Completes a task that is currently assigned to the user, optionally updating process variables.
      * Any exceptions (e.g., user not authorized) are handled by the GlobalExceptionHandler.

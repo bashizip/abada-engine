@@ -69,6 +69,22 @@ class TaskManagerTest {
     }
 
     @Test
+    void unclaimClearsAssigneeButPreservesCandidates() {
+        TaskInstance task = new TaskInstance();
+        task.setStatus(TaskStatus.CLAIMED);
+        task.setAssignee("alice");
+        task.getCandidateUsers().add("alice");
+        task.getCandidateGroups().add("finance");
+
+        taskManager.unclaimTask(task, "alice");
+
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.AVAILABLE);
+        assertThat(task.getAssignee()).isNull();
+        assertThat(task.getCandidateUsers()).containsExactly("alice");
+        assertThat(task.getCandidateGroups()).containsExactly("finance");
+    }
+
+    @Test
     void claimsAnAuthoritativeCommandSnapshot() {
         TaskInstance task = taskManager.materialize(taskEntity(
                 "reviewTask", "Review Document", TaskStatus.AVAILABLE,

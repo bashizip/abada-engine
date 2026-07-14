@@ -7,6 +7,10 @@ import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.dto.Mapper;
 import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
+import com.abada.engine.bpmn.compatibility.BpmnParseOptions;
+import com.abada.engine.bpmn.compatibility.CompatibilityProfiles;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
@@ -37,11 +41,14 @@ public class ProcessController {
     private final AbadaEngine engine;
     private final UserContextProvider context;
     private final IdempotencyService idempotencyService;
+    private final ObjectMapper objectMapper;
 
-    public ProcessController(AbadaEngine engine, UserContextProvider context, IdempotencyService idempotencyService) {
+    public ProcessController(AbadaEngine engine, UserContextProvider context, IdempotencyService idempotencyService,
+            ObjectMapper objectMapper) {
         this.engine = engine;
         this.context = context;
         this.idempotencyService = idempotencyService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -52,13 +59,23 @@ public class ProcessController {
      * @throws IOException If the file cannot be read.
      */
     @PostMapping(value = "/deploy", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> deploy(@RequestParam("file") MultipartFile file) throws IOException {
-        ProcessDefinitionEntity deployed = engine.deploy(file.getInputStream());
-        return ResponseEntity.ok(Map.of(
-                "status", "Deployed",
-                "processDefinitionId", deployed.getProcessKey(),
-                "deploymentId", deployed.getDeploymentId(),
-                "version", deployed.getVersion()));
+    public ResponseEntity<Map<String, Object>> deploy(@RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String profiles,
+            @RequestParam(defaultValue = "false") boolean strict,
+            @RequestParam(defaultValue = "false") boolean rejectVendorExtensions) throws IOException {
+        List<String> selectedProfiles = profiles == null || profiles.isBlank() ? CompatibilityProfiles.DEFAULT
+                : java.util.Arrays.stream(profiles.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
+        ProcessDefinitionEntity deployed = engine.deploy(file.getInputStream(),
+                new BpmnParseOptions(selectedProfiles, rejectVendorExtensions, strict));
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("status", "Deployed");
+        response.put("processDefinitionId", deployed.getProcessKey());
+        response.put("deploymentId", deployed.getDeploymentId());
+        response.put("version", deployed.getVersion());
+        response.put("definitionFormatVersion", deployed.getDefinitionFormatVersion());
+        response.put("compatibilityProfiles", List.of(deployed.getCompatibilityProfiles().split(",")));
+        response.put("compatibilityReport", objectMapper.readValue(deployed.getCompatibilityReport(), new TypeReference<Map<String, Object>>() {}));
+        return ResponseEntity.ok(response);
     }
 
     /**
