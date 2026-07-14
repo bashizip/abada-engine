@@ -35,6 +35,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
 class PostgresRestartRecoveryTest {
@@ -45,6 +46,38 @@ class PostgresRestartRecoveryTest {
                     .withDatabaseName("abada_restart_recovery")
                     .withUsername("abada")
                     .withPassword("abada");
+
+    @Test
+    void rollsBackTaskStateVariablesAndHistoryWhenAdvancementFails() {
+        try (ConfigurableApplicationContext context = startApplication()) {
+            context.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = context.getBean(AbadaEngine.class);
+            try (InputStream bpmn = getClass().getResourceAsStream("/bpmn/atomic-command-rollback.bpmn")) {
+                assertThat(bpmn).isNotNull();
+                engine.deploy(bpmn);
+            } catch (Exception exception) {
+                throw new AssertionError("Could not deploy atomic rollback BPMN", exception);
+            }
+
+            ProcessInstance instance = engine.startProcess("atomic-command-rollback", "alice", Map.of());
+            String taskId = engine.getTaskManager().getVisibleTasksForUser("alice", List.of()).getFirst().getId();
+
+            assertThatThrownBy(() -> engine.completeTask(taskId, "alice", List.of(), Map.of("mustRollback", true)))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("Error executing JavaDelegate");
+
+            assertThat(context.getBean(TaskRepository.class).findById(taskId))
+                    .isPresent().get()
+                    .extracting(TaskEntity::getStatus)
+                    .isEqualTo(TaskStatus.CLAIMED);
+            assertThat(engine.getProcessInstanceById(instance.getId()).getVariables())
+                    .doesNotContainKey("mustRollback");
+            assertThat(context.getBean(ActivityHistoryRepository.class)
+                    .findByProcessInstanceIdOrderByOccurredAtAsc(instance.getId()))
+                    .extracting(ActivityHistoryEntity::getEventType)
+                    .containsExactly("PROCESS_STARTED");
+        }
+    }
 
     @Test
     void pagesRuntimeQueriesInPostgresWithoutDuplicateRows() {

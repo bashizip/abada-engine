@@ -22,10 +22,16 @@ public class ActivityHistoryService {
     }
 
     public void record(String eventType, ProcessInstance instance, String activityId, Map<String, ?> details) {
+        record(eventType, instance == null ? null : instance.getId(),
+                instance == null ? null : instance.getDefinition().getId(), activityId, details);
+    }
+
+    public void record(String eventType, String processInstanceId, String processDefinitionId,
+            String activityId, Map<String, ?> details) {
         ActivityHistoryEntity history = new ActivityHistoryEntity();
         history.setEventType(eventType);
-        history.setProcessInstanceId(instance == null ? null : instance.getId());
-        history.setProcessDefinitionId(instance == null ? null : instance.getDefinition().getId());
+        history.setProcessInstanceId(processInstanceId);
+        history.setProcessDefinitionId(processDefinitionId);
         history.setActivityId(activityId);
         history.setActor(IdentityContext.get().map(Identity::username).orElse("system"));
         var spanContext = Span.current().getSpanContext();

@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -44,8 +43,7 @@ public class EventManager {
     /**
      * Registers a process instance that is waiting for one or more events.
      */
-    @Transactional
-    public void registerWaitStates(ProcessInstance instance) {
+    void registerWaitStates(ProcessInstance instance) {
         for (String tokenId : instance.getActiveTokens()) {
             if (instance.getDefinition().isCatchEvent(tokenId)) {
                 EventMeta eventMeta = instance.getDefinition().getEvents().get(tokenId);
@@ -88,7 +86,7 @@ public class EventManager {
     }
 
     @WithSpan("abada.event.correlate.message")
-    @Transactional
+    @AtomicRuntimeCommand
     public void correlateMessage(@SpanTag("event.name") String messageName, 
                                 @SpanTag("correlation.key") String correlationKey, 
                                 Map<String, Object> variables) {
@@ -129,7 +127,7 @@ public class EventManager {
     }
 	
     @WithSpan("abada.event.broadcast.signal")
-    @Transactional
+    @AtomicRuntimeCommand
     public void broadcastSignal(@SpanTag("event.name") String signalName, Map<String, Object> variables) {
         Span span = tracer.spanBuilder("abada.event.broadcast.signal").startSpan();
         

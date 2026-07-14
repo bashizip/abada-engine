@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_AtomicRollback" targetNamespace="http://abada.dev/tests">
+  <bpmn:process id="atomic-command-rollback" name="Atomic command rollback" isExecutable="true">
+    <bpmn:startEvent id="start"><bpmn:outgoing>toApproval</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:userTask id="approval" name="Approval" camunda:assignee="alice">
+      <bpmn:incoming>toApproval</bpmn:incoming><bpmn:outgoing>toFailure</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="failingDelegate" name="Fail after persisted mutations"
+                      camunda:class="com.abada.engine.test.DoesNotExist">
+      <bpmn:incoming>toFailure</bpmn:incoming><bpmn:outgoing>toEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="end"><bpmn:incoming>toEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="toApproval" sourceRef="start" targetRef="approval" />
+    <bpmn:sequenceFlow id="toFailure" sourceRef="approval" targetRef="failingDelegate" />
+    <bpmn:sequenceFlow id="toEnd" sourceRef="failingDelegate" targetRef="end" />
+  </bpmn:process>
+</bpmn:definitions>

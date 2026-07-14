@@ -29,6 +29,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -82,13 +84,15 @@ public class AbadaEngine {
         jobScheduler.setAbadaEngine(this);
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public ProcessDefinitionEntity deploy(InputStream bpmnXml) {
         Span span = tracer.spanBuilder("abada.process.deploy").startSpan();
         try (var scope = span.makeCurrent()) {
             ParsedProcessDefinition definition = parser.parse(bpmnXml);
             ProcessDefinitionEntity persisted = saveProcessDefinition(definition);
-            registerDefinition(definition, persisted);
+            historyService.record("PROCESS_DEFINITION_DEPLOYED", null, definition.getId(), null,
+                    Map.of("deploymentId", persisted.getDeploymentId(), "version", persisted.getVersion()));
+            registerDefinitionAfterCommit(definition, persisted);
 
             span.setAttribute("process.definition.id", definition.getId());
             span.setAttribute("process.definition.name", definition.getName());
@@ -125,12 +129,25 @@ public class AbadaEngine {
         definitionsByDeploymentId.putIfAbsent(entity.getDeploymentId(), definition);
     }
 
-    @Transactional
+    private void registerDefinitionAfterCommit(ParsedProcessDefinition definition, ProcessDefinitionEntity entity) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            registerDefinition(definition, entity);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                registerDefinition(definition, entity);
+            }
+        });
+    }
+
+    @AtomicRuntimeCommand
     public ProcessInstance startProcess(@SpanTag("process.definition.id") String processDefinitionId, String username) {
         return startProcess(processDefinitionId, username, Map.of());
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public ProcessInstance startProcess(@SpanTag("process.definition.id") String processDefinitionId, String username,
             Map<String, Object> initialVariables) {
         Timer.Sample sample = engineMetrics.startProcessTimer();
@@ -196,7 +213,7 @@ public class AbadaEngine {
         return startProcess(processDefinitionId, null);
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public void claim(String taskId, String user, List<String> groups) {
         TaskInstance task = loadTaskForUpdate(taskId);
         taskManager.claimTask(task, user, groups);
@@ -205,7 +222,7 @@ public class AbadaEngine {
                 task.getTaskDefinitionKey(), Map.of("assignee", user));
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public void completeTask(String taskId, String user, List<String> groups, Map<String, Object> variables) {
         log.info("Completing task {} with variables: {}", taskId, variables);
         TaskInstance currentTask = loadTaskForUpdate(taskId);
@@ -251,7 +268,7 @@ public class AbadaEngine {
         createExternalTaskJobs(instance);
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public void failTask(String taskId) {
         TaskInstance task = loadTaskForUpdate(taskId);
         taskManager.failTask(task);
@@ -260,7 +277,7 @@ public class AbadaEngine {
                 task.getTaskDefinitionKey(), Map.of());
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public boolean failProcess(String processInstanceId) {
         ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
         if (instance == null || instance.getStatus() == ProcessStatus.COMPLETED
@@ -283,7 +300,7 @@ public class AbadaEngine {
         return true;
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public void cancelProcessInstance(String processInstanceId, String reason) {
         log.info("Cancelling process instance {} for reason: {}", processInstanceId, reason);
         ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
@@ -305,7 +322,7 @@ public class AbadaEngine {
         historyService.record("PROCESS_CANCELLED", instance, null, Map.of("reason", reason == null ? "" : reason));
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public void suspendProcessInstance(String processInstanceId, boolean suspended) {
         log.info("Setting suspension state for process instance {} to {}", processInstanceId, suspended);
         ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
@@ -333,7 +350,7 @@ public class AbadaEngine {
         historyService.record(suspended ? "PROCESS_SUSPENDED" : "PROCESS_RESUMED", instance, null, Map.of());
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public void updateProcessVariables(String processInstanceId, Map<String, Object> modifications) {
         ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
         if (instance == null) throw new ProcessEngineException("Process instance not found: " + processInstanceId);
@@ -343,7 +360,7 @@ public class AbadaEngine {
                 Map.of("variableNames", modifications.keySet()));
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public void resumeFromEvent(String processInstanceId, String eventId, Map<String, Object> variables) {
         log.info("Resuming process instance {} from event {}", processInstanceId, eventId);
         ProcessInstance instance = loadProcessInstanceForUpdate(processInstanceId);
@@ -444,11 +461,10 @@ public class AbadaEngine {
                 if (eventMeta != null && eventMeta.type() == EventMeta.EventType.TIMER) {
                     try {
                         Duration duration = Duration.parse(eventMeta.definitionRef());
-                        Instant executionTime = Instant.now().plus(duration);
-                        jobScheduler.scheduleJob(instance.getId(), tokenId, executionTime);
+                        jobScheduler.scheduleJob(instance.getId(), tokenId, Instant.now().plus(duration));
                     } catch (Exception e) {
-                        log.error("Failed to parse timer duration '{}' for event {}", eventMeta.definitionRef(),
-                                tokenId, e);
+                        throw new ProcessEngineException("Could not persist timer " + tokenId
+                                + " with duration " + eventMeta.definitionRef(), e);
                     }
                 }
             }
@@ -600,7 +616,7 @@ public class AbadaEngine {
         return taskManager.getTask(taskId);
     }
 
-    public ProcessDefinitionEntity saveProcessDefinition(ParsedProcessDefinition definition) {
+    private ProcessDefinitionEntity saveProcessDefinition(ParsedProcessDefinition definition) {
         String checksum = sha256(definition.getRawXml());
         ProcessDefinitionEntity latest = persistenceService.findProcessDefinitionById(definition.getId());
         if (latest != null && checksum.equals(latest.getChecksum())) {

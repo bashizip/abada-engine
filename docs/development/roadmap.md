@@ -3,7 +3,7 @@
 This is the authoritative checklist for the Abada 1.0 reliable open-source
 core. The current milestone is **0.9 — Durable runtime**.
 
-Last reviewed: 2026-07-13.
+Last reviewed: 2026-07-14.
 
 ## How to use this roadmap
 
@@ -50,8 +50,13 @@ Last reviewed: 2026-07-13.
     lock process rows for mutations and return detached database snapshots for
     queries. Evidence:
     [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Make every engine command a single atomic load, validate, advance,
-  persist and commit transaction.
+- [x] Make every engine command a single atomic load, lock, validate, advance,
+  persist, history and commit transaction. Controller mutations delegate to
+  command services, timer execution uses one transaction per job, and failed
+  advancement rolls state and history back together. Evidence:
+  [`AtomicRuntimeCommandContractTest`](../../engine/src/test/java/com/abada/engine/core/AtomicRuntimeCommandContractTest.java),
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java) and
+  [runtime state architecture](../architecture/runtime-state.md).
 - [x] Retain only immutable parsed definition caches in memory, keyed by
   deployment/version ID. Resolve the latest version from PostgreSQL when
   starting an instance and keep existing instances pinned to their deployment.

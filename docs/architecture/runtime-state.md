@@ -64,7 +64,51 @@ already durable; an idempotency record makes a duplicate request return the
 same logical result. External side effects remain at-least-once unless the
 external system participates through an idempotent protocol.
 
-## Implemented slice: tasks and process instances
+## Implemented atomic command boundary
+
+All controller-reachable mutations now enter a core command service before
+touching repositories. `@AtomicRuntimeCommand` is the executable marker for
+the transaction boundary; a contract test inventories the public commands and
+fails when one loses that marker. Controllers translate HTTP only and no
+longer own external-task or retry state transitions.
+
+| Command family | Authoritative lock/input | State, work and history committed together |
+|---|---|---|
+| Deployment and start | Latest definition is read from PostgreSQL; a started instance is new | Definition/deployment history, or instance, tokens, variables, tasks, subscriptions, timers, external work and start history |
+| User tasks | Task row; task completion also locks the process row | Task transition, variables, BPMN advancement, successor work and activity history |
+| Process control | Process-instance row | Cancellation, failure, suspension or variables and activity history |
+| Message and signal | Unconsumed subscription rows, then process-instance rows | Subscription consumption, BPMN advancement, successor work and history |
+| External work | External-task row | Lease/failure/retry transition and history; completion also locks and advances the process instance |
+| Timers | Timer-job row, then process-instance row | Lease, attempt, BPMN advancement, successor work, completion and history |
+| Idempotent API wrapper | Idempotency-key record plus the nested command locks | Workflow mutation and its stored deterministic response |
+
+Timer polling is deliberately not one large transaction. It finds candidate
+IDs without retaining locks, then executes each candidate through a separate
+atomic command. If advancement throws, that transaction rolls back completely;
+only then does a second transaction record the failed attempt. This prevents a
+caught exception from committing half-advanced workflow state.
+
+Definition cache insertion occurs only after a successful deployment commit.
+Failures while creating required timers are no longer logged and ignored: they
+abort the workflow command so a waiting token cannot commit without its durable
+job.
+
+PostgreSQL rollback evidence completes a task whose successor delegate
+intentionally throws after task state, variables and history have been staged.
+The test verifies that all three revert to their pre-command values. Existing
+two-context PostgreSQL tests demonstrate single-winner task transitions and
+lossless serialized variable updates. `AtomicRuntimeCommandContractTest`
+provides the inventory guard; it complements, rather than replaces, behavioral
+PostgreSQL tests.
+
+This atomicity guarantee covers Abada's database state. Embedded Java delegates
+and scripts still run in the transaction. A remote or otherwise irreversible
+side effect performed by a delegate cannot be rolled back by PostgreSQL and
+must be idempotent; durable external tasks are the recommended boundary for
+such work. Transaction-aware metrics and the transactional outbox remain
+separate roadmap items.
+
+## Implemented state authority: tasks and process instances
 
 User tasks and process instances are the first runtime areas migrated to this
 model:
@@ -113,8 +157,8 @@ on a later read or command.
 | Startup | Preloads no workflow or definition objects; active process/task gauges use aggregate queries | Retain this model and extend durable recovery evidence |
 | Process control | Instance mutations load and lock PostgreSQL rows and use command-local state | Add deterministic idempotency and transaction-aware metrics |
 | Query APIs | Public task and instance lists use bounded PostgreSQL pages, stable ordering and batch process hydration; detail reads return detached snapshots | Add purpose-built summary projections where full variables or candidate metadata are unnecessary |
-| Message/signal correlation | Subscriptions are durable, but all correlation paths are not yet proven command-local and concurrent-safe | Lock/consume subscriptions and advance the instance transactionally |
-| Timers/external work | Durable job and lease fields exist | Prove atomic multi-replica acquisition, expiry recovery and idempotent completion |
+| Message/signal correlation | Locked subscriptions are consumed with process advancement in one command transaction | Add duplicate-correlation semantics and multi-replica contention evidence |
+| Timers/external work | Per-item command transactions lock work rows and atomically persist transition, advancement and history | Add `SKIP LOCKED` acquisition, replica-death recovery and idempotent completion evidence |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |
 | Lifecycle delivery | Activity history is durable; transactional outbox is not implemented | Persist outbox records in the command transaction and deliver with leases |
 

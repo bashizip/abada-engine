@@ -13,11 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -29,14 +27,17 @@ public class JobScheduler {
     private final JobRepository jobRepository;
     private final EngineMetrics engineMetrics;
     private final Tracer tracer;
+    private final TimerJobCommandService commands;
     private AbadaEngine abadaEngine;
     private final String leaseOwner = UUID.randomUUID().toString();
 
     @Autowired
-    public JobScheduler(JobRepository jobRepository, EngineMetrics engineMetrics, Tracer tracer) {
+    public JobScheduler(JobRepository jobRepository, EngineMetrics engineMetrics, Tracer tracer,
+            TimerJobCommandService commands) {
         this.jobRepository = jobRepository;
         this.engineMetrics = engineMetrics;
         this.tracer = tracer;
+        this.commands = commands;
     }
 
     // Using setter injection to resolve circular dependency with AbadaEngine
@@ -48,7 +49,7 @@ public class JobScheduler {
      * Creates and persists a new job to be executed at a specific time.
      */
     @WithSpan("abada.job.schedule")
-    public void scheduleJob(@SpanTag("process.instance.id") String processInstanceId, 
+    void scheduleJob(@SpanTag("process.instance.id") String processInstanceId,
                            @SpanTag("event.id") String eventId, 
                            @SpanTag("execution.timestamp") Instant executionTimestamp) {
         Span span = tracer.spanBuilder("abada.job.schedule").startSpan();
@@ -82,7 +83,6 @@ public class JobScheduler {
      */
     @Scheduled(fixedDelay = 60000) // Check every 60 seconds
     @WithSpan("abada.job.execute.due")
-    @Transactional
     public void executeDueJobs() {
         Span span = tracer.spanBuilder("abada.job.execute.due").startSpan();
         
@@ -112,37 +112,24 @@ public class JobScheduler {
                 Span jobSpan = tracer.spanBuilder("abada.job.execute").startSpan();
                 
                 try (var jobScope = jobSpan.makeCurrent()) {
-                    job.setStatus(JobEntity.Status.LEASED);
-                    job.setLeaseOwner(leaseOwner);
-                    job.setLeaseExpiresAt(Instant.now().plusSeconds(120));
-                    job.setAttempts(job.getAttempts() + 1);
-                    jobRepository.saveAndFlush(job);
                     jobSpan.setAttribute("job.id", job.getId());
                     jobSpan.setAttribute("process.instance.id", job.getProcessInstanceId());
                     jobSpan.setAttribute("event.id", job.getEventId());
                     jobSpan.setAttribute("job.type", "TIMER");
                     
-                    abadaEngine.resumeFromEvent(job.getProcessInstanceId(), job.getEventId(), Map.of());
-                    job.setStatus(JobEntity.Status.COMPLETED);
-                    job.setLeaseOwner(null);
-                    job.setLeaseExpiresAt(null);
-                    jobRepository.save(job);
+                    boolean executed = commands.execute(job.getId(), leaseOwner, now);
+                    if (!executed) continue;
                     
                     engineMetrics.recordJobExecuted("TIMER");
                     engineMetrics.recordJobExecutionTime(sample, "TIMER");
                     
-                    log.info("Executed and deleted job {}", job.getId());
+                    log.info("Executed job {}", job.getId());
                 } catch (Exception e) {
                     engineMetrics.recordJobFailed("TIMER");
                     jobSpan.recordException(e);
                     jobSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
                     log.error("Failed to execute job {}: {}", job.getId(), e.getMessage(), e);
-                    job.setLastError(e.getMessage());
-                    job.setLeaseOwner(null);
-                    job.setLeaseExpiresAt(null);
-                    job.setStatus(job.getAttempts() >= job.getMaxAttempts()
-                            ? JobEntity.Status.FAILED : JobEntity.Status.AVAILABLE);
-                    jobRepository.save(job);
+                    commands.recordFailure(job.getId(), e.getMessage());
                 } finally {
                     jobSpan.end();
                 }

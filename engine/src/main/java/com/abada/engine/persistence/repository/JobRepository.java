@@ -8,6 +8,9 @@ import jakarta.persistence.LockModeType;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface JobRepository extends JpaRepository<JobEntity, String> {
@@ -17,14 +20,16 @@ public interface JobRepository extends JpaRepository<JobEntity, String> {
      * @param timestamp The current time.
      * @return A list of due jobs.
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<JobEntity> findByStatusAndExecutionTimestampLessThanEqualOrderByExecutionTimestampAsc(
             JobEntity.Status status, Instant timestamp);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<JobEntity> findByStatusAndLeaseExpiresAtLessThanEqualOrderByExecutionTimestampAsc(
             JobEntity.Status status, Instant timestamp);
 
     boolean existsByProcessInstanceIdAndEventIdAndStatusIn(
             String processInstanceId, String eventId, List<JobEntity.Status> statuses);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select job from JobEntity job where job.id = :id")
+    Optional<JobEntity> findByIdForUpdate(@Param("id") String id);
 }
