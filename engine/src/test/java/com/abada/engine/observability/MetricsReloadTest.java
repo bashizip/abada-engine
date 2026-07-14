@@ -97,10 +97,8 @@ public class MetricsReloadTest {
 
         // Actually, let's look at EngineMetrics. It uses AtomicLongs.
         // We can't reset them easily from outside.
-        // However, AbadaEngine.clearMemory() clears the instances and tasks maps.
-        // If we call stateReloadService.reloadStateAtStartup(), it will call
-        // rehydrate...
-        // which calls restoreActiveProcess/Task.
+        // AbadaEngine.clearMemory() now clears only immutable definition caches.
+        // StateReloadService reconstructs active gauges with aggregate queries.
         // So if metrics were NOT cleared, they would double!
         // This test verifies that the restore logic IS called.
         // To properly simulate a restart, we should ideally check that the count

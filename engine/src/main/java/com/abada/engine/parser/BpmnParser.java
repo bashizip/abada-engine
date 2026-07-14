@@ -159,9 +159,6 @@ public class BpmnParser {
             ParsedProcessDefinition definition = new ParsedProcessDefinition(id, name, documentation, startEventId,
                     userTasks, serviceTasks, scriptTasks, flows, gateways, events, endEvents, rawXml, candidateStarterGroups,
                     candidateStarterUsers);
-            for (SequenceFlow flow : flows) {
-                definition.addOutgoing(flow.getSourceRef(), flow);
-            }
             return definition;
 
         } catch (RuntimeException e) {

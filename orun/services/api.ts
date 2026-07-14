@@ -88,10 +88,24 @@ export const api = {
   },
 
   // Process Instances
-  getProcessInstances: async (): Promise<ProcessInstance[]> => {
-    const response = await fetch(`${API_BASE_URL}/v1/processes/instances`, {
-      headers: await getAuthHeaders(),
-    });
+  getProcessInstances: async (pagination?: {
+    page?: number;
+    size?: number;
+  }): Promise<ProcessInstance[]> => {
+    const queryParams = new URLSearchParams();
+    if (pagination?.page !== undefined) {
+      queryParams.set("page", String(pagination.page));
+    }
+    if (pagination?.size !== undefined) {
+      queryParams.set("size", String(pagination.size));
+    }
+    const queryString = queryParams.toString();
+    const response = await fetch(
+      `${API_BASE_URL}/v1/processes/instances${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: await getAuthHeaders(),
+      },
+    );
     const apiInstances = await handleResponse<ApiProcessInstance[]>(response);
     return apiInstances.map(transformProcessInstance);
   },

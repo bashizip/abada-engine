@@ -10,22 +10,32 @@ import io.opentelemetry.api.trace.Span;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 @Service
 public class ActivityHistoryService {
     private final ActivityHistoryRepository repository;
     private final ObjectMapper objectMapper;
+    private final OutboxService outboxService;
 
-    public ActivityHistoryService(ActivityHistoryRepository repository, ObjectMapper objectMapper) {
+    public ActivityHistoryService(ActivityHistoryRepository repository, ObjectMapper objectMapper,
+            OutboxService outboxService) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.outboxService = outboxService;
     }
 
     public void record(String eventType, ProcessInstance instance, String activityId, Map<String, ?> details) {
+        record(eventType, instance == null ? null : instance.getId(),
+                instance == null ? null : instance.getDefinition().getId(), activityId, details);
+    }
+
+    public void record(String eventType, String processInstanceId, String processDefinitionId,
+            String activityId, Map<String, ?> details) {
         ActivityHistoryEntity history = new ActivityHistoryEntity();
         history.setEventType(eventType);
-        history.setProcessInstanceId(instance == null ? null : instance.getId());
-        history.setProcessDefinitionId(instance == null ? null : instance.getDefinition().getId());
+        history.setProcessInstanceId(processInstanceId);
+        history.setProcessDefinitionId(processDefinitionId);
         history.setActivityId(activityId);
         history.setActor(IdentityContext.get().map(Identity::username).orElse("system"));
         var spanContext = Span.current().getSpanContext();
@@ -36,5 +46,17 @@ public class ActivityHistoryService {
             throw new IllegalStateException("Could not serialize activity history", ex);
         }
         repository.save(history);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("processInstanceId", processInstanceId);
+        payload.put("processDefinitionId", processDefinitionId);
+        payload.put("activityId", activityId);
+        payload.put("actor", history.getActor());
+        payload.put("traceId", history.getTraceId());
+        payload.put("details", details == null ? Map.of() : details);
+        outboxService.enqueue(eventType,
+                processInstanceId == null ? "PROCESS_DEFINITION" : "PROCESS_INSTANCE",
+                processInstanceId == null ? processDefinitionId : processInstanceId,
+                payload);
     }
 }

@@ -33,6 +33,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
+                .exposedHeaders("X-Page", "X-Page-Size", "X-Total-Count", "X-Total-Pages")
                 .allowCredentials(true);
     }
 

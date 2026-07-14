@@ -51,8 +51,10 @@ public class InclusiveGatewayTest {
         TaskInstance initialTask = initialTasks.get(0);
         assertEquals("Task_SetDetails", initialTask.getTaskDefinitionKey());
 
-       abadaEngine.completeTask(initialTask.getId(), "test-user", List.of(), variables);
-        assertTrue(initialTask.isCompleted());
+        abadaEngine.completeTask(initialTask.getId(), "test-user", List.of(), variables);
+
+        TaskInstance persistedTask = taskManager.getTask(initialTask.getId()).orElseThrow();
+        assertTrue(persistedTask.isCompleted());
         return initialTask;
     }
 

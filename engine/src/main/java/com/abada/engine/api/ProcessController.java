@@ -9,6 +9,9 @@ import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -97,17 +100,24 @@ public class ProcessController {
     }
 
     /**
-     * Lists all process instances across all process definitions.
-     * Returns full ProcessInstanceDTO records including status and metadata.
+     * Lists a bounded page of process instances across all process definitions.
+     * Returns full ProcessInstanceDTO records and pagination response headers.
      *
-     * @return A list of all active and completed process instances.
+     * @return A page of active and completed process instances.
      */
     @GetMapping("/instances")
-    public ResponseEntity<List<ProcessInstanceDTO>> listAllProcessInstances() {
-        List<ProcessInstanceDTO> instances = engine.getAllProcessInstances().stream()
+    public ResponseEntity<List<ProcessInstanceDTO>> listProcessInstances(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = Pagination.DEFAULT_PAGE_SIZE) int size) {
+        Pageable pageable = Pagination.request(page, size,
+                Sort.by("startDate").descending().and(Sort.by("id").ascending()));
+        Page<ProcessInstance> instancePage = engine.getProcessInstances(pageable);
+        List<ProcessInstanceDTO> instances = instancePage.stream()
                 .map(Mapper.ProcessInstanceMapper::toDto)
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(instances);
+        return ResponseEntity.ok()
+                .headers(Pagination.headers(instancePage))
+                .body(instances);
     }
 
     /**

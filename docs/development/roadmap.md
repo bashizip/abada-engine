@@ -3,7 +3,7 @@
 This is the authoritative checklist for the Abada 1.0 reliable open-source
 core. The current milestone is **0.9 — Durable runtime**.
 
-Last reviewed: 2026-07-13.
+Last reviewed: 2026-07-14.
 
 ## How to use this roadmap
 
@@ -27,8 +27,9 @@ Last reviewed: 2026-07-13.
 - [x] Persist definition checksums and deployment identifiers.
 - [x] Prove fresh-schema Flyway migrations against PostgreSQL with
   Testcontainers.
-- [ ] Prove upgrades from every supported schema version against PostgreSQL
-  with Testcontainers.
+- [x] Prove upgrades from every supported schema version against PostgreSQL
+  with Testcontainers. Evidence:
+  [`PostgresSchemaUpgradeTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresSchemaUpgradeTest.java).
 
 ### Authoritative execution state
 
@@ -39,25 +40,49 @@ Last reviewed: 2026-07-13.
 - [x] Persist external tasks with locking, completion and failure state.
 - [x] Record append-only activity history.
 - [x] Make user-task completion load locked task and process state from
-  PostgreSQL, mutate command-local objects, and publish legacy compatibility
-  state only after commit. Evidence:
+  PostgreSQL and mutate only command-local objects. Evidence:
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Remove runtime-wide mutable instance, task, subscription and scheduling
+- [x] Remove runtime-wide mutable instance, task, subscription and scheduling
   maps; load authoritative state from PostgreSQL for each command.
-- [ ] Make every engine command a single atomic load, validate, advance,
-  persist and commit transaction.
-- [ ] Retain only immutable parsed definition caches in memory, keyed by
-  definition version.
-- [ ] Publish lifecycle events and webhooks through a transactional outbox.
+  - [x] Remove the user-task map; query visible tasks from PostgreSQL and lock
+    task rows for claim, completion and failure. Evidence:
+    [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
+  - [x] Remove the process-instance compatibility map and startup rehydration;
+    lock process rows for mutations and return detached database snapshots for
+    queries. Evidence:
+    [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
+- [x] Make every engine command a single atomic load, lock, validate, advance,
+  persist, history and commit transaction. Controller mutations delegate to
+  command services, timer execution uses one transaction per job, and failed
+  advancement rolls state and history back together. Evidence:
+  [`AtomicRuntimeCommandContractTest`](../../engine/src/test/java/com/abada/engine/core/AtomicRuntimeCommandContractTest.java),
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java) and
+  [runtime state architecture](../architecture/runtime-state.md).
+- [x] Retain only immutable parsed definition caches in memory, keyed by
+  deployment/version ID. Resolve the latest version from PostgreSQL when
+  starting an instance and keep existing instances pinned to their deployment.
+  Evidence:
+  [`ProcessDefinitionCacheTest`](../../engine/src/test/java/com/abada/engine/persistence/ProcessDefinitionCacheTest.java).
+- [x] Bound public task and process-instance list reads with database-level
+  pagination, deterministic ordering and batch process hydration. Evidence:
+  [`TaskControllerTest`](../../engine/src/test/java/com/abada/engine/api/TaskControllerTest.java),
+  [`ProcessControllerTest`](../../engine/src/test/java/com/abada/engine/api/ProcessControllerTest.java) and
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
+- [x] Publish lifecycle events and optional webhooks through a transactional
+  outbox with `SKIP LOCKED` leases, retry delay and stable delivery IDs.
+  Evidence: [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java)
+  and [runtime semantics](../reference/runtime-semantics.md).
 
 ### Supported BPMN behavior
 
 - [x] Publish the current BPMN support matrix.
 - [x] Reject known unsupported BPMN constructs during deployment.
 - [x] Support the documented core constructs, including script tasks.
-- [ ] Back every row in the support matrix with executable conformance tests.
-- [ ] Publish precise tested semantics for variables, retries, cancellation,
-  suspension, tasks, gateways and catch events.
+- [x] Back every row in the support matrix with executable conformance tests.
+  Evidence: [BPMN support contract](../reference/bpmn-support.md).
+- [x] Publish precise tested semantics for variables, retries, cancellation,
+  suspension, tasks, gateways and catch events. Evidence:
+  [runtime semantics contract](../reference/runtime-semantics.md).
 
 ### Recovery evidence
 
@@ -66,16 +91,23 @@ Last reviewed: 2026-07-13.
   deployed definition, active token, user task, variables and history before
   completing the workflow. Evidence:
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Use PostgreSQL as the correctness reference for all persistence and
-  concurrency tests; keep H2 as a convenience profile only.
-- [ ] Test failure immediately before and after transaction commit.
+- [x] Use PostgreSQL as the correctness reference for persistence, restart and
+  concurrency acceptance; keep H2 as a convenience profile only. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
+- [x] Test failure immediately before and after transaction commit, including
+  atomic rollback and committed state after simulated response loss. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 - [x] Prove that a persisted user task, active token and variables recover
   without lost workflow progress.
-- [ ] Prove that durable subscriptions, timer jobs and external tasks recover
-  without lost workflow progress.
+- [x] Prove that durable subscriptions, timer jobs and external tasks recover
+  after a full application restart without lost workflow progress. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 
-- [ ] **0.9 release gate:** durable PostgreSQL execution and restart recovery
-  pass all acceptance tests without relying on mutable in-memory state.
+- [x] **0.9 release gate:** durable PostgreSQL execution, schema upgrades,
+  atomic rollback, outbox delivery and restart recovery pass acceptance tests
+  without relying on mutable in-memory state. Evidence: 101 passing backend
+  tests, including 11 PostgreSQL restart/atomicity/outbox cases and five
+  supported schema-upgrade paths.
 
 ## 0.10 — Cluster safety
 
@@ -126,6 +158,8 @@ Last reviewed: 2026-07-13.
 
 - [ ] Freeze a consistent `/api/v1` contract with pagination, filtering,
   stable DTOs and typed errors.
+  - [x] Add bounded page/size queries and pagination metadata to public task
+    and process-instance lists without changing their list-shaped JSON body.
 - [ ] Validate generated OpenAPI and API compatibility in CI.
 - [ ] Add optional `Idempotency-Key` support to all applicable mutation
   endpoints.

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_ScriptTask" targetNamespace="http://abada.dev/conformance">
+  <bpmn:process id="ScriptTaskProcess" name="Script task conformance" isExecutable="true">
+    <bpmn:startEvent id="start"><bpmn:outgoing>toScript</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:scriptTask id="calculate" name="Calculate" scriptFormat="javascript">
+      <bpmn:incoming>toScript</bpmn:incoming><bpmn:outgoing>toReview</bpmn:outgoing>
+      <bpmn:script>variables.put('scriptResult', input * 2);</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:userTask id="review" name="Review" camunda:assignee="alice">
+      <bpmn:incoming>toReview</bpmn:incoming><bpmn:outgoing>toEnd</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="end"><bpmn:incoming>toEnd</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="toScript" sourceRef="start" targetRef="calculate" />
+    <bpmn:sequenceFlow id="toReview" sourceRef="calculate" targetRef="review" />
+    <bpmn:sequenceFlow id="toEnd" sourceRef="review" targetRef="end" />
+  </bpmn:process>
+</bpmn:definitions>

@@ -81,12 +81,12 @@ public class ParsedProcessDefinition implements Serializable {
     private void buildFlowGraph() {
         for (SequenceFlow flow : sequenceFlows) {
             flowGraph.computeIfAbsent(flow.getSourceRef(), k -> new ArrayList<>()).add(flow.getTargetRef());
+            outgoingBySource.computeIfAbsent(flow.getSourceRef(), k -> new ArrayList<>()).add(flow);
             incomingByTarget.computeIfAbsent(flow.getTargetRef(), k -> new ArrayList<>()).add(flow);
         }
-    }
-
-    public void addOutgoing(String sourceId, SequenceFlow flow) {
-        outgoingBySource.computeIfAbsent(sourceId, k -> new ArrayList<>()).add(flow);
+        flowGraph.replaceAll((key, value) -> List.copyOf(value));
+        outgoingBySource.replaceAll((key, value) -> List.copyOf(value));
+        incomingByTarget.replaceAll((key, value) -> List.copyOf(value));
     }
 
     public String findJoinGateway(String forkGatewayId, GatewayMeta.Type forkGatewayType) {

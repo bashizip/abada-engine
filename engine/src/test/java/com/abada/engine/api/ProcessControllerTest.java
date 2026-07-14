@@ -145,18 +145,30 @@ public class ProcessControllerTest {
      * active and completed process instances.
      */
     @Test
-    @DisplayName("GET /v1/processes/instances should return all process instances")
-    void shouldReturnAllProcessInstances() {
+    @DisplayName("GET /v1/processes/instances should return bounded process instance pages")
+    void shouldReturnPaginatedProcessInstances() {
         abadaEngine.startProcess("recipe-cook");
         abadaEngine.startProcess("recipe-cook");
 
         HttpEntity<Void> requestEntity = new HttpEntity<>(authHeaders);
-        ResponseEntity<List<ProcessInstanceDTO>> response = restTemplate.exchange(
-                "/v1/processes/instances", HttpMethod.GET, requestEntity, new ParameterizedTypeReference<>() {
+        ResponseEntity<List<ProcessInstanceDTO>> firstPage = restTemplate.exchange(
+                "/v1/processes/instances?page=0&size=1", HttpMethod.GET, requestEntity,
+                new ParameterizedTypeReference<>() {
+                });
+        ResponseEntity<List<ProcessInstanceDTO>> secondPage = restTemplate.exchange(
+                "/v1/processes/instances?page=1&size=1", HttpMethod.GET, requestEntity,
+                new ParameterizedTypeReference<>() {
                 });
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull().hasSize(2);
+        assertThat(firstPage.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(firstPage.getBody()).isNotNull().hasSize(1);
+        assertThat(firstPage.getHeaders().getFirst("X-Page")).isEqualTo("0");
+        assertThat(firstPage.getHeaders().getFirst("X-Page-Size")).isEqualTo("1");
+        assertThat(firstPage.getHeaders().getFirst("X-Total-Count")).isEqualTo("2");
+        assertThat(firstPage.getHeaders().getFirst("X-Total-Pages")).isEqualTo("2");
+        assertThat(secondPage.getBody()).isNotNull().hasSize(1);
+        assertThat(secondPage.getBody().getFirst().id())
+                .isNotEqualTo(firstPage.getBody().getFirst().id());
     }
 
     /**

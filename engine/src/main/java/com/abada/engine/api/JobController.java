@@ -2,6 +2,7 @@ package com.abada.engine.api;
 
 import com.abada.engine.dto.FailedJobDTO;
 import com.abada.engine.dto.RetriesRequest;
+import com.abada.engine.core.ExternalTaskCommandService;
 import com.abada.engine.persistence.entity.ExternalTaskEntity;
 import com.abada.engine.persistence.repository.ExternalTaskRepository;
 import org.springframework.http.MediaType;
@@ -20,9 +21,11 @@ import java.util.stream.Collectors;
 public class JobController {
 
         private final ExternalTaskRepository externalTaskRepository;
+        private final ExternalTaskCommandService commands;
 
-        public JobController(ExternalTaskRepository externalTaskRepository) {
+        public JobController(ExternalTaskRepository externalTaskRepository, ExternalTaskCommandService commands) {
                 this.externalTaskRepository = externalTaskRepository;
+                this.commands = commands;
         }
 
         /**
@@ -71,16 +74,7 @@ public class JobController {
                         @PathVariable String jobId,
                         @RequestBody RetriesRequest request) {
 
-                ExternalTaskEntity task = externalTaskRepository.findById(jobId)
-                                .orElseThrow(() -> new RuntimeException("Job not found: " + jobId));
-
-                task.setRetries(request.retries());
-                task.setStatus(ExternalTaskEntity.Status.OPEN); // Reset to OPEN so it can be picked up again
-                task.setWorkerId(null); // Clear worker lock
-                task.setLockExpirationTime(null); // Clear lock expiration
-
-                externalTaskRepository.save(task);
-
+                commands.setRetries(jobId, request.retries());
                 return ResponseEntity.ok().build();
         }
 

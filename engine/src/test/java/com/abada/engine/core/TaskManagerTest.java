@@ -3,136 +3,127 @@ package com.abada.engine.core;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.observability.EngineMetrics;
-import io.micrometer.core.instrument.Timer;
+import com.abada.engine.persistence.entity.TaskEntity;
+import com.abada.engine.persistence.repository.TaskRepository;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class TaskManagerTest {
+class TaskManagerTest {
 
     @Mock
+    private TaskRepository taskRepository;
+    @Mock
     private EngineMetrics engineMetrics;
-    
     @Mock
     private Tracer tracer;
-    
     @Mock
     private Span span;
-    
-    @Mock
-    private Timer.Sample timerSample;
-    
     @Mock
     private io.opentelemetry.api.trace.SpanBuilder spanBuilder;
-    
+
     private TaskManager taskManager;
 
     @BeforeEach
     void setUp() {
-        // Setup span creation - required for all task operations
-        when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
-        when(spanBuilder.startSpan()).thenReturn(span);
-        when(span.makeCurrent()).thenReturn(() -> {});
-        
-        taskManager = new TaskManager(engineMetrics, tracer);
+        lenient().when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
+        lenient().when(spanBuilder.startSpan()).thenReturn(span);
+        lenient().when(span.makeCurrent()).thenReturn(() -> { });
+        taskManager = new TaskManager(taskRepository, engineMetrics, tracer);
     }
 
     @Test
-    void testCreateAndRetrieveTask() {
+    void createsCommandLocalSnapshotWithoutPublishingRuntimeState() {
         String processInstanceId = UUID.randomUUID().toString();
 
-        taskManager.createTask(
+        TaskInstance task = taskManager.createTaskSnapshot(
                 "approveTask", "Approve Request", processInstanceId,
-                null,
-                List.of("user1"),
-                List.of("group1")
-        );
+                null, List.of("user1"), List.of("group1"));
 
-        List<TaskInstance> visibleTasks = taskManager.getVisibleTasksForUser("user1", List.of("group1"));
-        assertThat(visibleTasks).hasSize(1);
-
-        TaskInstance task = visibleTasks.get(0);
         assertThat(task.getTaskDefinitionKey()).isEqualTo("approveTask");
         assertThat(task.getProcessInstanceId()).isEqualTo(processInstanceId);
-        assertThat(task.getAssignee()).isNull();
-        assertThat(task.isCompleted()).isFalse();
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.AVAILABLE);
+        verifyNoInteractions(taskRepository);
     }
 
     @Test
-    void testClaimTask() {
-        String processInstanceId = UUID.randomUUID().toString();
+    void claimsAnAuthoritativeCommandSnapshot() {
+        TaskInstance task = taskManager.materialize(taskEntity(
+                "reviewTask", "Review Document", TaskStatus.AVAILABLE,
+                null, List.of("user2"), List.of("group2")));
 
-        taskManager.createTask(
-                "reviewTask", "Review Document", processInstanceId,
-                null,
-                List.of("user2"),
-                List.of("group2")
-        );
+        taskManager.claimTask(task, "user2", List.of("group2"));
 
-        List<TaskInstance> visible = taskManager.getVisibleTasksForUser("user2", List.of("group2"));
-        assertThat(visible).hasSize(1);
-
-        TaskInstance task = visible.get(0);
-
-        taskManager.claimTask(task.getId(), "user2", List.of("group2"));
-
-        Assertions.assertEquals(TaskStatus.CLAIMED, task.getStatus());
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.CLAIMED);
         assertThat(task.getAssignee()).isEqualTo("user2");
-        assertThat(task.isCompleted()).isFalse();
     }
 
     @Test
-    void testCompleteTask() {
-        String processInstanceId = UUID.randomUUID().toString();
+    void completesAnAuthoritativeCommandSnapshot() {
+        TaskInstance task = taskManager.materialize(taskEntity(
+                "signOffTask", "Final Sign Off", TaskStatus.CLAIMED,
+                "user3", List.of(), List.of()));
 
-        taskManager.createTask(
-                "signOffTask", "Final Sign Off", processInstanceId,
-                "user3", // already assigned
-                null,
-                null
-        );
+        taskManager.checkCanComplete(task, "user3", List.of());
+        taskManager.completeTask(task);
 
-
-        TaskInstance task = taskManager.getTaskByDefinitionKey("signOffTask", processInstanceId).orElseThrow();
-
-        assertThat(task.getAssignee()).isEqualTo("user3");
-
-        taskManager.completeTask(task.getId());
-        assertThat(task.isCompleted()).isTrue();
-
-        // Once isCompleted, it should no longer be visible
-        List<TaskInstance> postCompleteVisible = taskManager.getVisibleTasksForUser("user3", List.of("group3"));
-        assertThat(postCompleteVisible).isEmpty();
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(task.getEndDate()).isNotNull();
     }
 
     @Test
-    void testGetTaskByDefinitionKey() {
-        String processInstanceId = UUID.randomUUID().toString();
+    void readsVisibleTasksFromRepositoryInsteadOfMemory() {
+        TaskEntity entity = taskEntity(
+                "validateInvoice", "Validate Invoice", TaskStatus.AVAILABLE,
+                null, List.of("user4"), List.of("group4"));
+        when(taskRepository.findVisibleTasks(
+                eq("user4"), eq(List.of("group4")), eq(true), anyCollection(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(entity)));
+        when(taskRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
 
-        taskManager.createTask(
-                "validateInvoice", "Validate Invoice", processInstanceId,
-                null,
-                List.of("user4"),
-                List.of("group4")
-        );
+        assertThat(taskManager.getVisibleTasksForUser("user4", List.of("group4")))
+                .extracting(TaskInstance::getId)
+                .containsExactly(entity.getId());
+        assertThat(taskManager.getTask(entity.getId()))
+                .isPresent()
+                .get()
+                .extracting(TaskInstance::getName)
+                .isEqualTo("Validate Invoice");
+    }
 
-        Optional<TaskInstance> retrieved = taskManager.getTaskByDefinitionKey("validateInvoice", processInstanceId);
-        assertThat(retrieved).isPresent();
-        assertThat(retrieved.get().getName()).isEqualTo("Validate Invoice");
-        assertThat(retrieved.get().isCompleted()).isFalse();
+    private TaskEntity taskEntity(String definitionKey, String name, TaskStatus status,
+            String assignee, List<String> candidateUsers, List<String> candidateGroups) {
+        TaskEntity entity = new TaskEntity();
+        entity.setId(UUID.randomUUID().toString());
+        entity.setProcessInstanceId(UUID.randomUUID().toString());
+        entity.setTaskDefinitionKey(definitionKey);
+        entity.setName(name);
+        entity.setStatus(status);
+        entity.setAssignee(assignee);
+        entity.setCandidateUsers(candidateUsers);
+        entity.setCandidateGroups(candidateGroups);
+        entity.setStartDate(Instant.now());
+        return entity;
     }
 }

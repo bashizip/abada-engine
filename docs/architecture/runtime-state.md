@@ -64,41 +64,103 @@ already durable; an idempotency record makes a duplicate request return the
 same logical result. External side effects remain at-least-once unless the
 external system participates through an idempotent protocol.
 
-## Implemented slice: user-task completion
+## Implemented atomic command boundary
 
-User-task completion is the first command migrated to this model:
+All controller-reachable mutations now enter a core command service before
+touching repositories. `@AtomicRuntimeCommand` is the executable marker for
+the transaction boundary; a contract test inventories the public commands and
+fails when one loses that marker. Controllers translate HTTP only and no
+longer own external-task or retry state transitions.
 
-1. `completeTask` obtains a PostgreSQL write lock on the task row.
-2. It materializes a command-local task and process instance from database
-   entities and the immutable definition version.
-3. It validates task ownership/status and process suspension, applies
-   variables, advances tokens, and creates command-local successor tasks.
-4. It persists task state, process state, successor tasks, subscriptions,
-   timers, external work and activity history in the same Spring transaction.
-5. It publishes the result to legacy compatibility maps only after commit.
+| Command family | Authoritative lock/input | State, work and history committed together |
+|---|---|---|
+| Deployment and start | Latest definition is read from PostgreSQL; a started instance is new | Definition/deployment history, or instance, tokens, variables, tasks, subscriptions, timers, external work and start history |
+| User tasks | Task row; task completion also locks the process row | Task transition, variables, BPMN advancement, successor work and activity history |
+| Process control | Process-instance row | Cancellation, failure, suspension or variables and activity history |
+| Message and signal | Unconsumed subscription rows, then process-instance rows | Subscription consumption, BPMN advancement, successor work and history |
+| External work | External-task row | Lease/failure/retry transition and history; completion also locks and advances the process instance |
+| Timers | Timer-job row, then process-instance row | Lease, attempt, BPMN advancement, successor work, completion and history |
+| Idempotent API wrapper | Idempotency-key record plus the nested command locks | Workflow mutation and its stored deterministic response |
 
-A concurrent completion on another engine waits for the task lock, then reads
-the committed `COMPLETED` status and is rejected. The PostgreSQL integration
-test verifies that two engine application contexts produce one successful
-completion and one `TASK_COMPLETED` history record.
+Timer polling is deliberately not one large transaction. It finds candidate
+IDs without retaining locks, then executes each candidate through a separate
+atomic command. If advancement throws, that transaction rolls back completely;
+only then does a second transaction record the failed attempt. This prevents a
+caught exception from committing half-advanced workflow state.
 
-The compatibility-map publication is temporary. It keeps existing read paths
-working while commands are migrated, but it is not a cross-replica cache
-coherence mechanism.
+Definition cache insertion occurs only after a successful deployment commit.
+Failures while creating required timers are no longer logged and ignored: they
+abort the workflow command so a waiting token cannot commit without its durable
+job.
+
+PostgreSQL rollback evidence completes a task whose successor delegate
+intentionally throws after task state, variables and history have been staged.
+The test verifies that all three revert to their pre-command values. Existing
+two-context PostgreSQL tests demonstrate single-winner task transitions and
+lossless serialized variable updates. `AtomicRuntimeCommandContractTest`
+provides the inventory guard; it complements, rather than replaces, behavioral
+PostgreSQL tests.
+
+This atomicity guarantee covers Abada's database state. Embedded Java delegates
+and scripts still run in the transaction. A remote or otherwise irreversible
+side effect performed by a delegate cannot be rolled back by PostgreSQL and
+must be idempotent; durable external tasks are the recommended boundary for
+such work. Transaction-aware metrics and the transactional outbox remain
+separate roadmap items.
+
+## Implemented state authority: tasks and process instances
+
+User tasks and process instances are the first runtime areas migrated to this
+model:
+
+1. Task reads query PostgreSQL by task ID, process instance, assignee,
+   candidate user or candidate group. They return detached snapshots and do
+   not populate a runtime-wide map.
+2. `claim`, `completeTask` and `failTask` obtain a PostgreSQL write lock on the
+   target task row and materialize one command-local task object.
+3. Each command validates the committed task status before changing it. Task
+   completion also reconstructs the process instance from its database row,
+   advances the BPMN model and persists successor work in the transaction.
+4. Task state and activity history commit atomically. Concurrent replicas wait
+   for the same row lock and observe the winning status after it commits.
+5. Process detail and list reads query PostgreSQL and return detached
+   snapshots. Process control, variable updates, event resume and task-driven
+   advancement lock the process row before reconstructing tokens, joins and
+   variables.
+6. Startup does not rehydrate task or process objects. Active gauges are
+   restored with grouped database counts instead of loading mutable state.
+7. Parsed BPMN is cached only by immutable deployment ID. New starts query
+   PostgreSQL for the latest process-key version; persisted instances always
+   reload their pinned deployment version.
+8. Public task and process-instance lists execute bounded PostgreSQL pages
+   (50 rows by default, 100 maximum) with stable ordering. Task DTO enrichment
+   loads the page's process instances in one batch instead of issuing one
+   process query per task.
+
+A concurrent task command on another engine waits for the task lock, then
+reads the committed status and is rejected when the transition is no longer
+valid. PostgreSQL integration tests verify single winners for claim, failure
+and completion across two application contexts, with one corresponding
+history event.
+
+Concurrent variable-update tests across two application contexts verify that
+the process lock preserves both replicas' changes instead of losing the first
+committed update. Mutating a detached process query result also has no effect
+on a later read or command.
 
 ## Current migration status
 
 | Area | Current behavior | 1.0 target |
 |---|---|---|
-| Parsed process definitions | Immutable versions are persisted and parsed definitions are cached in each replica | Keep immutable cache keyed only by definition version/deployment ID |
-| User-task completion | Loads and locks task plus process state from PostgreSQL; mutates command-local objects; publishes legacy cache after commit | Retain this command model and add deterministic idempotent responses |
-| Startup | Rehydrates process-instance and task maps from PostgreSQL | Load definitions only; do not rehydrate mutable runtime maps |
-| Task claim/failure and process control | Several paths still read and mutate replica-local maps before persisting | Convert each command to authoritative database load and transactional mutation |
-| Instance/task query APIs | Several reads are served by replica-local maps and can be stale across replicas | Query PostgreSQL-backed projections with pagination and filtering |
-| Message/signal correlation | Subscriptions are durable, but all correlation paths are not yet proven command-local and concurrent-safe | Lock/consume subscriptions and advance the instance transactionally |
-| Timers/external work | Durable job and lease fields exist | Prove atomic multi-replica acquisition, expiry recovery and idempotent completion |
+| Parsed process definitions | One lazy replica-local cache is keyed by immutable deployment ID; latest-version selection is a PostgreSQL lookup and instances are foreign-key pinned | Retain this model and add bounded-cache telemetry if operational evidence requires it |
+| User-task lifecycle | Claim, completion and failure lock PostgreSQL task rows and mutate command-local snapshots | Add deterministic idempotency to claim/failure and retain this command model |
+| Startup | Preloads no workflow or definition objects; active process/task gauges use aggregate queries | Retain this model and extend durable recovery evidence |
+| Process control | Instance mutations load and lock PostgreSQL rows and use command-local state | Add deterministic idempotency and transaction-aware metrics |
+| Query APIs | Public task and instance lists use bounded PostgreSQL pages, stable ordering and batch process hydration; detail reads return detached snapshots | Add purpose-built summary projections where full variables or candidate metadata are unnecessary |
+| Message/signal correlation | Locked subscriptions are consumed with process advancement in one command transaction | Add duplicate-correlation semantics and multi-replica contention evidence |
+| Timers/external work | Per-item command transactions lock work rows and atomically persist transition, advancement and history | Add `SKIP LOCKED` acquisition, replica-death recovery and idempotent completion evidence |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |
-| Lifecycle delivery | Activity history is durable; transactional outbox is not implemented | Persist outbox records in the command transaction and deliver with leases |
+| Lifecycle delivery | History and outbox records commit together; dispatchers use PostgreSQL `SKIP LOCKED` leases, retry delays and stable delivery IDs | Add destination-specific operational dashboards during 0.11 productization |
 
 Consequently, PostgreSQL is the intended production authority, but the whole
 runtime does **not yet** satisfy the target invariants. Multi-replica operation
@@ -123,22 +185,25 @@ duplicate side effect.
 
 ## Cache policy
 
-Allowed caches contain immutable parsed process definitions. They may be
-discarded and reconstructed from a stored BPMN definition without changing
-execution semantics.
+The sole engine execution cache maps an immutable process-definition deployment
+ID to a fully constructed parsed BPMN model. It contains no mutable “latest by
+process key” alias. A new process start queries PostgreSQL for the latest
+version, while an existing process loads the deployment ID stored on its
+instance row. Cache entries may be discarded and reconstructed from stored XML
+without changing execution semantics.
 
-Mutable process instances, tasks, subscriptions, jobs and variables must not be
-runtime-wide cache entries in the final architecture. During migration, any
-remaining compatibility map is non-authoritative and cannot be consulted by a
-migrated mutation command. It must be updated only after transaction commit.
+Mutable process instances, tasks, subscriptions, jobs and variables are not
+runtime-wide cache entries. Command-local maps inside a materialized process
+instance hold variables and join state only for the lifetime of that command.
 
 ## Completion criteria
 
 The migration is complete only when:
 
 - every mutation command follows the command lifecycle above;
-- query APIs read database projections rather than mutable replica maps;
-- startup rehydrates only immutable definitions;
+- query APIs use bounded database reads or purpose-built projections rather
+  than mutable replica maps;
+- startup preloads no workflow state and definition cache loss is transparent;
 - multi-replica tests cover task commands, correlation, timers and external
   work, including replica termination around commit;
 - duplicate requests return deterministic results; and

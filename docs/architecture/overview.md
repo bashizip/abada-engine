@@ -142,9 +142,16 @@ management:
 - Process instances are persisted to database
 - Each engine instance maintains its own connection pool
 - Shared state through database transactions
-- Parsed definitions may be cached in memory. User-task completion now loads
-  authoritative command state from PostgreSQL, while other commands and reads
-  are still being migrated away from legacy mutable maps.
+- Parsed definitions may be cached in memory. User-task and process-instance
+  reads now return detached PostgreSQL snapshots; their mutation commands load
+  and lock authoritative rows without runtime-wide mutable state maps.
+- The only runtime cache is parsed BPMN keyed by immutable deployment ID.
+  PostgreSQL selects the latest deployment for new starts; existing instances
+  retain their stored deployment ID.
+- Public task and process-instance lists are database-paginated (50 rows by
+  default, 100 maximum). Task pages batch-load their related process instances
+  to avoid an instance lookup per task. Pagination metadata is returned in
+  response headers; see [API pagination](../reference/api-pagination.md).
 - The [runtime state architecture](runtime-state.md) defines the target command
   model, current migration boundary, locking policy and acceptance criteria.
   Multi-replica execution remains an acceptance-tested release gate.
@@ -179,17 +186,14 @@ stateDiagram-v2
 ```java
 @Component
 public class AbadaEngine {
-    // Process definition management
-    private final Map<String, ParsedProcessDefinition> processDefinitions;
-    
-    // Process instance management
-    private final Map<String, ProcessInstance> instances;
+    // The only execution cache; keys are immutable deployment IDs.
+    private final Map<String, ParsedProcessDefinition> definitionsByDeploymentId;
     
     // Core operations
     public ProcessInstance startProcess(String processDefinitionId);
-    public void completeTask(String taskId);
-    public void correlateMessage(String messageName, String correlationKey, Map<String, Object> variables);
-    public void broadcastSignal(String signalName, Map<String, Object> variables);
+    public void completeTask(String taskId, String user, List<String> groups,
+            Map<String, Object> variables);
+    public ProcessInstance getProcessInstanceById(String instanceId);
 }
 ```
 
@@ -198,11 +202,12 @@ public class AbadaEngine {
 ```java
 @Component
 public class TaskManager {
-    // Task lifecycle management
-    public void createTask(String taskDefinitionKey, String name, String processInstanceId, ...);
-    public void claimTask(String taskId, String user, List<String> userGroups);
-    public void completeTask(String taskId);
-    public void failTask(String taskId, String reason);
+    // Stateless task lifecycle and PostgreSQL-backed queries
+    public TaskInstance createTaskSnapshot(String taskDefinitionKey, String name,
+            String processInstanceId, ...);
+    public void claimTask(TaskInstance task, String user, List<String> userGroups);
+    public void completeTask(TaskInstance task);
+    public Optional<TaskInstance> getTask(String taskId);
 }
 ```
 

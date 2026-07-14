@@ -179,7 +179,7 @@ Orun communicates with the Abada Engine via REST API. The complete API documenta
 
 | Feature | Endpoint | Description |
 |---------|----------|-------------|
-| Process Instances | `GET /v1/processes/instances` | List all instances |
+| Process Instances | `GET /v1/processes/instances` | List a bounded instance page |
 | Instance Details | `GET /v1/processes/instances/{id}` | Get instance details |
 | BPMN Diagram | `GET /v1/processes/{id}` | Get process definition with XML |
 | Active Tokens | `GET /v1/process-instances/{id}/activity-instances` | Get current execution position |

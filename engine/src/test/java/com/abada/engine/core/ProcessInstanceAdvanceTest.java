@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * Notes:
  * - We explicitly register outgoing flows via a reflective call to
- * ParsedProcessDefinition.addOutgoing(sourceId, flow) when available.
+ * ParsedProcessDefinition builds its outgoing-flow index during construction.
  * If your constructor already builds the outgoing index, this is a no‑op.
  * - Conditions use simple JS expressions (e.g., "x > 5"), which the engine
  * evaluates via ConditionEvaluator.

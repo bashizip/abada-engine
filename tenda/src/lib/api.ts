@@ -6,6 +6,14 @@ export interface ApiResponse<T> {
   data?: T;
   error?: unknown;
   status: number;
+  pagination?: PaginationMetadata;
+}
+
+export interface PaginationMetadata {
+  page: number;
+  size: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 export type TaskStatus = "AVAILABLE" | "CLAIMED" | "COMPLETED" | "FAILED";
@@ -161,14 +169,23 @@ class ApiClient {
       });
 
       if (response.ok) {
+        const totalCount = response.headers.get("X-Total-Count");
+        const pagination = totalCount
+          ? {
+              page: Number(response.headers.get("X-Page")),
+              size: Number(response.headers.get("X-Page-Size")),
+              totalCount: Number(totalCount),
+              totalPages: Number(response.headers.get("X-Total-Pages")),
+            }
+          : undefined;
         if (
           response.status === 204 ||
           response.headers.get("Content-Length") === "0"
         ) {
-          return { data: undefined, status: response.status };
+          return { data: undefined, status: response.status, pagination };
         }
         const data = await response.json();
-        return { data, status: response.status };
+        return { data, status: response.status, pagination };
       }
 
       let errorPayload: unknown = `HTTP ${response.status}: ${response.statusText}`;
@@ -196,9 +213,15 @@ class ApiClient {
   // Task endpoints
   async getTasks(filters?: {
     status?: string;
+    page?: number;
+    size?: number;
   }): Promise<ApiResponse<TaskDetailsDto[]>> {
     const queryParams = new URLSearchParams();
     if (filters?.status) queryParams.append("status", filters.status);
+    if (filters?.page !== undefined)
+      queryParams.append("page", String(filters.page));
+    if (filters?.size !== undefined)
+      queryParams.append("size", String(filters.size));
     const queryString = queryParams.toString();
 
     return this.request(`/v1/tasks${queryString ? `?${queryString}` : ""}`);
@@ -246,8 +269,19 @@ class ApiClient {
     return this.request(`/v1/processes/${id}`);
   }
 
-  async getProcessInstances(): Promise<ApiResponse<ProcessInstanceDTO[]>> {
-    return this.request("/v1/processes/instances");
+  async getProcessInstances(pagination?: {
+    page?: number;
+    size?: number;
+  }): Promise<ApiResponse<ProcessInstanceDTO[]>> {
+    const queryParams = new URLSearchParams();
+    if (pagination?.page !== undefined)
+      queryParams.append("page", String(pagination.page));
+    if (pagination?.size !== undefined)
+      queryParams.append("size", String(pagination.size));
+    const queryString = queryParams.toString();
+    return this.request(
+      `/v1/processes/instances${queryString ? `?${queryString}` : ""}`,
+    );
   }
 
   async getProcessInstance(

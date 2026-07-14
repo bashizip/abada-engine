@@ -219,9 +219,10 @@ Generate trusted localhost certificates.
 
 ---
 
-# Current Status (v0.8.4-alpha)
+# Current Status (v0.9.0-alpha)
 
-Abada is under active alpha development.
+Abada 0.9 provides the durable PostgreSQL runtime milestone. Multi-replica
+cluster certification remains the 0.10 milestone.
 
 The BPMN execution core is operational, while APIs and platform capabilities continue to evolve.
 

@@ -17,7 +17,7 @@ services:
       - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=dev
       - OTEL_SERVICE_NAME=abada-engine-dev
-      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
+      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.9.0-alpha
     ports:
       - "5601:5601"
     # Internal port 5601 is also accessible via Traefik

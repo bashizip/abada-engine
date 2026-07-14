@@ -6,7 +6,6 @@ import com.abada.engine.persistence.repository.IdempotencyRecordRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -25,7 +24,7 @@ public class IdempotencyService {
         this.objectMapper = objectMapper;
     }
 
-    @Transactional
+    @AtomicRuntimeCommand
     public Map<String, Object> execute(String key, String operation, Object request, Supplier<Map<String, Object>> command) {
         if (key == null || key.isBlank()) return command.get();
         String hash = hash(request);

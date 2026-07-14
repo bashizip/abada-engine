@@ -12,7 +12,11 @@ import com.abada.engine.dto.UserStatsDto;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,7 +49,7 @@ public class TaskController {
     }
 
     /**
-     * Retrieves a list of tasks that are visible to the current user, with optional filtering by status.
+     * Retrieves a bounded page of tasks visible to the current user, with optional filtering by status.
      * <p>
      * A task is considered visible if it is directly assigned to the user, or if it is unassigned
      * and the user is a member of one of the task's candidate groups.
@@ -55,26 +59,31 @@ public class TaskController {
      */
     @GetMapping
     public ResponseEntity<List<TaskDetailsDto>> getTasks(
-        @RequestParam(required = false) TaskStatus status
+        @RequestParam(required = false) TaskStatus status,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = Pagination.DEFAULT_PAGE_SIZE) int size
     ) {
         String user = context.getUsername();
         List<String> groups = context.getGroups();
-        engine.refreshTaskCache();
-        List<TaskInstance> visible = engine
+        Pageable pageable = Pagination.request(page, size,
+                Sort.by("startDate").ascending().and(Sort.by("id").ascending()));
+        Page<TaskInstance> visible = engine
             .getTaskManager()
-            .getVisibleTasksForUser(user, groups, status);
+            .getVisibleTasksForUser(user, groups, status, pageable);
 
-        List<TaskDetailsDto> taskDetailsDtos = visible
+        Set<String> processInstanceIds = visible.stream()
+                .map(TaskInstance::getProcessInstanceId)
+                .collect(Collectors.toSet());
+        Map<String, ProcessInstance> processInstances = engine.getProcessInstancesByIds(processInstanceIds);
+
+        List<TaskDetailsDto> taskDetailsDtos = visible.getContent()
             .stream()
-            .map(task -> {
-                ProcessInstance processInstance = engine.getProcessInstanceById(
-                    task.getProcessInstanceId()
-                );
-                return TaskDetailsDto.from(task, processInstance);
-            })
+            .map(task -> TaskDetailsDto.from(task, processInstances.get(task.getProcessInstanceId())))
             .collect(Collectors.toList());
 
-        return ResponseEntity.ok(taskDetailsDtos);
+        return ResponseEntity.ok()
+                .headers(Pagination.headers(visible))
+                .body(taskDetailsDtos);
     }
 
     /**

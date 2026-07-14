@@ -26,8 +26,15 @@ public interface ExternalTaskRepository extends JpaRepository<ExternalTaskEntity
      * @return An Optional containing an available task, if one exists.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<ExternalTaskEntity> findFirstByTopicNameAndStatusOrTopicNameAndLockExpirationTimeLessThan(String topicName,
-            ExternalTaskEntity.Status status, String topicName2, Instant now);
+    @Query("select task from ExternalTaskEntity task where task.topicName = :topic "
+            + "and (task.status = com.abada.engine.persistence.entity.ExternalTaskEntity.Status.OPEN "
+            + "or (task.status = com.abada.engine.persistence.entity.ExternalTaskEntity.Status.LOCKED "
+            + "and task.lockExpirationTime < :now)) order by task.id")
+    List<ExternalTaskEntity> findAvailableForUpdate(@Param("topic") String topic, @Param("now") Instant now);
+
+    default Optional<ExternalTaskEntity> findFirstAvailableForUpdate(String topic, Instant now) {
+        return findAvailableForUpdate(topic, now).stream().findFirst();
+    }
 
     boolean existsByProcessInstanceIdAndActivityIdAndStatusIn(
             String processInstanceId, String activityId, List<ExternalTaskEntity.Status> statuses);
