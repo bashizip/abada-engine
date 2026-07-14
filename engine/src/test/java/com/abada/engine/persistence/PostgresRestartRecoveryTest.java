@@ -2,6 +2,10 @@ package com.abada.engine.persistence;
 
 import com.abada.engine.AbadaEngineApplication;
 import com.abada.engine.core.AbadaEngine;
+import com.abada.engine.core.EventManager;
+import com.abada.engine.core.ExternalTaskCommandService;
+import com.abada.engine.core.JobScheduler;
+import com.abada.engine.core.OutboxService;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.core.model.TaskInstance;
@@ -11,6 +15,8 @@ import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.ActivityHistoryRepository;
 import com.abada.engine.persistence.repository.ProcessInstanceRepository;
 import com.abada.engine.persistence.repository.TaskRepository;
+import com.abada.engine.persistence.repository.OutboxEventRepository;
+import com.abada.engine.dto.FetchAndLockRequest;
 import com.abada.engine.util.DatabaseTestHelper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.WebApplicationType;
@@ -20,11 +26,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.context.support.TestPropertySourceUtils;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -76,6 +86,149 @@ class PostgresRestartRecoveryTest {
                     .findByProcessInstanceIdOrderByOccurredAtAsc(instance.getId()))
                     .extracting(ActivityHistoryEntity::getEventType)
                     .containsExactly("PROCESS_STARTED");
+            assertThat(context.getBean(OutboxEventRepository.class)
+                    .findByAggregateIdOrderByOccurredAt(instance.getId()))
+                    .extracting(event -> event.getEventType())
+                    .containsExactly("PROCESS_STARTED");
+        }
+    }
+
+    @Test
+    void preservesCommittedStateWhenFailureOccursImmediatelyAfterCommit() {
+        try (ConfigurableApplicationContext context = startApplication()) {
+            context.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = context.getBean(AbadaEngine.class);
+            deployRestartProcess(engine);
+            ProcessInstance instance = engine.startProcess("postgres-restart-recovery", "alice", Map.of());
+
+            TransactionTemplate transaction = context.getBean(TransactionTemplate.class);
+            assertThatThrownBy(() -> transaction.executeWithoutResult(ignored -> {
+                engine.updateProcessVariables(instance.getId(), Map.of("committedBeforeResponseLoss", true));
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        throw new IllegalStateException("simulated response loss after commit");
+                    }
+                });
+            })).hasMessageContaining("simulated response loss after commit");
+
+            assertThat(engine.getProcessInstanceById(instance.getId()).getVariables())
+                    .containsEntry("committedBeforeResponseLoss", true);
+            assertThat(context.getBean(ActivityHistoryRepository.class)
+                    .findByProcessInstanceIdOrderByOccurredAtAsc(instance.getId()))
+                    .extracting(ActivityHistoryEntity::getEventType)
+                    .contains("VARIABLES_UPDATED");
+            assertThat(context.getBean(OutboxEventRepository.class)
+                    .findByAggregateIdOrderByOccurredAt(instance.getId()))
+                    .extracting(event -> event.getEventType())
+                    .contains("VARIABLES_UPDATED");
+        }
+    }
+
+    @Test
+    void leasesRetriesAndPublishesTransactionalOutboxEvents() {
+        try (ConfigurableApplicationContext context = startApplication()) {
+            context.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = context.getBean(AbadaEngine.class);
+            deployRestartProcess(engine);
+            ProcessInstance instance = engine.startProcess("postgres-restart-recovery", "alice", Map.of());
+
+            OutboxService outbox = context.getBean(OutboxService.class);
+            Instant now = Instant.now();
+            var firstLease = outbox.claim("replica-a", 100, now);
+            assertThat(firstLease).extracting(event -> event.eventType())
+                    .contains("PROCESS_DEFINITION_DEPLOYED", "PROCESS_STARTED");
+            assertThat(outbox.claim("replica-b", 100, now)).isEmpty();
+
+            var definitionEvent = firstLease.stream()
+                    .filter(event -> event.aggregateId().equals("postgres-restart-recovery"))
+                    .findFirst().orElseThrow();
+            var instanceEvent = firstLease.stream()
+                    .filter(event -> event.aggregateId().equals(instance.getId()))
+                    .findFirst().orElseThrow();
+            outbox.markPublished(definitionEvent.id(), "replica-a", now);
+            outbox.markFailed(instanceEvent.id(), "replica-a", "temporary transport failure", now);
+
+            assertThat(outbox.claim("replica-b", 100, now.plusSeconds(1))).isEmpty();
+            var retry = outbox.claim("replica-b", 100, now.plusSeconds(301));
+            assertThat(retry).extracting(event -> event.id()).containsExactly(instanceEvent.id());
+            outbox.markPublished(instanceEvent.id(), "replica-b", now.plusSeconds(301));
+            assertThat(context.getBean(OutboxEventRepository.class).countByPublishedAtIsNull()).isZero();
+        }
+    }
+
+    @Test
+    void recoversMessageSubscriptionAcrossApplicationRestart() {
+        String instanceId;
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/message-event-test.bpmn");
+            ProcessInstance instance = engine.startProcess("MessageEventProcess", "test-user",
+                    Map.of("correlationKey", "order-42"));
+            instanceId = instance.getId();
+            TaskInstance initial = engine.getTaskManager().getTasksForProcessInstance(instanceId).getFirst();
+            engine.completeTask(initial.getId(), "test-user", List.of(), Map.of());
+            assertThat(engine.getProcessInstanceById(instanceId).getActiveTokens())
+                    .containsExactly("CatchEvent_OrderPaid");
+        }
+
+        try (ConfigurableApplicationContext restarted = startApplication()) {
+            restarted.getBean(EventManager.class).correlateMessage(
+                    "OrderPaid", "order-42", Map.of("paid", true));
+            AbadaEngine engine = restarted.getBean(AbadaEngine.class);
+            assertThat(engine.getProcessInstanceById(instanceId).getVariables()).containsEntry("paid", true);
+            assertThat(engine.getTaskManager().getTasksForProcessInstance(instanceId))
+                    .extracting(TaskInstance::getTaskDefinitionKey)
+                    .containsExactly("Task_FulfillOrder");
+        }
+    }
+
+    @Test
+    void recoversTimerJobAcrossApplicationRestart() throws Exception {
+        String instanceId;
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/timer-event-test.bpmn");
+            ProcessInstance instance = engine.startProcess("TimerEventProcess", "test-user", Map.of());
+            instanceId = instance.getId();
+            TaskInstance initial = engine.getTaskManager().getTasksForProcessInstance(instanceId).getFirst();
+            engine.completeTask(initial.getId(), "test-user", List.of(), Map.of());
+        }
+
+        Thread.sleep(1100);
+        try (ConfigurableApplicationContext restarted = startApplication()) {
+            restarted.getBean(JobScheduler.class).executeDueJobs();
+            assertThat(restarted.getBean(AbadaEngine.class).getTaskManager()
+                    .getTasksForProcessInstance(instanceId))
+                    .extracting(TaskInstance::getTaskDefinitionKey)
+                    .containsExactly("FinalTask");
+        }
+    }
+
+    @Test
+    void recoversExternalTaskAcrossApplicationRestart() {
+        String instanceId;
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/external-task-test.bpmn");
+            instanceId = engine.startProcess("ExternalTaskTestProcess", "worker-user", Map.of()).getId();
+        }
+
+        try (ConfigurableApplicationContext restarted = startApplication()) {
+            ExternalTaskCommandService commands = restarted.getBean(ExternalTaskCommandService.class);
+            var locked = commands.fetchAndLock(
+                    new FetchAndLockRequest("worker-1", List.of("test-topic"), 10_000L));
+            assertThat(locked).hasSize(1);
+            commands.complete(locked.getFirst().id(), Map.of("externalResult", "recovered"));
+            AbadaEngine engine = restarted.getBean(AbadaEngine.class);
+            assertThat(engine.getProcessInstanceById(instanceId).getVariables())
+                    .containsEntry("externalResult", "recovered");
+            assertThat(engine.getTaskManager().getTasksForProcessInstance(instanceId))
+                    .extracting(TaskInstance::getTaskDefinitionKey)
+                    .containsExactly("FinalTask");
         }
     }
 
@@ -422,6 +575,15 @@ class PostgresRestartRecoveryTest {
         }
     }
 
+    private void deploy(AbadaEngine engine, String resource) {
+        try (InputStream bpmn = getClass().getResourceAsStream(resource)) {
+            assertThat(bpmn).as(resource).isNotNull();
+            engine.deploy(bpmn);
+        } catch (Exception exception) {
+            throw new AssertionError("Could not deploy " + resource, exception);
+        }
+    }
+
     private ConfigurableApplicationContext startApplication() {
         return new SpringApplicationBuilder(AbadaEngineApplication.class)
                 .web(WebApplicationType.SERVLET)
@@ -439,6 +601,7 @@ class PostgresRestartRecoveryTest {
                         "spring.jpa.open-in-view=false",
                         "spring.flyway.enabled=true",
                         "spring.task.scheduling.enabled=false",
+                        "abada.outbox.dispatcher.enabled=false",
                         "abada.security.mode=disabled",
                         "otel.sdk.disabled=true",
                         "management.tracing.enabled=false",

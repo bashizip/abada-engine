@@ -3,8 +3,8 @@
 | Mode | Intended use | Authentication | Runtime guarantee |
 |---|---|---|---|
 | H2, one engine | Local development and tests | Disabled or trusted local proxy | Restart recovery; not a production topology |
-| PostgreSQL, one engine | Self-hosted production candidate | Direct OIDC JWT validation | Durable definitions, tokens, joins, tasks, subscriptions and timers; command migration is incomplete |
-| PostgreSQL, multiple engines | Pre-production/experimental | Direct OIDC JWT validation | Database-authoritative task and process-instance reads/mutations plus partial subscription and lease protection; full HA certification remains a 0.10 release gate |
+| PostgreSQL, one engine | Self-hosted production candidate | Direct OIDC JWT validation | 0.9 durable runtime: atomic commands, restart recovery, versioned definitions and transactional outbox |
+| PostgreSQL, multiple engines | Pre-production/experimental | Direct OIDC JWT validation | Database-authoritative commands and leased work are present; replica termination and comprehensive concurrent acquisition remain the 0.10 certification gate |
 | Trusted proxy | Controlled private network only | OAuth2 Proxy headers | Engine must not be reachable except through the proxy |
 
 Production defaults to `ABADA_SECURITY_MODE=oidc` and requires

@@ -160,7 +160,7 @@ on a later read or command.
 | Message/signal correlation | Locked subscriptions are consumed with process advancement in one command transaction | Add duplicate-correlation semantics and multi-replica contention evidence |
 | Timers/external work | Per-item command transactions lock work rows and atomically persist transition, advancement and history | Add `SKIP LOCKED` acquisition, replica-death recovery and idempotent completion evidence |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |
-| Lifecycle delivery | Activity history is durable; transactional outbox is not implemented | Persist outbox records in the command transaction and deliver with leases |
+| Lifecycle delivery | History and outbox records commit together; dispatchers use PostgreSQL `SKIP LOCKED` leases, retry delays and stable delivery IDs | Add destination-specific operational dashboards during 0.11 productization |
 
 Consequently, PostgreSQL is the intended production authority, but the whole
 runtime does **not yet** satisfy the target invariants. Multi-replica operation

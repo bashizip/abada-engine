@@ -27,8 +27,9 @@ Last reviewed: 2026-07-14.
 - [x] Persist definition checksums and deployment identifiers.
 - [x] Prove fresh-schema Flyway migrations against PostgreSQL with
   Testcontainers.
-- [ ] Prove upgrades from every supported schema version against PostgreSQL
-  with Testcontainers.
+- [x] Prove upgrades from every supported schema version against PostgreSQL
+  with Testcontainers. Evidence:
+  [`PostgresSchemaUpgradeTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresSchemaUpgradeTest.java).
 
 ### Authoritative execution state
 
@@ -67,16 +68,21 @@ Last reviewed: 2026-07-14.
   [`TaskControllerTest`](../../engine/src/test/java/com/abada/engine/api/TaskControllerTest.java),
   [`ProcessControllerTest`](../../engine/src/test/java/com/abada/engine/api/ProcessControllerTest.java) and
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Publish lifecycle events and webhooks through a transactional outbox.
+- [x] Publish lifecycle events and optional webhooks through a transactional
+  outbox with `SKIP LOCKED` leases, retry delay and stable delivery IDs.
+  Evidence: [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java)
+  and [runtime semantics](../reference/runtime-semantics.md).
 
 ### Supported BPMN behavior
 
 - [x] Publish the current BPMN support matrix.
 - [x] Reject known unsupported BPMN constructs during deployment.
 - [x] Support the documented core constructs, including script tasks.
-- [ ] Back every row in the support matrix with executable conformance tests.
-- [ ] Publish precise tested semantics for variables, retries, cancellation,
-  suspension, tasks, gateways and catch events.
+- [x] Back every row in the support matrix with executable conformance tests.
+  Evidence: [BPMN support contract](../reference/bpmn-support.md).
+- [x] Publish precise tested semantics for variables, retries, cancellation,
+  suspension, tasks, gateways and catch events. Evidence:
+  [runtime semantics contract](../reference/runtime-semantics.md).
 
 ### Recovery evidence
 
@@ -85,16 +91,23 @@ Last reviewed: 2026-07-14.
   deployed definition, active token, user task, variables and history before
   completing the workflow. Evidence:
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Use PostgreSQL as the correctness reference for all persistence and
-  concurrency tests; keep H2 as a convenience profile only.
-- [ ] Test failure immediately before and after transaction commit.
+- [x] Use PostgreSQL as the correctness reference for persistence, restart and
+  concurrency acceptance; keep H2 as a convenience profile only. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
+- [x] Test failure immediately before and after transaction commit, including
+  atomic rollback and committed state after simulated response loss. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 - [x] Prove that a persisted user task, active token and variables recover
   without lost workflow progress.
-- [ ] Prove that durable subscriptions, timer jobs and external tasks recover
-  without lost workflow progress.
+- [x] Prove that durable subscriptions, timer jobs and external tasks recover
+  after a full application restart without lost workflow progress. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 
-- [ ] **0.9 release gate:** durable PostgreSQL execution and restart recovery
-  pass all acceptance tests without relying on mutable in-memory state.
+- [x] **0.9 release gate:** durable PostgreSQL execution, schema upgrades,
+  atomic rollback, outbox delivery and restart recovery pass acceptance tests
+  without relying on mutable in-memory state. Evidence: 101 passing backend
+  tests, including 11 PostgreSQL restart/atomicity/outbox cases and five
+  supported schema-upgrade paths.
 
 ## 0.10 — Cluster safety
 
