@@ -10,6 +10,8 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
 
 /** Secure, namespace-aware XML view used only by deployment translators. */
 public final class AssignmentXml {
@@ -43,6 +45,13 @@ public final class AssignmentXml {
             if (id.equals(element.getAttribute("id"))) return Optional.of(element);
         }
         return Optional.empty();
+    }
+
+    public List<Element> elements() {
+        NodeList all = document.getElementsByTagNameNS("*", "*");
+        List<Element> result = new ArrayList<>(all.getLength());
+        for (int i = 0; i < all.getLength(); i++) result.add((Element) all.item(i));
+        return List.copyOf(result);
     }
 
     static Optional<Element> firstChild(Element parent, String namespace, String localName) {

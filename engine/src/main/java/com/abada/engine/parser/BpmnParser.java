@@ -36,6 +36,7 @@ public class BpmnParser {
             String sourceXml = new String(source, StandardCharsets.UTF_8);
             BpmnCompatibilityDetector.Detection detection = new BpmnCompatibilityDetector().detect(sourceXml);
             List<BpmnValidationIssue> issues = new ArrayList<>();
+            issues.addAll(new BpmnDirectiveValidator().validate(sourceXml, options));
             for (String detectedProfile : detection.profiles()) {
                 if (!options.compatibilityProfiles().contains(detectedProfile)
                         && !CompatibilityProfiles.STANDARD.equals(detectedProfile)) {
@@ -46,7 +47,8 @@ public class BpmnParser {
                             "Enable the profile explicitly or migrate the vendor directives."));
                 }
             }
-            if (!issues.isEmpty()) throw new BpmnValidationException(issues);
+            if (issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.ERROR))
+                throw new BpmnValidationException(issues);
 
             ParsedProcessDefinition definition = parseDefinition(new ByteArrayInputStream(source), sourceXml,
                     options.compatibilityProfiles());
