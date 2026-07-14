@@ -189,6 +189,76 @@ Last reviewed: 2026-07-14.
 - [ ] **0.11 release gate:** REST and worker contracts are frozen; OIDC, RBAC,
   security tests, the Java SDK and frontends are aligned.
 
+## 1.0 — BPMN dialects and compatibility profiles
+
+Specification: [BPMN dialects and compatibility](../specifications/bpmn-dialects-and-compatibility.md).
+
+This is a release-blocking 1.0 feature. The repository-grounded delivery plan
+is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
+
+### Canonical model and parsing
+
+- [ ] Define vendor-neutral `ProcessExpression` and `UserTaskAssignment`
+  models and use them from `TaskMeta` and runtime task creation.
+- [ ] Detect the `standard-bpmn-2.0`, `abada-native-1`, and `camunda-7`
+  profiles explicitly.
+- [ ] Route user-task assignment through a deterministic extension-parser
+  registry; runtime code must not execute vendor XML semantics.
+- [ ] Keep existing Camunda assignee/candidate definitions operational with
+  Abada expression semantics reported transparently.
+- [ ] Parse standard BPMN `potentialOwner`/`humanPerformer` expressions for the
+  documented `user:<id>` and `group:<id>` subset.
+- [ ] Parse both compact and nested `abada:assignment` forms under the stable
+  `https://abada.io/schema/bpmn` namespace.
+
+### Validation, execution and persistence
+
+- [ ] Reject conflicting assignment representations, malformed expressions,
+  invalid strategies and unsupported execution-relevant directives with
+  stable `ABADA-BPMN-*` codes.
+- [ ] Secure XML parsing against XXE, entity expansion, remote schema loading
+  and unbounded deployment input.
+- [ ] Evaluate assignment expressions once at task creation; normalize and
+  deterministically deduplicate candidate identities.
+- [ ] Preserve candidates when assigned, reject claiming assigned tasks, and
+  retain current claim authorization semantics.
+- [ ] Add authorized unclaim behavior and assignment audit events where the
+  existing task API permits a backward-compatible extension.
+- [ ] Keep deployment validation, definition persistence, history and cache
+  registration atomic.
+- [ ] Add a Flyway migration for definition format/profile/namespace/compiler/
+  report metadata and task assignment strategy; preserve all existing rows.
+- [ ] Prove fresh and V1–V6 PostgreSQL upgrades through the new schema.
+
+### Reports, migration and public contracts
+
+- [ ] Produce programmatic compatibility reports with detected profiles,
+  mappings and structured validation issues.
+- [ ] Extend the existing multipart deployment API with optional profiles and
+  strict mode without breaking current clients; return compatibility data.
+- [ ] Provide deterministic Camunda 7 → Abada-native migration while
+  preserving the original input and failing on uncertain execution semantics.
+- [ ] Provide `abada bpmn migrate` CLI behavior and machine-readable/reporting
+  output without introducing a separate repository module.
+- [ ] Add bounded parsing/deployment/migration metrics and structured logs.
+
+### Evidence and documentation
+
+- [ ] Add unit tests for all parsers, expressions, normalization, conflicts,
+  unknown directives, reports, serialization and migration.
+- [ ] Prove standard, Abada-native and Camunda fixtures create equivalent
+  persisted task assignments.
+- [ ] Prove native and migrated round trips preserve canonical assignments.
+- [ ] Add malformed/unsafe XML and atomic failed-deployment tests.
+- [ ] Publish the required ADR, native extension, Camunda profile,
+  compatibility profile, migration and assignment-semantics documentation.
+- [ ] Add runnable examples and map every acceptance criterion to executable
+  evidence.
+
+- [ ] **BPMN compatibility release gate:** every normative acceptance criterion
+  is implemented and verified, or explicitly documented as blocked with
+  concrete technical evidence.
+
 ## 1.0 RC — Evidence and operations
 
 ### Conformance and quality

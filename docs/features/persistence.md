@@ -57,5 +57,5 @@ event correlation, timer/external-work acquisition and failure testing around
 transaction commits.
 
 See [Runtime State Architecture](../architecture/runtime-state.md) and the
-[Reliable OSS Core Roadmap](../development/roadmap.md) for the exact migration
+[Reliable OSS Core Roadmap](../development/roadmap-to-1.0.md) for the exact migration
 boundary and acceptance gates.

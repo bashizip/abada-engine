@@ -1,7 +1,7 @@
 # Abada Platform → SaaS Transformation Roadmap
 
 > **Deferred:** This document is not the active delivery roadmap. The reliable
-> OSS core roadmap in `docs/development/roadmap.md` is authoritative until 1.0.
+> OSS core roadmap in `docs/development/roadmap-to-1.0.md` is authoritative until 1.0.
 
 ## Overview
 

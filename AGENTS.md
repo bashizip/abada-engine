@@ -20,7 +20,7 @@ production-certified.
 
 Use these documents as the authoritative product contract:
 
-- `docs/development/roadmap.md` — release checklist and acceptance gates.
+- `docs/development/roadmap-to-1.0.md` — release checklist and acceptance gates.
 - `docs/reference/bpmn-support.md` — supported and rejected BPMN constructs.
 - `docs/reference/runtime-semantics.md` — command, retry, event, variable,
   cancellation, and suspension semantics.

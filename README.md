@@ -334,7 +334,7 @@ The **agentic orchestration layer** is currently under active private developmen
 
 See the complete roadmap:
 
-- [Roadmap](docs/development/roadmap.md)
+- [Roadmap to 1.0](docs/development/roadmap-to-1.0.md)
 
 ---
 
