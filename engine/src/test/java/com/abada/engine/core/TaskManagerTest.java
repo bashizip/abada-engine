@@ -2,6 +2,7 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
+import com.abada.engine.core.model.assignment.AssignmentStrategy;
 import com.abada.engine.observability.EngineMetrics;
 import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.TaskRepository;
@@ -59,7 +60,7 @@ class TaskManagerTest {
 
         TaskInstance task = taskManager.createTaskSnapshot(
                 "approveTask", "Approve Request", processInstanceId,
-                null, List.of("user1"), List.of("group1"));
+                null, List.of("user1"), List.of("group1"), AssignmentStrategy.CLAIM);
 
         assertThat(task.getTaskDefinitionKey()).isEqualTo("approveTask");
         assertThat(task.getProcessInstanceId()).isEqualTo(processInstanceId);

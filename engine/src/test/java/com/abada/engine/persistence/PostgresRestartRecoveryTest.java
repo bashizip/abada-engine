@@ -85,11 +85,11 @@ class PostgresRestartRecoveryTest {
             assertThat(context.getBean(ActivityHistoryRepository.class)
                     .findByProcessInstanceIdOrderByOccurredAtAsc(instance.getId()))
                     .extracting(ActivityHistoryEntity::getEventType)
-                    .containsExactly("PROCESS_STARTED");
+                    .containsExactly("PROCESS_STARTED", "TASK_CREATED", "TASK_ASSIGNED");
             assertThat(context.getBean(OutboxEventRepository.class)
                     .findByAggregateIdOrderByOccurredAt(instance.getId()))
                     .extracting(event -> event.getEventType())
-                    .containsExactly("PROCESS_STARTED");
+                    .containsExactly("PROCESS_STARTED", "TASK_CREATED", "TASK_ASSIGNED");
         }
     }
 
@@ -145,9 +145,13 @@ class PostgresRestartRecoveryTest {
                     .findFirst().orElseThrow();
             var instanceEvent = firstLease.stream()
                     .filter(event -> event.aggregateId().equals(instance.getId()))
+                    .filter(event -> event.eventType().equals("PROCESS_STARTED"))
                     .findFirst().orElseThrow();
-            outbox.markPublished(definitionEvent.id(), "replica-a", now);
-            outbox.markFailed(instanceEvent.id(), "replica-a", "temporary transport failure", now);
+            for (var event : firstLease) {
+                if (event.id().equals(instanceEvent.id()))
+                    outbox.markFailed(event.id(), "replica-a", "temporary transport failure", now);
+                else outbox.markPublished(event.id(), "replica-a", now);
+            }
 
             assertThat(outbox.claim("replica-b", 100, now.plusSeconds(1))).isEmpty();
             var retry = outbox.claim("replica-b", 100, now.plusSeconds(301));
@@ -351,7 +355,7 @@ class PostgresRestartRecoveryTest {
                     .findByProcessInstanceIdOrderByOccurredAtAsc(processInstanceId);
             assertThat(history)
                     .extracting(ActivityHistoryEntity::getEventType)
-                    .containsExactly("PROCESS_STARTED", "TASK_CLAIMED", "TASK_COMPLETED");
+                    .containsExactly("PROCESS_STARTED", "TASK_CREATED", "TASK_CLAIMED", "TASK_COMPLETED");
         }
     }
 

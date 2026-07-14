@@ -202,13 +202,13 @@ is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
   models and use them from `TaskMeta` and runtime task creation.
 - [x] Detect the `standard-bpmn-2.0`, `abada-native-1`, and `camunda-7`
   profiles explicitly.
-- [ ] Route user-task assignment through a deterministic extension-parser
+- [x] Route user-task assignment through a deterministic extension-parser
   registry; runtime code must not execute vendor XML semantics.
 - [x] Keep existing Camunda assignee/candidate definitions operational with
   Abada expression semantics reported transparently.
-- [ ] Parse standard BPMN `potentialOwner`/`humanPerformer` expressions for the
+- [x] Parse standard BPMN `potentialOwner`/`humanPerformer` expressions for the
   documented `user:<id>` and `group:<id>` subset.
-- [ ] Parse both compact and nested `abada:assignment` forms under the stable
+- [x] Parse both compact and nested `abada:assignment` forms under the stable
   `https://abada.io/schema/bpmn` namespace.
 
 ### Validation, execution and persistence
@@ -216,11 +216,11 @@ is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
 - [ ] Reject conflicting assignment representations, malformed expressions,
   invalid strategies and unsupported execution-relevant directives with
   stable `ABADA-BPMN-*` codes.
-- [ ] Secure XML parsing against XXE, entity expansion, remote schema loading
+- [x] Secure XML parsing against XXE, entity expansion, remote schema loading
   and unbounded deployment input.
-- [ ] Evaluate assignment expressions once at task creation; normalize and
+- [x] Evaluate assignment expressions once at task creation; normalize and
   deterministically deduplicate candidate identities.
-- [ ] Preserve candidates when assigned, reject claiming assigned tasks, and
+- [x] Preserve candidates when assigned, reject claiming assigned tasks, and
   retain current claim authorization semantics.
 - [ ] Add authorized unclaim behavior and assignment audit events where the
   existing task API permits a backward-compatible extension.

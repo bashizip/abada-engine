@@ -9,7 +9,11 @@ public final class ProcessExpressions {
             throw new IllegalArgumentException("Assignment expression cannot be empty");
         }
         String value = source.trim();
-        if (value.startsWith("${") || value.endsWith("}")) return new DynamicExpression(value);
+        if (value.startsWith("${") || value.endsWith("}")) {
+            if (!value.startsWith("${") || !value.endsWith("}") || value.length() <= 3)
+                throw new IllegalArgumentException("Malformed dynamic assignment expression '" + value + "'");
+            return new DynamicExpression(value);
+        }
         return new LiteralExpression(value);
     }
 }

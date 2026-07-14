@@ -1,5 +1,6 @@
 package com.abada.engine.core.model;
 
+import com.abada.engine.core.model.assignment.AssignmentStrategy;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.micrometer.core.instrument.Timer;
@@ -21,6 +22,7 @@ public class TaskInstance {
     private Instant endDate;
     private List<String> candidateUsers = new ArrayList<>();
     private List<String> candidateGroups = new ArrayList<>();
+    private AssignmentStrategy assignmentStrategy = AssignmentStrategy.CLAIM;
     private long entityVersion;
     
     @JsonIgnore
@@ -104,6 +106,11 @@ public class TaskInstance {
 
     public void setCandidateUsers(List<String> candidateUsers) {
         this.candidateUsers = candidateUsers;
+    }
+
+    public AssignmentStrategy getAssignmentStrategy() { return assignmentStrategy; }
+    public void setAssignmentStrategy(AssignmentStrategy assignmentStrategy) {
+        this.assignmentStrategy = assignmentStrategy == null ? AssignmentStrategy.CLAIM : assignmentStrategy;
     }
 
     public List<String> getCandidateGroups() {

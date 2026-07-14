@@ -3,7 +3,8 @@ package com.abada.engine.parser;
 import com.abada.engine.bpmn.compatibility.*;
 import com.abada.engine.core.model.*;
 import com.abada.engine.core.model.SequenceFlow;
-import com.abada.engine.parser.assignment.Camunda7AssignmentParser;
+import com.abada.engine.parser.assignment.AssignmentParserRegistry;
+import com.abada.engine.parser.assignment.AssignmentXml;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.*;
@@ -16,7 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class BpmnParser {
-    private final Camunda7AssignmentParser camunda7AssignmentParser = new Camunda7AssignmentParser();
+    static final int MAX_DEPLOYMENT_BYTES = 10 * 1024 * 1024;
+    private final AssignmentParserRegistry assignmentParsers = new AssignmentParserRegistry();
 
     public ParsedProcessDefinition parse(InputStream bpmnXml) {
         return parseDetailed(bpmnXml, BpmnParseOptions.defaults()).definition();
@@ -24,7 +26,13 @@ public class BpmnParser {
 
     public BpmnParseResult parseDetailed(InputStream bpmnXml, BpmnParseOptions options) {
         try {
-            byte[] source = bpmnXml.readAllBytes();
+            byte[] source = bpmnXml.readNBytes(MAX_DEPLOYMENT_BYTES + 1);
+            if (source.length > MAX_DEPLOYMENT_BYTES) {
+                throw BpmnValidationException.single(new BpmnValidationIssue(
+                        BpmnErrorCodes.XML_SECURITY, ValidationSeverity.ERROR,
+                        "BPMN deployment exceeds the 10 MiB input limit", null, null, null, null,
+                        "Reduce the model size or split it into separate process definitions."));
+            }
             String sourceXml = new String(source, StandardCharsets.UTF_8);
             BpmnCompatibilityDetector.Detection detection = new BpmnCompatibilityDetector().detect(sourceXml);
             List<BpmnValidationIssue> issues = new ArrayList<>();
@@ -40,7 +48,8 @@ public class BpmnParser {
             }
             if (!issues.isEmpty()) throw new BpmnValidationException(issues);
 
-            ParsedProcessDefinition definition = parseDefinition(new ByteArrayInputStream(source));
+            ParsedProcessDefinition definition = parseDefinition(new ByteArrayInputStream(source), sourceXml,
+                    options.compatibilityProfiles());
             List<CompatibilityMapping> mappings = new ArrayList<>();
             if (detection.profiles().contains(CompatibilityProfiles.CAMUNDA_7)) {
                 mappings.add(new CompatibilityMapping("camunda-7 XML directives",
@@ -56,8 +65,9 @@ public class BpmnParser {
         }
     }
 
-    private ParsedProcessDefinition parseDefinition(InputStream bpmnXml) {
+    private ParsedProcessDefinition parseDefinition(InputStream bpmnXml, String sourceXml, List<String> activeProfiles) {
         try {
+            AssignmentXml assignmentXml = AssignmentXml.parse(sourceXml);
             BpmnModelInstance model = Bpmn.readModelFromStream(bpmnXml);
             SupportedBpmnValidator.validate(model);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -89,7 +99,7 @@ public class BpmnParser {
                 TaskMeta meta = new TaskMeta();
                 meta.setId(userTask.getId());
                 meta.setName(userTask.getName());
-                meta.setAssignment(camunda7AssignmentParser.parse(userTask));
+                meta.setAssignment(assignmentParsers.parse(userTask, assignmentXml, activeProfiles));
                 userTasks.put(userTask.getId(), meta);
             }
 

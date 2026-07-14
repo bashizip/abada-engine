@@ -12,7 +12,15 @@ import java.util.List;
 import java.util.Optional;
 
 /** Translates the supported Camunda 7 assignment attributes at the parser boundary. */
-public final class Camunda7AssignmentParser {
+public final class Camunda7AssignmentParser implements AssignmentDialectParser {
+    @Override public String profileId() { return com.abada.engine.bpmn.compatibility.CompatibilityProfiles.CAMUNDA_7; }
+
+    @Override
+    public Optional<UserTaskAssignment> parse(UserTask task, AssignmentXml xml) {
+        UserTaskAssignment assignment = parse(task);
+        return assignment.equals(UserTaskAssignment.EMPTY) ? Optional.empty() : Optional.of(assignment);
+    }
+
     public UserTaskAssignment parse(UserTask task) {
         Optional<ProcessExpression> assignee = optional(task.getCamundaAssignee());
         List<ProcessExpression> users = list(task.getCamundaCandidateUsers());

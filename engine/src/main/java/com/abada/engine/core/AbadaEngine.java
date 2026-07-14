@@ -190,15 +190,15 @@ public class AbadaEngine {
             entity.setStartedBy(instance.getStartedBy());
             persistRuntimeState(instance, entity);
 
+            historyService.record("PROCESS_STARTED", instance, definition.getStartEventId(), Map.of());
+
             for (UserTaskPayload task : userTasks) {
-                createAndPersistTask(task, instance.getId());
+                createAndPersistTask(task, instance);
             }
 
             eventManager.registerWaitStates(instance);
             scheduleWaitingTimerEvents(instance);
             createExternalTaskJobs(instance);
-            historyService.record("PROCESS_STARTED", instance, definition.getStartEventId(), Map.of());
-
             engineMetrics.recordProcessDuration(sample, processDefinitionId);
             return instance;
         } catch (Exception e) {
@@ -260,10 +260,7 @@ public class AbadaEngine {
         persistRuntimeState(instance);
 
         for (UserTaskPayload task : nextTasks) {
-            TaskInstance createdTask = taskManager.createTaskSnapshot(
-                    task.taskDefinitionKey(), task.name(), processInstanceId, task.assignee(),
-                    task.candidateUsers(), task.candidateGroups());
-            persistTask(createdTask);
+            createAndPersistTask(task, instance);
         }
 
         eventManager.registerWaitStates(instance);
@@ -387,7 +384,7 @@ public class AbadaEngine {
         historyService.record("EVENT_CORRELATED", instance, eventId, Map.of());
 
         for (UserTaskPayload task : nextTasks) {
-            createAndPersistTask(task, processInstanceId);
+            createAndPersistTask(task, instance);
         }
 
         eventManager.registerWaitStates(instance);
@@ -441,19 +438,30 @@ public class AbadaEngine {
 
     private ParsedProcessDefinition cacheDefinition(ProcessDefinitionEntity entity) {
         return definitionsByDeploymentId.computeIfAbsent(entity.getDeploymentId(), ignored ->
-                parser.parse(new java.io.ByteArrayInputStream(
-                        entity.getBpmnXml().getBytes(StandardCharsets.UTF_8))));
+                parser.parseDetailed(new java.io.ByteArrayInputStream(
+                                entity.getBpmnXml().getBytes(StandardCharsets.UTF_8)),
+                        new BpmnParseOptions(Arrays.stream(entity.getCompatibilityProfiles().split(","))
+                                .map(String::trim).filter(value -> !value.isEmpty()).toList(), false, false))
+                        .definition());
     }
 
-    private void createAndPersistTask(UserTaskPayload task, String processInstanceId) {
+    private void createAndPersistTask(UserTaskPayload task, ProcessInstance instance) {
         TaskInstance createdTask = taskManager.createTaskSnapshot(
                 task.taskDefinitionKey(),
                 task.name(),
-                processInstanceId,
+                instance.getId(),
                 task.assignee(),
                 task.candidateUsers(),
-                task.candidateGroups());
+                task.candidateGroups(),
+                task.assignmentStrategy());
         persistTask(createdTask);
+        historyService.record("TASK_CREATED", instance, task.taskDefinitionKey(),
+                Map.of("assignee", task.assignee() == null ? "" : task.assignee(),
+                        "assignmentStrategy", task.assignmentStrategy().name()));
+        if (task.assignee() != null && !task.assignee().isBlank()) {
+            historyService.record("TASK_ASSIGNED", instance, task.taskDefinitionKey(),
+                    Map.of("assignee", task.assignee()));
+        }
     }
 
     private void scheduleWaitingTimerEvents(ProcessInstance instance) {
@@ -537,6 +545,7 @@ public class AbadaEngine {
         entity.setTaskDefinitionKey(taskInstance.getTaskDefinitionKey());
         entity.setName(taskInstance.getName());
         entity.setAssignee(taskInstance.getAssignee());
+        entity.setAssignmentStrategy(taskInstance.getAssignmentStrategy());
         entity.setStatus(taskInstance.getStatus());
         entity.setStartDate(taskInstance.getStartDate());
         entity.setEndDate(taskInstance.getEndDate());
