@@ -110,6 +110,18 @@ public class AbadaEnginePersistenceReloadTest {
         assertTrue(reloadedInstance.isCompleted(), "Process should be isCompleted after Bob's task");
     }
 
+    @Test
+    void deploymentPersistsCanonicalCompilerAndCompatibilityMetadata() {
+        var deployed = abadaEngine.deploy(BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn"));
+
+        assertEquals("canonical-1", deployed.getDefinitionFormatVersion());
+        assertEquals("1", deployed.getCompilerVersion());
+        assertTrue(deployed.getCompatibilityProfiles().contains("standard-bpmn-2.0"));
+        assertTrue(deployed.getCompatibilityProfiles().contains("camunda-7"));
+        assertTrue(deployed.getDetectedNamespaces().contains("http://camunda.org/schema/1.0/bpmn"));
+        assertTrue(deployed.getCompatibilityReport().contains("canonical process model"));
+    }
+
     @AfterAll
     static void deleteTestDatabaseFile() {
         String basePath = "./build/test-db-abada-recovery";

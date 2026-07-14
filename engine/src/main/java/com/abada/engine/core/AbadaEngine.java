@@ -1,6 +1,8 @@
 package com.abada.engine.core;
 
 import com.abada.engine.core.exception.ProcessEngineException;
+import com.abada.engine.bpmn.compatibility.BpmnParseOptions;
+import com.abada.engine.bpmn.compatibility.BpmnParseResult;
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
@@ -88,8 +90,9 @@ public class AbadaEngine {
     public ProcessDefinitionEntity deploy(InputStream bpmnXml) {
         Span span = tracer.spanBuilder("abada.process.deploy").startSpan();
         try (var scope = span.makeCurrent()) {
-            ParsedProcessDefinition definition = parser.parse(bpmnXml);
-            ProcessDefinitionEntity persisted = saveProcessDefinition(definition);
+            BpmnParseResult parseResult = parser.parseDetailed(bpmnXml, BpmnParseOptions.defaults());
+            ParsedProcessDefinition definition = parseResult.definition();
+            ProcessDefinitionEntity persisted = saveProcessDefinition(parseResult);
             historyService.record("PROCESS_DEFINITION_DEPLOYED", null, definition.getId(), null,
                     Map.of("deploymentId", persisted.getDeploymentId(), "version", persisted.getVersion()));
             registerDefinitionAfterCommit(definition, persisted);
@@ -616,7 +619,8 @@ public class AbadaEngine {
         return taskManager.getTask(taskId);
     }
 
-    private ProcessDefinitionEntity saveProcessDefinition(ParsedProcessDefinition definition) {
+    private ProcessDefinitionEntity saveProcessDefinition(BpmnParseResult parseResult) {
+        ParsedProcessDefinition definition = parseResult.definition();
         String checksum = sha256(definition.getRawXml());
         ProcessDefinitionEntity latest = persistenceService.findProcessDefinitionById(definition.getId());
         if (latest != null && checksum.equals(latest.getChecksum())) {
@@ -629,6 +633,15 @@ public class AbadaEngine {
         entity.setName(definition.getName());
         entity.setDocumentation(definition.getDocumentation());
         entity.setBpmnXml(definition.getRawXml());
+        entity.setDefinitionFormatVersion("canonical-1");
+        entity.setCompatibilityProfiles(String.join(",", parseResult.activeProfiles()));
+        entity.setDetectedNamespaces(String.join(",", new TreeSet<>(parseResult.detectedNamespaces())));
+        entity.setCompilerVersion("1");
+        try {
+            entity.setCompatibilityReport(om.writeValueAsString(parseResult.report()));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Serialize BPMN compatibility report failed", exception);
+        }
 
         // Save candidate starter groups and users as comma-separated strings
         if (definition.getCandidateStarterGroups() != null && !definition.getCandidateStarterGroups().isEmpty()) {

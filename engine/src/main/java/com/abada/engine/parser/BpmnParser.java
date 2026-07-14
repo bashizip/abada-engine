@@ -1,5 +1,6 @@
 package com.abada.engine.parser;
 
+import com.abada.engine.bpmn.compatibility.*;
 import com.abada.engine.core.model.*;
 import com.abada.engine.core.model.SequenceFlow;
 import com.abada.engine.parser.assignment.Camunda7AssignmentParser;
@@ -9,6 +10,7 @@ import org.camunda.bpm.model.bpmn.instance.*;
 import org.camunda.bpm.model.bpmn.instance.Process;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -17,6 +19,44 @@ public class BpmnParser {
     private final Camunda7AssignmentParser camunda7AssignmentParser = new Camunda7AssignmentParser();
 
     public ParsedProcessDefinition parse(InputStream bpmnXml) {
+        return parseDetailed(bpmnXml, BpmnParseOptions.defaults()).definition();
+    }
+
+    public BpmnParseResult parseDetailed(InputStream bpmnXml, BpmnParseOptions options) {
+        try {
+            byte[] source = bpmnXml.readAllBytes();
+            String sourceXml = new String(source, StandardCharsets.UTF_8);
+            BpmnCompatibilityDetector.Detection detection = new BpmnCompatibilityDetector().detect(sourceXml);
+            List<BpmnValidationIssue> issues = new ArrayList<>();
+            for (String detectedProfile : detection.profiles()) {
+                if (!options.compatibilityProfiles().contains(detectedProfile)
+                        && !CompatibilityProfiles.STANDARD.equals(detectedProfile)) {
+                    issues.add(new BpmnValidationIssue(BpmnErrorCodes.UNSUPPORTED_EXTENSION,
+                            ValidationSeverity.ERROR,
+                            "BPMN uses disabled compatibility profile '" + detectedProfile + "'",
+                            null, null, null, null,
+                            "Enable the profile explicitly or migrate the vendor directives."));
+                }
+            }
+            if (!issues.isEmpty()) throw new BpmnValidationException(issues);
+
+            ParsedProcessDefinition definition = parseDefinition(new ByteArrayInputStream(source));
+            List<CompatibilityMapping> mappings = new ArrayList<>();
+            if (detection.profiles().contains(CompatibilityProfiles.CAMUNDA_7)) {
+                mappings.add(new CompatibilityMapping("camunda-7 XML directives",
+                        "Abada canonical process model", definition.getId(),
+                        "Vendor directives are translated during deployment and are not executed as XML."));
+            }
+            CompatibilityReport report = new CompatibilityReport(detection.profiles(), mappings, issues);
+            return new BpmnParseResult(definition, report, options.compatibilityProfiles(), detection.namespaces());
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse BPMN", e);
+        }
+    }
+
+    private ParsedProcessDefinition parseDefinition(InputStream bpmnXml) {
         try {
             BpmnModelInstance model = Bpmn.readModelFromStream(bpmnXml);
             SupportedBpmnValidator.validate(model);

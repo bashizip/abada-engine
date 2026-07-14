@@ -198,13 +198,13 @@ is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
 
 ### Canonical model and parsing
 
-- [ ] Define vendor-neutral `ProcessExpression` and `UserTaskAssignment`
+- [x] Define vendor-neutral `ProcessExpression` and `UserTaskAssignment`
   models and use them from `TaskMeta` and runtime task creation.
-- [ ] Detect the `standard-bpmn-2.0`, `abada-native-1`, and `camunda-7`
+- [x] Detect the `standard-bpmn-2.0`, `abada-native-1`, and `camunda-7`
   profiles explicitly.
 - [ ] Route user-task assignment through a deterministic extension-parser
   registry; runtime code must not execute vendor XML semantics.
-- [ ] Keep existing Camunda assignee/candidate definitions operational with
+- [x] Keep existing Camunda assignee/candidate definitions operational with
   Abada expression semantics reported transparently.
 - [ ] Parse standard BPMN `potentialOwner`/`humanPerformer` expressions for the
   documented `user:<id>` and `group:<id>` subset.
@@ -226,13 +226,13 @@ is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
   existing task API permits a backward-compatible extension.
 - [ ] Keep deployment validation, definition persistence, history and cache
   registration atomic.
-- [ ] Add a Flyway migration for definition format/profile/namespace/compiler/
+- [x] Add a Flyway migration for definition format/profile/namespace/compiler/
   report metadata and task assignment strategy; preserve all existing rows.
-- [ ] Prove fresh and V1–V6 PostgreSQL upgrades through the new schema.
+- [x] Prove fresh and V1–V6 PostgreSQL upgrades through the new schema.
 
 ### Reports, migration and public contracts
 
-- [ ] Produce programmatic compatibility reports with detected profiles,
+- [x] Produce programmatic compatibility reports with detected profiles,
   mappings and structured validation issues.
 - [ ] Extend the existing multipart deployment API with optional profiles and
   strict mode without breaking current clients; return compatibility data.
