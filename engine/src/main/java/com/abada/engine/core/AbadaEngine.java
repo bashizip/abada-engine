@@ -29,6 +29,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +40,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 public class AbadaEngine {
@@ -573,10 +577,19 @@ public class AbadaEngine {
     }
 
     @Transactional(readOnly = true)
-    public Collection<ProcessInstance> getAllProcessInstances() {
-        return persistenceService.findAllProcessInstances().stream()
+    public Page<ProcessInstance> getProcessInstances(Pageable pageable) {
+        return persistenceService.findProcessInstances(pageable)
+                .map(this::materializeProcessInstance);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, ProcessInstance> getProcessInstancesByIds(Collection<String> instanceIds) {
+        if (instanceIds == null || instanceIds.isEmpty()) {
+            return Map.of();
+        }
+        return persistenceService.findProcessInstancesByIds(instanceIds).stream()
                 .map(this::materializeProcessInstance)
-                .toList();
+                .collect(Collectors.toMap(ProcessInstance::getId, Function.identity()));
     }
 
     public TaskManager getTaskManager() {

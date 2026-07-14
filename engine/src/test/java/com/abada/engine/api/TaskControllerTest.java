@@ -224,6 +224,58 @@ public class TaskControllerTest {
     }
 
     @Test
+    @DisplayName("GET /v1/tasks should return bounded visible-task pages")
+    void shouldReturnPaginatedVisibleTasks() {
+        abadaEngine.startProcess("recipe-cook");
+        abadaEngine.startProcess("recipe-cook");
+        abadaEngine.startProcess("recipe-cook");
+
+        HttpHeaders aliceHeaders = new HttpHeaders();
+        aliceHeaders.set("X-User", "alice");
+        aliceHeaders.set("X-Groups", "customers");
+        HttpEntity<Void> request = new HttpEntity<>(aliceHeaders);
+
+        ResponseEntity<List<TaskDetailsDto>> firstPage = restTemplate.exchange(
+                "/v1/tasks?page=0&size=2",
+                HttpMethod.GET,
+                request,
+                new ParameterizedTypeReference<>() {});
+        ResponseEntity<List<TaskDetailsDto>> secondPage = restTemplate.exchange(
+                "/v1/tasks?page=1&size=2",
+                HttpMethod.GET,
+                request,
+                new ParameterizedTypeReference<>() {});
+
+        assertThat(firstPage.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(firstPage.getBody()).isNotNull().hasSize(2);
+        assertThat(firstPage.getHeaders().getFirst("X-Page")).isEqualTo("0");
+        assertThat(firstPage.getHeaders().getFirst("X-Page-Size")).isEqualTo("2");
+        assertThat(firstPage.getHeaders().getFirst("X-Total-Count")).isEqualTo("3");
+        assertThat(firstPage.getHeaders().getFirst("X-Total-Pages")).isEqualTo("2");
+        assertThat(secondPage.getBody()).isNotNull().hasSize(1);
+        assertThat(secondPage.getBody().getFirst().id())
+                .isNotIn(firstPage.getBody().stream().map(TaskDetailsDto::id).toList());
+    }
+
+    @Test
+    @DisplayName("GET /v1/tasks should reject pages larger than the public limit")
+    void shouldRejectOversizedTaskPage() {
+        HttpHeaders aliceHeaders = new HttpHeaders();
+        aliceHeaders.set("X-User", "alice");
+        aliceHeaders.set("X-Groups", "customers");
+
+        ResponseEntity<ErrorResponse> response = restTemplate.exchange(
+                "/v1/tasks?size=101",
+                HttpMethod.GET,
+                new HttpEntity<>(aliceHeaders),
+                ErrorResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).contains("size must be between 1 and 100");
+    }
+
+    @Test
     @DisplayName(
         "POST /v1/tasks/fail should mark a task as FAILED and set endDate"
     )

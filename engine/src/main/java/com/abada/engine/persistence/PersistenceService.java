@@ -3,7 +3,10 @@ package com.abada.engine.persistence;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface PersistenceService {
@@ -26,6 +29,8 @@ public interface PersistenceService {
 
     List<ProcessDefinitionEntity> findAllProcessDefinitions();
 
-    List<ProcessInstanceEntity> findAllProcessInstances();
+    Page<ProcessInstanceEntity> findProcessInstances(Pageable pageable);
+
+    List<ProcessInstanceEntity> findProcessInstancesByIds(Collection<String> instanceIds);
 
 }

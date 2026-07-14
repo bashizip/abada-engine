@@ -13,6 +13,9 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -219,15 +222,29 @@ public class TaskManager {
 
     @Transactional(readOnly = true)
     public List<TaskInstance> getVisibleTasksForUser(String user, List<String> groups, TaskStatus status) {
+        Pageable ordered = Pageable.unpaged(
+                Sort.by("startDate").ascending().and(Sort.by("id").ascending()));
+        return getVisibleTasksForUser(user, groups, status, ordered).getContent();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TaskInstance> getVisibleTasksForUser(
+            String user,
+            List<String> groups,
+            TaskStatus status,
+            Pageable pageable) {
         List<String> effectiveGroups = groups == null || groups.isEmpty()
                 ? List.of(EMPTY_GROUP_SENTINEL)
                 : List.copyOf(groups);
         boolean hasGroups = groups != null && !groups.isEmpty();
+        Collection<TaskStatus> statuses = status == null ? ACTIVE_STATUSES : List.of(status);
 
-        return taskRepository.findVisibleTasks(user, effectiveGroups, hasGroups, ACTIVE_STATUSES).stream()
-                .filter(task -> status == null || task.getStatus() == status)
-                .map(this::materialize)
-                .toList();
+        if (status != null && !ACTIVE_STATUSES.contains(status)) {
+            return Page.empty(pageable);
+        }
+
+        return taskRepository.findVisibleTasks(user, effectiveGroups, hasGroups, statuses, pageable)
+                .map(this::materialize);
     }
 
     @Transactional(readOnly = true)

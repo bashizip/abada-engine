@@ -52,8 +52,16 @@ Last reviewed: 2026-07-13.
     [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 - [ ] Make every engine command a single atomic load, validate, advance,
   persist and commit transaction.
-- [ ] Retain only immutable parsed definition caches in memory, keyed by
-  definition version.
+- [x] Retain only immutable parsed definition caches in memory, keyed by
+  deployment/version ID. Resolve the latest version from PostgreSQL when
+  starting an instance and keep existing instances pinned to their deployment.
+  Evidence:
+  [`ProcessDefinitionCacheTest`](../../engine/src/test/java/com/abada/engine/persistence/ProcessDefinitionCacheTest.java).
+- [x] Bound public task and process-instance list reads with database-level
+  pagination, deterministic ordering and batch process hydration. Evidence:
+  [`TaskControllerTest`](../../engine/src/test/java/com/abada/engine/api/TaskControllerTest.java),
+  [`ProcessControllerTest`](../../engine/src/test/java/com/abada/engine/api/ProcessControllerTest.java) and
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
 - [ ] Publish lifecycle events and webhooks through a transactional outbox.
 
 ### Supported BPMN behavior
@@ -132,6 +140,8 @@ Last reviewed: 2026-07-13.
 
 - [ ] Freeze a consistent `/api/v1` contract with pagination, filtering,
   stable DTOs and typed errors.
+  - [x] Add bounded page/size queries and pagination metadata to public task
+    and process-instance lists without changing their list-shaped JSON body.
 - [ ] Validate generated OpenAPI and API compatibility in CI.
 - [ ] Add optional `Idempotency-Key` support to all applicable mutation
   endpoints.

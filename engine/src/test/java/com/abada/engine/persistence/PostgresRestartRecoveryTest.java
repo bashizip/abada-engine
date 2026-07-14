@@ -16,6 +16,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.support.TestPropertySourceUtils;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -42,6 +45,45 @@ class PostgresRestartRecoveryTest {
                     .withDatabaseName("abada_restart_recovery")
                     .withUsername("abada")
                     .withPassword("abada");
+
+    @Test
+    void pagesRuntimeQueriesInPostgresWithoutDuplicateRows() {
+        try (ConfigurableApplicationContext context = startApplication()) {
+            context.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = context.getBean(AbadaEngine.class);
+            deployRestartProcess(engine);
+
+            for (int instance = 0; instance < 5; instance++) {
+                engine.startProcess("postgres-restart-recovery", "alice", Map.of("sequence", instance));
+            }
+
+            Sort taskOrder = Sort.by("startDate").ascending().and(Sort.by("id").ascending());
+            Page<TaskInstance> firstTasks = engine.getTaskManager().getVisibleTasksForUser(
+                    "alice", List.of("operators"), null, PageRequest.of(0, 2, taskOrder));
+            Page<TaskInstance> secondTasks = engine.getTaskManager().getVisibleTasksForUser(
+                    "alice", List.of("operators"), null, PageRequest.of(1, 2, taskOrder));
+
+            assertThat(firstTasks.getTotalElements()).isEqualTo(5);
+            assertThat(firstTasks.getContent()).hasSize(2);
+            assertThat(secondTasks.getContent()).hasSize(2);
+            assertThat(secondTasks.getContent())
+                    .extracting(TaskInstance::getId)
+                    .doesNotContainAnyElementsOf(firstTasks.map(TaskInstance::getId).getContent());
+
+            Sort instanceOrder = Sort.by("startDate").descending().and(Sort.by("id").ascending());
+            Page<ProcessInstance> firstInstances = engine.getProcessInstances(
+                    PageRequest.of(0, 3, instanceOrder));
+            Page<ProcessInstance> secondInstances = engine.getProcessInstances(
+                    PageRequest.of(1, 3, instanceOrder));
+
+            assertThat(firstInstances.getTotalElements()).isEqualTo(5);
+            assertThat(firstInstances.getContent()).hasSize(3);
+            assertThat(secondInstances.getContent()).hasSize(2);
+            assertThat(secondInstances.getContent())
+                    .extracting(ProcessInstance::getId)
+                    .doesNotContainAnyElementsOf(firstInstances.map(ProcessInstance::getId).getContent());
+        }
+    }
 
     @Test
     void completesPersistedUserTaskAfterFullApplicationRestart() {

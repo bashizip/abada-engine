@@ -85,6 +85,13 @@ model:
    variables.
 6. Startup does not rehydrate task or process objects. Active gauges are
    restored with grouped database counts instead of loading mutable state.
+7. Parsed BPMN is cached only by immutable deployment ID. New starts query
+   PostgreSQL for the latest process-key version; persisted instances always
+   reload their pinned deployment version.
+8. Public task and process-instance lists execute bounded PostgreSQL pages
+   (50 rows by default, 100 maximum) with stable ordering. Task DTO enrichment
+   loads the page's process instances in one batch instead of issuing one
+   process query per task.
 
 A concurrent task command on another engine waits for the task lock, then
 reads the committed status and is rejected when the transition is no longer
@@ -105,7 +112,7 @@ on a later read or command.
 | User-task lifecycle | Claim, completion and failure lock PostgreSQL task rows and mutate command-local snapshots | Add deterministic idempotency to claim/failure and retain this command model |
 | Startup | Preloads no workflow or definition objects; active process/task gauges use aggregate queries | Retain this model and extend durable recovery evidence |
 | Process control | Instance mutations load and lock PostgreSQL rows and use command-local state | Add deterministic idempotency and transaction-aware metrics |
-| Query APIs | Task and instance reads use PostgreSQL and return detached snapshots | Add pagination and purpose-built projections |
+| Query APIs | Public task and instance lists use bounded PostgreSQL pages, stable ordering and batch process hydration; detail reads return detached snapshots | Add purpose-built summary projections where full variables or candidate metadata are unnecessary |
 | Message/signal correlation | Subscriptions are durable, but all correlation paths are not yet proven command-local and concurrent-safe | Lock/consume subscriptions and advance the instance transactionally |
 | Timers/external work | Durable job and lease fields exist | Prove atomic multi-replica acquisition, expiry recovery and idempotent completion |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |
@@ -150,8 +157,9 @@ instance hold variables and join state only for the lifetime of that command.
 The migration is complete only when:
 
 - every mutation command follows the command lifecycle above;
-- query APIs read database projections rather than mutable replica maps;
-- startup rehydrates only immutable definitions;
+- query APIs use bounded database reads or purpose-built projections rather
+  than mutable replica maps;
+- startup preloads no workflow state and definition cache loss is transparent;
 - multi-replica tests cover task commands, correlation, timers and external
   work, including replica termination around commit;
 - duplicate requests return deterministic results; and

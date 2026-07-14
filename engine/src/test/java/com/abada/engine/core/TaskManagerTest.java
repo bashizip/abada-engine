@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -95,8 +98,8 @@ class TaskManagerTest {
                 "validateInvoice", "Validate Invoice", TaskStatus.AVAILABLE,
                 null, List.of("user4"), List.of("group4"));
         when(taskRepository.findVisibleTasks(
-                eq("user4"), eq(List.of("group4")), eq(true), anyCollection()))
-                .thenReturn(List.of(entity));
+                eq("user4"), eq(List.of("group4")), eq(true), anyCollection(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(entity)));
         when(taskRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
 
         assertThat(taskManager.getVisibleTasksForUser("user4", List.of("group4")))

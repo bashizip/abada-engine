@@ -7,10 +7,13 @@ import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.ProcessDefinitionRepository;
 import com.abada.engine.persistence.repository.ProcessInstanceRepository;
 import com.abada.engine.persistence.repository.TaskRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 
 @Component
@@ -81,8 +84,13 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     }
 
     @Override
-    public List<ProcessInstanceEntity> findAllProcessInstances() {
-        return processInstanceRepository.findAll();
+    public Page<ProcessInstanceEntity> findProcessInstances(Pageable pageable) {
+        return processInstanceRepository.findAll(pageable);
+    }
+
+    @Override
+    public List<ProcessInstanceEntity> findProcessInstancesByIds(Collection<String> instanceIds) {
+        return processInstanceRepository.findAllById(instanceIds);
     }
 
 }

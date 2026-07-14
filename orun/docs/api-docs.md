@@ -108,11 +108,15 @@ Starts a new instance of a deployed process.
 - The value is stored in the `startedBy` field of the process instance
 - If omitted, the process is marked as started by `"system"`
 
-### List All Process Instances
+### List Process Instances
 
-Retrieves a list of all process instances.
+Retrieves a bounded page of process instances.
 
 - **Method & URL**: `GET /v1/processes/instances`
+- **Query Parameters**:
+  - `page` (integer, optional): Zero-based page number. Defaults to `0`.
+  - `size` (integer, optional): Page size from `1` to `100`. Defaults to `50`.
+- **Pagination Headers**: `X-Page`, `X-Page-Size`, `X-Total-Count`, `X-Total-Pages`.
 - **Success Response** (`200 OK`):
 
   ```json
@@ -213,6 +217,9 @@ Retrieves a list of tasks visible to the current user.
 - **Method & URL**: `GET /v1/tasks`
 - **Query Parameters**:
   - `status` (string, optional): Filters tasks by their current status. (e.g., `AVAILABLE`, `CLAIMED`).
+  - `page` (integer, optional): Zero-based page number. Defaults to `0`.
+  - `size` (integer, optional): Page size from `1` to `100`. Defaults to `50`.
+- **Pagination Headers**: `X-Page`, `X-Page-Size`, `X-Total-Count`, `X-Total-Pages`.
 - **Success Response** (`200 OK`):
 
   ```json

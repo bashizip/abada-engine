@@ -145,6 +145,13 @@ management:
 - Parsed definitions may be cached in memory. User-task and process-instance
   reads now return detached PostgreSQL snapshots; their mutation commands load
   and lock authoritative rows without runtime-wide mutable state maps.
+- The only runtime cache is parsed BPMN keyed by immutable deployment ID.
+  PostgreSQL selects the latest deployment for new starts; existing instances
+  retain their stored deployment ID.
+- Public task and process-instance lists are database-paginated (50 rows by
+  default, 100 maximum). Task pages batch-load their related process instances
+  to avoid an instance lookup per task. Pagination metadata is returned in
+  response headers; see [API pagination](../reference/api-pagination.md).
 - The [runtime state architecture](runtime-state.md) defines the target command
   model, current migration boundary, locking policy and acceptance criteria.
   Multi-replica execution remains an acceptance-tested release gate.
