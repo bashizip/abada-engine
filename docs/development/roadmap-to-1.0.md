@@ -213,7 +213,7 @@ is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
 
 ### Validation, execution and persistence
 
-- [ ] Reject conflicting assignment representations, malformed expressions,
+- [x] Reject conflicting assignment representations, malformed expressions,
   invalid strategies and unsupported execution-relevant directives with
   stable `ABADA-BPMN-*` codes.
 - [x] Secure XML parsing against XXE, entity expansion, remote schema loading
@@ -222,9 +222,9 @@ is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
   deterministically deduplicate candidate identities.
 - [x] Preserve candidates when assigned, reject claiming assigned tasks, and
   retain current claim authorization semantics.
-- [ ] Add authorized unclaim behavior and assignment audit events where the
+- [x] Add authorized unclaim behavior and assignment audit events where the
   existing task API permits a backward-compatible extension.
-- [ ] Keep deployment validation, definition persistence, history and cache
+- [x] Keep deployment validation, definition persistence, history and cache
   registration atomic.
 - [x] Add a Flyway migration for definition format/profile/namespace/compiler/
   report metadata and task assignment strategy; preserve all existing rows.
@@ -234,28 +234,28 @@ is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
 
 - [x] Produce programmatic compatibility reports with detected profiles,
   mappings and structured validation issues.
-- [ ] Extend the existing multipart deployment API with optional profiles and
+- [x] Extend the existing multipart deployment API with optional profiles and
   strict mode without breaking current clients; return compatibility data.
-- [ ] Provide deterministic Camunda 7 → Abada-native migration while
+- [x] Provide deterministic Camunda 7 → Abada-native migration while
   preserving the original input and failing on uncertain execution semantics.
-- [ ] Provide `abada bpmn migrate` CLI behavior and machine-readable/reporting
+- [x] Provide `abada bpmn migrate` CLI behavior and machine-readable/reporting
   output without introducing a separate repository module.
-- [ ] Add bounded parsing/deployment/migration metrics and structured logs.
+- [x] Add bounded parsing/deployment/migration metrics and structured logs.
 
 ### Evidence and documentation
 
-- [ ] Add unit tests for all parsers, expressions, normalization, conflicts,
+- [x] Add unit tests for all parsers, expressions, normalization, conflicts,
   unknown directives, reports, serialization and migration.
-- [ ] Prove standard, Abada-native and Camunda fixtures create equivalent
+- [x] Prove standard, Abada-native and Camunda fixtures create equivalent
   persisted task assignments.
-- [ ] Prove native and migrated round trips preserve canonical assignments.
-- [ ] Add malformed/unsafe XML and atomic failed-deployment tests.
-- [ ] Publish the required ADR, native extension, Camunda profile,
+- [x] Prove native and migrated round trips preserve canonical assignments.
+- [x] Add malformed/unsafe XML and atomic failed-deployment tests.
+- [x] Publish the required ADR, native extension, Camunda profile,
   compatibility profile, migration and assignment-semantics documentation.
-- [ ] Add runnable examples and map every acceptance criterion to executable
+- [x] Add runnable examples and map every acceptance criterion to executable
   evidence.
 
-- [ ] **BPMN compatibility release gate:** every normative acceptance criterion
+- [x] **BPMN compatibility release gate:** every normative acceptance criterion
   is implemented and verified, or explicitly documented as blocked with
   concrete technical evidence.
 

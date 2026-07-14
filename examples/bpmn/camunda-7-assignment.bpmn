@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:camunda="http://camunda.org/schema/1.0/bpmn" targetNamespace="https://abada.io/examples">
+  <bpmn:process id="camunda-assignment-example" name="Camunda assignment example" isExecutable="true">
+    <bpmn:startEvent id="start" />
+    <bpmn:userTask id="approve" name="Approve request" camunda:candidateGroups="finance" />
+    <bpmn:endEvent id="end" />
+    <bpmn:sequenceFlow id="to-approve" sourceRef="start" targetRef="approve" />
+    <bpmn:sequenceFlow id="to-end" sourceRef="approve" targetRef="end" />
+  </bpmn:process>
+</bpmn:definitions>

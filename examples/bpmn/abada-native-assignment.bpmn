@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:abada="https://abada.io/schema/bpmn" targetNamespace="https://abada.io/examples">
+  <bpmn:process id="native-assignment-example" name="Native assignment example" isExecutable="true">
+    <bpmn:startEvent id="start" />
+    <bpmn:userTask id="approve" name="Approve request">
+      <bpmn:extensionElements>
+        <abada:assignment candidateUsers="alice,bob" candidateGroups="finance" strategy="claim" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+    <bpmn:endEvent id="end" />
+    <bpmn:sequenceFlow id="to-approve" sourceRef="start" targetRef="approve" />
+    <bpmn:sequenceFlow id="to-end" sourceRef="approve" targetRef="end" />
+  </bpmn:process>
+</bpmn:definitions>
