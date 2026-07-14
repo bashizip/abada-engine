@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Profile;
 @ConditionalOnProperty(name = "management.tracing.enabled", matchIfMissing = true)
 public class ObservabilityConfig {
 
-    @Value("${spring.application.version:0.9.0}")
+    @Value("${spring.application.version:0.9.0-alpha}")
     private String appVersion;
 
     @Value("${app.project:abada}")

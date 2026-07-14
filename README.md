@@ -219,7 +219,7 @@ Generate trusted localhost certificates.
 
 ---
 
-# Current Status (v0.9.0)
+# Current Status (v0.9.0-alpha)
 
 Abada 0.9 provides the durable PostgreSQL runtime milestone. Multi-replica
 cluster certification remains the 0.10 milestone.
