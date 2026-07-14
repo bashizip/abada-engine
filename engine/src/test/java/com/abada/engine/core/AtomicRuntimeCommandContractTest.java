@@ -33,7 +33,11 @@ class AtomicRuntimeCommandContractTest {
                 TimerJobCommandService.class.getMethod("execute", String.class, String.class, java.time.Instant.class),
                 TimerJobCommandService.class.getMethod("recordFailure", String.class, String.class),
                 IdempotencyService.class.getMethod("execute", String.class, String.class, Object.class,
-                        java.util.function.Supplier.class));
+                        java.util.function.Supplier.class),
+                OutboxService.class.getMethod("claim", String.class, int.class, java.time.Instant.class),
+                OutboxService.class.getMethod("markPublished", String.class, String.class, java.time.Instant.class),
+                OutboxService.class.getMethod("markFailed", String.class, String.class, String.class,
+                        java.time.Instant.class));
 
         assertThat(commands)
                 .allSatisfy(method -> assertThat(method.isAnnotationPresent(AtomicRuntimeCommand.class))

@@ -57,3 +57,6 @@ logging:
 abada:
   security:
     mode: disabled
+  outbox:
+    dispatcher:
+      enabled: false
