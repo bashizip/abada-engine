@@ -21,6 +21,8 @@ public final class BpmnMigrationService {
     private static final String ABADA = BpmnCompatibilityDetector.ABADA_NAMESPACE;
 
     public BpmnMigrationResult migrate(InputStream input) {
+        long started = System.nanoTime();
+        boolean succeeded = false;
         try {
             String original = new String(input.readAllBytes(), StandardCharsets.UTF_8);
             var parsed = new BpmnParser().parseDetailed(stream(original), BpmnParseOptions.defaults());
@@ -34,17 +36,24 @@ public final class BpmnMigrationService {
             var verified = new BpmnParser().parseDetailed(stream(migrated),
                     new BpmnParseOptions(List.of(CompatibilityProfiles.STANDARD, CompatibilityProfiles.ABADA_NATIVE),
                             true, true));
-            return new BpmnMigrationResult(original, migrated,
+            BpmnMigrationResult result = new BpmnMigrationResult(original, migrated,
                     new CompatibilityReport(verified.report().detectedProfiles(),
                             List.of(new CompatibilityMapping("camunda-7 user-task assignment",
                                     "abada-native-1 assignment", verified.definition().getId(),
                                     "Assignment directives migrated deterministically.")), verified.report().issues()));
+            succeeded = true;
+            return result;
         } catch (BpmnValidationException exception) {
             throw exception;
         } catch (Exception exception) {
             throw BpmnValidationException.single(new BpmnValidationIssue(BpmnErrorCodes.MIGRATION_UNCERTAIN,
                     ValidationSeverity.ERROR, "BPMN migration could not preserve semantics: " + exception.getMessage(),
                     null, null, CAMUNDA, null, "Remove unsupported directives before migration."));
+        } finally {
+            io.micrometer.core.instrument.Metrics.counter("abada.bpmn.migrations", "outcome",
+                    succeeded ? "success" : "failure").increment();
+            io.micrometer.core.instrument.Metrics.timer("abada.bpmn.migration.duration")
+                    .record(System.nanoTime() - started, java.util.concurrent.TimeUnit.NANOSECONDS);
         }
     }
 

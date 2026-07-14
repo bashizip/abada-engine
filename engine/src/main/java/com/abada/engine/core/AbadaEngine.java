@@ -94,6 +94,8 @@ public class AbadaEngine {
     @AtomicRuntimeCommand
     public ProcessDefinitionEntity deploy(InputStream bpmnXml, BpmnParseOptions options) {
         Span span = tracer.spanBuilder("abada.process.deploy").startSpan();
+        Timer.Sample deploymentSample = engineMetrics.startBpmnDeploymentTimer();
+        boolean succeeded = false;
         try (var scope = span.makeCurrent()) {
             BpmnParseResult parseResult = parser.parseDetailed(bpmnXml, options);
             ParsedProcessDefinition definition = parseResult.definition();
@@ -107,12 +109,14 @@ public class AbadaEngine {
             span.setAttribute("process.definition.version", "1.0");
 
             log.info("Deployed process definition: {}", definition.getId());
+            succeeded = true;
             return persisted;
         } catch (Exception e) {
             span.recordException(e);
             span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
             throw e;
         } finally {
+            engineMetrics.recordBpmnDeployment(deploymentSample, succeeded);
             span.end();
         }
     }
