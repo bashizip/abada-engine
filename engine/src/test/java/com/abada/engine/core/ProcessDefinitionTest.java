@@ -59,6 +59,13 @@ public class ProcessDefinitionTest {
         assertEquals("taskA", definition.getNextActivity("startEvent1"));
         assertEquals("taskB", definition.getNextActivity("taskA"));
         assertEquals("endEvent1", definition.getNextActivity("taskB"));
+        assertEquals(List.of("taskA"), definition.getOutgoing("startEvent1").stream()
+                .map(SequenceFlow::getTargetRef)
+                .toList());
+        assertThrows(UnsupportedOperationException.class,
+                () -> definition.getOutgoing("startEvent1").clear());
+        assertThrows(UnsupportedOperationException.class,
+                () -> definition.getNextActivities("startEvent1").clear());
     }
 
     @Test

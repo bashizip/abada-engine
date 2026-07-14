@@ -179,17 +179,14 @@ stateDiagram-v2
 ```java
 @Component
 public class AbadaEngine {
-    // Process definition management
-    private final Map<String, ParsedProcessDefinition> processDefinitions;
-    
-    // Process instance management
-    private final Map<String, ProcessInstance> instances;
+    // The only execution cache; keys are immutable deployment IDs.
+    private final Map<String, ParsedProcessDefinition> definitionsByDeploymentId;
     
     // Core operations
     public ProcessInstance startProcess(String processDefinitionId);
-    public void completeTask(String taskId);
-    public void correlateMessage(String messageName, String correlationKey, Map<String, Object> variables);
-    public void broadcastSignal(String signalName, Map<String, Object> variables);
+    public void completeTask(String taskId, String user, List<String> groups,
+            Map<String, Object> variables);
+    public ProcessInstance getProcessInstanceById(String instanceId);
 }
 ```
 
@@ -198,11 +195,12 @@ public class AbadaEngine {
 ```java
 @Component
 public class TaskManager {
-    // Task lifecycle management
-    public void createTask(String taskDefinitionKey, String name, String processInstanceId, ...);
-    public void claimTask(String taskId, String user, List<String> userGroups);
-    public void completeTask(String taskId);
-    public void failTask(String taskId, String reason);
+    // Stateless task lifecycle and PostgreSQL-backed queries
+    public TaskInstance createTaskSnapshot(String taskDefinitionKey, String name,
+            String processInstanceId, ...);
+    public void claimTask(TaskInstance task, String user, List<String> userGroups);
+    public void completeTask(TaskInstance task);
+    public Optional<TaskInstance> getTask(String taskId);
 }
 ```
 

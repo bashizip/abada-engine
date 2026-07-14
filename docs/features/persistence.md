@@ -8,7 +8,8 @@ concurrency reference.
 ## Stored state
 
 - Immutable, versioned BPMN process definitions and their raw XML
-- Process instances, variables, active tokens and gateway join state
+- Process instances pinned by foreign key to an immutable definition
+  deployment, with variables, active tokens and gateway join state
 - User tasks and candidate users/groups
 - Message and signal subscriptions
 - Timer jobs and external tasks with lease and retry state
@@ -36,10 +37,16 @@ replica-local object.
 
 ## Startup recovery
 
-Startup reloads only immutable parsed process definitions. It does not reload
-user-task or process-instance objects. Active process and task metrics are
-reconstructed with grouped count queries rather than materializing workflow
-state.
+Startup does not preload workflow objects or parse every deployed definition.
+Active process and task metrics are reconstructed with grouped count queries.
+Parsed BPMN definitions are loaded lazily by immutable deployment ID and then
+reused by that replica.
+
+Starting a process performs one indexed lookup for the latest deployment of
+the requested process key. The new instance stores that deployment ID. Later
+redeployments can therefore change which version new instances use without
+changing the execution model of existing instances. Losing the parsed cache
+only causes the pinned XML to be loaded and parsed again.
 
 ## Guarantees and remaining work
 

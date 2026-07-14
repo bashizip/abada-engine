@@ -101,9 +101,9 @@ on a later read or command.
 
 | Area | Current behavior | 1.0 target |
 |---|---|---|
-| Parsed process definitions | Immutable versions are persisted and parsed definitions are cached in each replica | Keep immutable cache keyed only by definition version/deployment ID |
+| Parsed process definitions | One lazy replica-local cache is keyed by immutable deployment ID; latest-version selection is a PostgreSQL lookup and instances are foreign-key pinned | Retain this model and add bounded-cache telemetry if operational evidence requires it |
 | User-task lifecycle | Claim, completion and failure lock PostgreSQL task rows and mutate command-local snapshots | Add deterministic idempotency to claim/failure and retain this command model |
-| Startup | Loads immutable definitions only; active process/task gauges use aggregate queries | Retain this model and extend durable recovery evidence |
+| Startup | Preloads no workflow or definition objects; active process/task gauges use aggregate queries | Retain this model and extend durable recovery evidence |
 | Process control | Instance mutations load and lock PostgreSQL rows and use command-local state | Add deterministic idempotency and transaction-aware metrics |
 | Query APIs | Task and instance reads use PostgreSQL and return detached snapshots | Add pagination and purpose-built projections |
 | Message/signal correlation | Subscriptions are durable, but all correlation paths are not yet proven command-local and concurrent-safe | Lock/consume subscriptions and advance the instance transactionally |
@@ -134,9 +134,12 @@ duplicate side effect.
 
 ## Cache policy
 
-Allowed caches contain immutable parsed process definitions. They may be
-discarded and reconstructed from a stored BPMN definition without changing
-execution semantics.
+The sole engine execution cache maps an immutable process-definition deployment
+ID to a fully constructed parsed BPMN model. It contains no mutable “latest by
+process key” alias. A new process start queries PostgreSQL for the latest
+version, while an existing process loads the deployment ID stored on its
+instance row. Cache entries may be discarded and reconstructed from stored XML
+without changing execution semantics.
 
 Mutable process instances, tasks, subscriptions, jobs and variables are not
 runtime-wide cache entries. Command-local maps inside a materialized process

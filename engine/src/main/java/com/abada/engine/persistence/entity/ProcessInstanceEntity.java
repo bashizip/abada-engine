@@ -14,7 +14,7 @@ public class ProcessInstanceEntity {
 
     private String processDefinitionId;
 
-    @Column(name = "process_definition_deployment_id")
+    @Column(name = "process_definition_deployment_id", nullable = false)
     private String processDefinitionDeploymentId;
 
     private String currentActivityId;

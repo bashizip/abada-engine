@@ -54,9 +54,7 @@ public class AbadaEngine {
     private final EngineMetrics engineMetrics;
     private final Tracer tracer;
     private final ActivityHistoryService historyService;
-    private final Map<String, ParsedProcessDefinition> processDefinitions = new ConcurrentHashMap<>();
     private final Map<String, ParsedProcessDefinition> definitionsByDeploymentId = new ConcurrentHashMap<>();
-    private final Map<String, String> latestDeploymentByProcessKey = new ConcurrentHashMap<>();
 
     @Autowired
     public AbadaEngine(PersistenceService persistenceService, TaskManager taskManager, @Lazy EventManager eventManager,
@@ -115,32 +113,12 @@ public class AbadaEngine {
     }
 
     public ParsedProcessDefinition getParsedProcessDefinition(String processDefinitionId) {
-        return processDefinitions.get(processDefinitionId);
-    }
-
-    /** Registers a definition read from storage without creating a new deployment. */
-    public void registerPersistedDefinition(ProcessDefinitionEntity entity) {
-        ParsedProcessDefinition definition = parser.parse(new java.io.ByteArrayInputStream(
-                entity.getBpmnXml().getBytes(StandardCharsets.UTF_8)));
-        definitionsByDeploymentId.put(entity.getDeploymentId(), definition);
-        latestDeploymentByProcessKey.compute(entity.getProcessKey(), (key, currentDeploymentId) -> {
-            if (currentDeploymentId == null) {
-                processDefinitions.put(key, definition);
-                return entity.getDeploymentId();
-            }
-            ProcessDefinitionEntity current = persistenceService.findProcessDefinitionByDeploymentId(currentDeploymentId);
-            if (current == null || entity.getVersion() > current.getVersion()) {
-                processDefinitions.put(key, definition);
-                return entity.getDeploymentId();
-            }
-            return currentDeploymentId;
-        });
+        ProcessDefinitionEntity latest = persistenceService.findProcessDefinitionById(processDefinitionId);
+        return latest == null ? null : cacheDefinition(latest);
     }
 
     private void registerDefinition(ParsedProcessDefinition definition, ProcessDefinitionEntity entity) {
-        processDefinitions.put(entity.getProcessKey(), definition);
-        definitionsByDeploymentId.put(entity.getDeploymentId(), definition);
-        latestDeploymentByProcessKey.put(entity.getProcessKey(), entity.getDeploymentId());
+        definitionsByDeploymentId.putIfAbsent(entity.getDeploymentId(), definition);
     }
 
     @Transactional
@@ -155,13 +133,14 @@ public class AbadaEngine {
         Span span = tracer.spanBuilder("abada.process.start").startSpan();
 
         try (var scope = span.makeCurrent()) {
-            ParsedProcessDefinition definition = processDefinitions.get(processDefinitionId);
-            if (definition == null) {
+            ProcessDefinitionEntity deployment = persistenceService.findProcessDefinitionById(processDefinitionId);
+            if (deployment == null) {
                 throw new ProcessEngineException("Unknown process ID: " + processDefinitionId);
             }
+            ParsedProcessDefinition definition = cacheDefinition(deployment);
 
             ProcessInstance instance = new ProcessInstance(definition);
-            instance.setProcessDefinitionDeploymentId(latestDeploymentByProcessKey.get(processDefinitionId));
+            instance.setProcessDefinitionDeploymentId(deployment.getDeploymentId());
             instance.putAllVariables(initialVariables);
             instance.setStartedBy(username != null && !username.isBlank() ? username : "system");
 
@@ -393,13 +372,7 @@ public class AbadaEngine {
     }
 
     private ProcessInstance materializeProcessInstance(ProcessInstanceEntity entity) {
-        ParsedProcessDefinition def = entity.getProcessDefinitionDeploymentId() == null
-                ? processDefinitions.get(entity.getProcessDefinitionId())
-                : definitionsByDeploymentId.get(entity.getProcessDefinitionDeploymentId());
-        if (def == null) {
-            throw new IllegalStateException(
-                    "No deployed process definition found for ID: " + entity.getProcessDefinitionId());
-        }
+        ParsedProcessDefinition def = loadDefinition(entity);
 
         List<String> activeTokens = entity.getCurrentActivityId() != null ? List.of(entity.getCurrentActivityId())
                 : Collections.emptyList();
@@ -420,6 +393,32 @@ public class AbadaEngine {
         instance.setJoinExpectedTokens(readIntegerMap(entity.getJoinExpectedTokensJson()));
         instance.setJoinArrivedTokens(readSetMap(entity.getJoinArrivedTokensJson()));
         return instance;
+    }
+
+    private ParsedProcessDefinition loadDefinition(ProcessInstanceEntity instance) {
+        String deploymentId = instance.getProcessDefinitionDeploymentId();
+        if (deploymentId == null || deploymentId.isBlank()) {
+            throw new IllegalStateException(
+                    "Process instance " + instance.getId() + " is not pinned to a definition deployment");
+        }
+
+        ParsedProcessDefinition cached = definitionsByDeploymentId.get(deploymentId);
+        if (cached != null) {
+            return cached;
+        }
+
+        ProcessDefinitionEntity definition = persistenceService.findProcessDefinitionByDeploymentId(deploymentId);
+        if (definition == null) {
+            throw new IllegalStateException(
+                    "No deployed process definition found for deployment ID: " + deploymentId);
+        }
+        return cacheDefinition(definition);
+    }
+
+    private ParsedProcessDefinition cacheDefinition(ProcessDefinitionEntity entity) {
+        return definitionsByDeploymentId.computeIfAbsent(entity.getDeploymentId(), ignored ->
+                parser.parse(new java.io.ByteArrayInputStream(
+                        entity.getBpmnXml().getBytes(StandardCharsets.UTF_8))));
     }
 
     private void createAndPersistTask(UserTaskPayload task, String processInstanceId) {
@@ -553,9 +552,7 @@ public class AbadaEngine {
     }
 
     public void clearMemory() {
-        processDefinitions.clear(); // Ensure definitions are cleared between tests
         definitionsByDeploymentId.clear();
-        latestDeploymentByProcessKey.clear();
     }
 
     @Transactional(readOnly = true)
