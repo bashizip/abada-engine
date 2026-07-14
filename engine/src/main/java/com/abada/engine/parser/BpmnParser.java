@@ -2,6 +2,7 @@ package com.abada.engine.parser;
 
 import com.abada.engine.core.model.*;
 import com.abada.engine.core.model.SequenceFlow;
+import com.abada.engine.parser.assignment.Camunda7AssignmentParser;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.*;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class BpmnParser {
+    private final Camunda7AssignmentParser camunda7AssignmentParser = new Camunda7AssignmentParser();
 
     public ParsedProcessDefinition parse(InputStream bpmnXml) {
         try {
@@ -47,17 +49,7 @@ public class BpmnParser {
                 TaskMeta meta = new TaskMeta();
                 meta.setId(userTask.getId());
                 meta.setName(userTask.getName());
-                meta.setAssignee(userTask.getCamundaAssignee());
-
-                String candidates = userTask.getCamundaCandidateUsers();
-                if (candidates != null && !candidates.isBlank()) {
-                    meta.setCandidateUsers(Arrays.asList(candidates.split("\\s*,\\s*")));
-                }
-
-                String groups = userTask.getCamundaCandidateGroups();
-                if (groups != null && !groups.isBlank()) {
-                    meta.setCandidateGroups(Arrays.asList(groups.split("\\s*,\\s*")));
-                }
+                meta.setAssignment(camunda7AssignmentParser.parse(userTask));
                 userTasks.put(userTask.getId(), meta);
             }
 
