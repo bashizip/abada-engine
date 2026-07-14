@@ -262,7 +262,7 @@ abada-engine/
 
 ---
 
-## Current Version: 0.8.4-alpha
+## Current Version: 0.9.0
 
 **Status**:
 - ✅ BPMN 2.0 Core (tasks, gateways, events)

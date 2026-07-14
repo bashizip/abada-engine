@@ -20,12 +20,21 @@ services:
       timeout: 10s
       retries: 3
 
-  # Abada Engine for production (multiple replicas)
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.130.1
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    networks:
+      - abada-internal
+    restart: unless-stopped
+
+  # Abada Engine 0.9 production profile (single replica certification)
   abada-engine:
     build:
       context: ./engine
       dockerfile: Dockerfile.prod.engine
-    image: abada-engine:latest
+    image: ghcr.io/bashizip/abada-engine:${VERSION:-0.9.0}
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=5601
@@ -33,15 +42,15 @@ services:
       - SPRING_DATASOURCE_USERNAME=abada
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres_secure_password}
       - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=validate
       - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.1
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://otel-collector:4318/v1/traces
       - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=prod
       - OTEL_SERVICE_NAME=abada-engine-prod
-      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.8.3-alpha
+      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.9.0
     deploy:
-      replicas: ${ABADA_ENGINE_REPLICAS:-3}
+      replicas: 1
       resources:
         limits:
           cpus: "1.0"
@@ -214,6 +223,11 @@ services:
       - "traefik.http.routers.orun.tls=true"
       - "traefik.http.services.orun.loadbalancer.server.port=5603"
       - "traefik.http.routers.orun.middlewares=oauth2-proxy-prod"
+
+networks:
+  abada-internal:
+    driver: bridge
+    internal: true
 
 volumes:
   postgres_data:

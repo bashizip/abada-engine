@@ -2,8 +2,8 @@ name: abada-engine
 services:
   abada-engine:
     build:
-      context: .
-      dockerfile: Dockerfile.prod
+      context: ../engine
+      dockerfile: Dockerfile.prod.engine
     depends_on:
       otel-collector:
         condition: service_started
@@ -12,7 +12,7 @@ services:
         condition: service_healthy
         required: true
     deploy:
-      replicas: 3
+      replicas: 1
       resources:
         limits:
           cpus: 1
@@ -24,7 +24,7 @@ services:
       MANAGEMENT_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.1"
-      OTEL_RESOURCE_ATTRIBUTES: project=abada,service.version=0.8.3-alpha
+      OTEL_RESOURCE_ATTRIBUTES: project=abada,service.version=0.9.0
       OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT: prod
       OTEL_SERVICE_NAME: abada-engine-prod
       SERVER_PORT: "5601"
@@ -32,7 +32,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/abada_engine
       SPRING_DATASOURCE_USERNAME: abada
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_PROFILES_ACTIVE: prod
     healthcheck:
       test:
@@ -45,7 +45,7 @@ services:
       timeout: 10s
       interval: 30s
       retries: 3
-    image: bashizip/abada-engine:latest
+    image: ghcr.io/bashizip/abada-engine:0.9.0
     labels:
       traefik.enable: "true"
       traefik.docker.network: abada-engine_abada-internal

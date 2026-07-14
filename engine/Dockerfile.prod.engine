@@ -11,14 +11,13 @@ COPY pom.xml .
 COPY .mvn .mvn
 COPY mvnw .
 
-# Download dependencies (this layer will be cached unless pom.xml changes)
-RUN ./mvnw dependency:go-offline -B
-
 # Copy source code
 COPY src ./src
 
-# Build the application
-RUN ./mvnw clean package spring-boot:repackage -DskipTests
+# Build the executable application. The Spring Boot plugin bound in pom.xml
+# performs the repackage step; avoiding dependency:go-offline also prevents
+# Maven from resolving unrelated optional plugin dependency graphs.
+RUN ./mvnw clean package -DskipTests -B
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-alpine
