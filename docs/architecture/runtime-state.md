@@ -174,11 +174,11 @@ on a later read or command.
 | Message/signal correlation | Locked subscriptions are consumed with process advancement in one command transaction; duplicate and cancellation races are covered across replicas | Retain this model and add operational contention telemetry if needed |
 | Timers/external work | `SKIP LOCKED` acquisition, durable leases, replica-death recovery and per-item atomic advancement are covered across replicas | Retain this model and tune batch/lease settings from production evidence |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |
-| Lifecycle delivery | History and outbox records commit together; dispatchers use PostgreSQL `SKIP LOCKED` leases, retry delays and stable delivery IDs | Add destination-specific operational dashboards during 0.11 productization |
+| Lifecycle delivery | History and outbox records commit together; dispatchers use PostgreSQL `SKIP LOCKED` leases, retry delays and stable delivery IDs | Add destination-specific operational dashboards for the 1.0 RC |
 
-The PostgreSQL runtime now satisfies the 0.10 cluster-safety gate for the
-documented BPMN subset. API freezing, security/RBAC completion and rolling
-upgrade certification remain later release gates; see the roadmap.
+The PostgreSQL runtime satisfies the 0.11 stable-contract and security gate for
+the documented BPMN subset. Rolling-upgrade certification, benchmark evidence,
+security review and operational runbooks remain 1.0 RC gates; see the roadmap.
 
 ## Concurrency policy
 

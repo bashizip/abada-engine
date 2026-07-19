@@ -11,12 +11,11 @@ is a dependable PostgreSQL-backed core with a documented and executable BPMN
 subset. Agentic workflows are future consumers of this core; do not bypass or
 weaken the BPMN state machine to add agent features.
 
-The current release line is 0.9.x. Its certified production topology is one
-engine instance backed by PostgreSQL. Database-authoritative execution,
-restart recovery, atomic mutation commands, versioned definitions, durable
-jobs/subscriptions, and a transactional outbox are in scope. Multi-replica
-execution is still a 0.10 acceptance gate and must not be described as
-production-certified.
+The current release line is 0.11.x. Its certified production topology is one
+or more engine instances backed by PostgreSQL. Database-authoritative
+execution, restart recovery, atomic mutation commands, versioned definitions,
+durable jobs/subscriptions, transactional outbox delivery, cluster-safe work
+acquisition, stable API/worker contracts and backend RBAC are in scope.
 
 Use these documents as the authoritative product contract:
 
@@ -178,9 +177,9 @@ When changing BPMN behavior:
 ## API and security contracts
 
 - Keep public engine endpoints under the versioned `/api/v1` namespace. The
-  contract is not considered frozen until the 0.11 gate passes, but avoid
-  unnecessary breaking changes and document intentional ones.
-- Move toward typed errors, consistent pagination/filtering, DTO compatibility,
+  0.11 contract is frozen; verify compatibility against the machine-readable
+  contract and document any intentional breaking change before implementation.
+- Preserve typed errors, consistent pagination/filtering, DTO compatibility
   and generated OpenAPI accuracy as tracked by the roadmap.
 - Mutation endpoints should support deterministic idempotency where defined.
 - Production authentication is direct OIDC JWT validation. Trusted proxy
@@ -238,9 +237,9 @@ defect remains.
   user explicitly requests that external action.
 - The Maven project version, OpenAPI/observability version, Compose image tags,
   README status, roadmap gate, and release notes must agree.
-- A 0.9 release must remain documented as single-engine production. Scaling to
-  multiple replicas is experimental until the 0.10 concurrent acquisition,
-  lease recovery, failover, and duplicate-request gates pass.
+- Multi-replica production claims apply only to the PostgreSQL topology covered
+  by the 0.10 concurrent-acquisition, lease-recovery, failover and
+  duplicate-request tests. External side effects remain at-least-once.
 - Before publication, verify an executable Spring Boot JAR, record its SHA-256,
   build the production image, validate release Compose, and confirm a clean
   worktree at the intended commit.
