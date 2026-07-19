@@ -7,6 +7,7 @@ import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.ProcessDefinitionRepository;
 import com.abada.engine.persistence.repository.ProcessInstanceRepository;
 import com.abada.engine.persistence.repository.TaskRepository;
+import com.abada.engine.core.model.ProcessStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -84,8 +85,27 @@ public class H2PersistenceServiceImpl implements PersistenceService {
     }
 
     @Override
+    public Page<ProcessDefinitionEntity> findProcessDefinitions(Pageable pageable) {
+        return processDefinitionRepository.findAllBy(pageable);
+    }
+
+    @Override
+    public Page<ProcessDefinitionEntity> findProcessDefinitions(String processKey, Pageable pageable) {
+        return processKey == null || processKey.isBlank() ? processDefinitionRepository.findAll(pageable)
+                : processDefinitionRepository.findByProcessKey(processKey, pageable);
+    }
+
+    @Override
     public Page<ProcessInstanceEntity> findProcessInstances(Pageable pageable) {
         return processInstanceRepository.findAll(pageable);
+    }
+
+    @Override
+    public Page<ProcessInstanceEntity> findProcessInstances(ProcessStatus status, String processDefinitionId,
+            Pageable pageable) {
+        String definitionFilter = processDefinitionId == null || processDefinitionId.isBlank()
+                ? null : processDefinitionId;
+        return processInstanceRepository.findFiltered(status, definitionFilter, pageable);
     }
 
     @Override

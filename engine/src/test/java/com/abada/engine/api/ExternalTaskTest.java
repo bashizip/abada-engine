@@ -4,6 +4,7 @@ import com.abada.engine.AbadaEngineApplication;
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.dto.ExternalTaskFailureDto;
+import com.abada.engine.dto.ErrorResponse;
 import com.abada.engine.dto.FailedJobDTO;
 import com.abada.engine.dto.FetchAndLockRequest;
 import com.abada.engine.dto.LockedExternalTask;
@@ -23,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -147,5 +149,84 @@ public class ExternalTaskTest {
         assertEquals(1, failedJobs.size());
         assertEquals(lockedTask.id(), failedJobs.get(0).jobId());
         assertEquals("Something went wrong", failedJobs.get(0).exceptionMessage());
+    }
+
+    @Test
+    @DisplayName("Worker protocol v1 enforces lock ownership and supports heartbeat")
+    void shouldEnforceWorkerOwnershipAndHeartbeat() {
+        abadaEngine.startProcess("ExternalTaskTestProcess");
+        LockedExternalTask locked = fetch("worker-1");
+        Instant originalExpiry = externalTaskRepository.findById(locked.id()).orElseThrow().getLockExpirationTime();
+
+        ResponseEntity<Void> heartbeat = restTemplate.postForEntity(
+                "/v1/external-tasks/{id}/heartbeat",
+                new HttpEntity<>(Map.of("workerId", "worker-1", "lockDuration", 20000), headers),
+                Void.class, locked.id());
+        assertEquals(HttpStatus.NO_CONTENT, heartbeat.getStatusCode());
+        assertTrue(externalTaskRepository.findById(locked.id()).orElseThrow().getLockExpirationTime()
+                .isAfter(originalExpiry));
+
+        ResponseEntity<ErrorResponse> rejected = restTemplate.exchange(
+                "/v1/external-tasks/{id}/complete", HttpMethod.POST,
+                new HttpEntity<>(Map.of("workerId", "worker-2", "variables", Map.of()), headers),
+                ErrorResponse.class, locked.id());
+        assertEquals(HttpStatus.FORBIDDEN, rejected.getStatusCode());
+        assertEquals("WORKER_LOCK_NOT_OWNED", rejected.getBody().code());
+
+        ExternalTaskEntity expired = externalTaskRepository.findById(locked.id()).orElseThrow();
+        expired.setLockExpirationTime(Instant.now().minusSeconds(1));
+        externalTaskRepository.saveAndFlush(expired);
+        ResponseEntity<ErrorResponse> expiredResponse = restTemplate.exchange(
+                "/v1/external-tasks/{id}/complete", HttpMethod.POST,
+                new HttpEntity<>(Map.of("workerId", "worker-1", "variables", Map.of()), headers),
+                ErrorResponse.class, locked.id());
+        assertEquals(HttpStatus.CONFLICT, expiredResponse.getStatusCode());
+        assertEquals("WORKER_LOCK_EXPIRED", expiredResponse.getBody().code());
+    }
+
+    @Test
+    @DisplayName("Worker protocol v1 records an unhandled BPMN error atomically")
+    void shouldHandleBpmnError() {
+        ProcessInstance instance = abadaEngine.startProcess("ExternalTaskTestProcess");
+        LockedExternalTask locked = fetch("worker-1");
+
+        ResponseEntity<Void> response = restTemplate.postForEntity(
+                "/v1/external-tasks/{id}/bpmn-error",
+                new HttpEntity<>(Map.of("workerId", "worker-1", "errorCode", "PAYMENT_DECLINED",
+                        "errorMessage", "The payment provider declined the charge",
+                        "variables", Map.of("declined", true)), headers),
+                Void.class, locked.id());
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        ExternalTaskEntity failed = externalTaskRepository.findById(locked.id()).orElseThrow();
+        assertEquals(ExternalTaskEntity.Status.BPMN_ERROR, failed.getStatus());
+        assertEquals("PAYMENT_DECLINED", failed.getBpmnErrorCode());
+        assertEquals(com.abada.engine.core.model.ProcessStatus.FAILED,
+                abadaEngine.getProcessInstanceById(instance.getId()).getStatus());
+    }
+
+    @Test
+    @DisplayName("Fetch-and-lock returns bounded batches with protocol metadata")
+    void shouldFetchBoundedBatch() {
+        abadaEngine.startProcess("ExternalTaskTestProcess");
+        abadaEngine.startProcess("ExternalTaskTestProcess");
+        FetchAndLockRequest fetchRequest = new FetchAndLockRequest("worker-1", List.of("test-topic"), 10000L, 2);
+        ResponseEntity<List<LockedExternalTask>> response = restTemplate.exchange(
+                "/v1/external-tasks/fetch-and-lock", HttpMethod.POST,
+                new HttpEntity<>(fetchRequest, headers), new ParameterizedTypeReference<>() {});
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("1", response.getHeaders().getFirst("X-Abada-Worker-Protocol-Version"));
+        assertEquals(2, response.getBody().size());
+        assertTrue(response.getBody().stream().allMatch(task -> "1".equals(task.protocolVersion())));
+        assertTrue(response.getBody().stream().allMatch(task -> task.lockExpirationTime() != null));
+    }
+
+    private LockedExternalTask fetch(String workerId) {
+        FetchAndLockRequest fetchRequest = new FetchAndLockRequest(workerId, List.of("test-topic"), 10000L);
+        ResponseEntity<List<LockedExternalTask>> response = restTemplate.exchange(
+                "/v1/external-tasks/fetch-and-lock", HttpMethod.POST,
+                new HttpEntity<>(fetchRequest, headers), new ParameterizedTypeReference<>() {});
+        return response.getBody().getFirst();
     }
 }

@@ -31,6 +31,21 @@
     {
       "name": "orun-admin",
       "realmRoles": ["orun-admin"]
+    },
+    {
+      "name": "abada-task-user"
+    },
+    {
+      "name": "abada-process-controller"
+    },
+    {
+      "name": "abada-deployer"
+    },
+    {
+      "name": "abada-operator"
+    },
+    {
+      "name": "abada-worker"
     }
   ],
   "clients": [
@@ -95,7 +110,7 @@
           "temporary": false
         }
       ],
-      "groups": ["customers"]
+      "groups": ["customers", "abada-task-user", "abada-process-controller", "abada-deployer"]
     },
     {
       "username": "bob",
@@ -108,7 +123,7 @@
           "temporary": false
         }
       ],
-      "groups": ["cuistos"]
+      "groups": ["cuistos", "abada-task-user", "abada-process-controller"]
     },
     {
       "username": "orun-admin",
@@ -121,7 +136,7 @@
           "temporary": false
         }
       ],
-      "groups": ["orun-admin"],
+      "groups": ["orun-admin", "abada-operator"],
       "realmRoles": ["orun-admin"]
     }
   ]

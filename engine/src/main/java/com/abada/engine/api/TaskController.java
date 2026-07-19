@@ -8,7 +8,9 @@ import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.TaskDetailsDto;
+import com.abada.engine.dto.TaskActionResponse;
 import com.abada.engine.dto.UserStatsDto;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -101,10 +104,11 @@ public class TaskController {
         Optional<TaskInstance> taskOptional = engine.getTaskById(id);
 
         if (taskOptional.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.RESOURCE_NOT_FOUND,
+                    "Task not found: " + id);
         }
 
-        TaskInstance task = taskOptional.get();
+        TaskInstance task = requireVisible(taskOptional.get());
         ProcessInstance processInstance = engine.getProcessInstanceById(
             task.getProcessInstanceId()
         );
@@ -121,24 +125,26 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/claim")
-    public ResponseEntity<Map<String, Object>> claim(
+    public ResponseEntity<TaskActionResponse> claim(
         @RequestParam String taskId,
         @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "task.claim",
-                Map.of("taskId", taskId, "user", context.getUsername()), () -> {
+                Map.of("taskId", taskId, "user", context.getUsername()),
+                new TypeReference<TaskActionResponse>() {}, () -> {
                     engine.claim(taskId, context.getUsername(), context.getGroups());
-                    return Map.of("status", "Claimed", "taskId", taskId);
+                    return new TaskActionResponse("Claimed", taskId);
                 }));
     }
 
     @PostMapping("/unclaim")
-    public ResponseEntity<Map<String, Object>> unclaim(@RequestParam String taskId,
+    public ResponseEntity<TaskActionResponse> unclaim(@RequestParam String taskId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "task.unclaim",
-                Map.of("taskId", taskId, "user", context.getUsername()), () -> {
+                Map.of("taskId", taskId, "user", context.getUsername()),
+                new TypeReference<TaskActionResponse>() {}, () -> {
                     engine.unclaim(taskId, context.getUsername());
-                    return Map.of("status", "Unclaimed", "taskId", taskId);
+                    return new TaskActionResponse("Unclaimed", taskId);
                 }));
     }
 
@@ -151,16 +157,17 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/complete")
-    public ResponseEntity<Map<String, Object>> complete(
+    public ResponseEntity<TaskActionResponse> complete(
         @RequestParam String taskId,
         @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
         @RequestBody(required = false) Map<String, Object> variables
     ) {
         Map<String, Object> body = variables == null ? Map.of() : variables;
-        Map<String, Object> response = idempotencyService.execute(idempotencyKey, "task.complete",
-                Map.of("taskId", taskId, "user", context.getUsername(), "variables", body), () -> {
+        TaskActionResponse response = idempotencyService.execute(idempotencyKey, "task.complete",
+                Map.of("taskId", taskId, "user", context.getUsername(), "variables", body),
+                new TypeReference<TaskActionResponse>() {}, () -> {
                     engine.completeTask(taskId, context.getUsername(), context.getGroups(), body);
-                    return Map.of("status", "Completed", "taskId", taskId);
+                    return new TaskActionResponse("Completed", taskId);
                 });
         return ResponseEntity.ok(response);
     }
@@ -173,14 +180,18 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a JSON object confirming success (200 OK).
      */
     @PostMapping("/fail")
-    public ResponseEntity<Map<String, Object>> fail(
+    public ResponseEntity<TaskActionResponse> fail(
         @RequestParam String taskId,
         @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
+        TaskInstance task = engine.getTaskById(taskId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.RESOURCE_NOT_FOUND,
+                        "Task not found: " + taskId));
+        requireVisible(task);
         return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "task.fail",
-                Map.of("taskId", taskId), () -> {
+                Map.of("taskId", taskId), new TypeReference<TaskActionResponse>() {}, () -> {
                     engine.failTask(taskId);
-                    return Map.of("status", "Failed", "taskId", taskId);
+                    return new TaskActionResponse("Failed", taskId);
                 }));
     }
 
@@ -206,5 +217,18 @@ public class TaskController {
             userGroups
         );
         return ResponseEntity.ok(stats);
+    }
+
+    private TaskInstance requireVisible(TaskInstance task) {
+        String user = context.getUsername();
+        List<String> groups = context.getGroups();
+        boolean assigned = user.equals(task.getAssignee());
+        boolean candidate = task.getAssignee() == null && (task.getCandidateUsers().contains(user)
+                || groups.stream().anyMatch(task.getCandidateGroups()::contains));
+        if (!assigned && !candidate) {
+            throw new ApiException(HttpStatus.FORBIDDEN, ApiErrorCode.ACCESS_DENIED,
+                    "User is not authorized to access task " + task.getId());
+        }
+        return task;
     }
 }

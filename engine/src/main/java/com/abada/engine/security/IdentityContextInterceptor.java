@@ -6,6 +6,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Arrays;
@@ -43,10 +44,16 @@ public class IdentityContextInterceptor implements HandlerInterceptor {
         List<String> groups;
         if ("oidc".equalsIgnoreCase(securityMode)) {
             var authentication = SecurityContextHolder.getContext().getAuthentication();
-            username = authentication != null && authentication.isAuthenticated()
-                    ? authentication.getName() : "anonymous";
-            groups = authentication == null ? List.of() : authentication.getAuthorities().stream()
-                    .map(Object::toString).toList();
+            if (authentication instanceof JwtAuthenticationToken jwt && authentication.isAuthenticated()) {
+                String preferredUsername = jwt.getToken().getClaimAsString("preferred_username");
+                username = preferredUsername == null || preferredUsername.isBlank()
+                        ? authentication.getName() : preferredUsername;
+                List<String> claimedGroups = jwt.getToken().getClaimAsStringList("groups");
+                groups = claimedGroups == null ? List.of() : List.copyOf(claimedGroups);
+            } else {
+                username = "anonymous";
+                groups = List.of();
+            }
         } else if ("proxy".equalsIgnoreCase(securityMode)) {
             username = Optional.ofNullable(request.getHeader(OAUTH2_USER_HEADER))
                     .or(() -> Optional.ofNullable(request.getHeader(OAUTH2_EMAIL_HEADER)))

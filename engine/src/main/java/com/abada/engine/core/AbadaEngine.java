@@ -529,6 +529,11 @@ public class AbadaEngine {
                     ExternalTaskEntity externalTask = new ExternalTaskEntity(instance.getId(),
                             serviceTaskMeta.topicName());
                     externalTask.setActivityId(tokenId);
+                    var spanContext = io.opentelemetry.api.trace.Span.current().getSpanContext();
+                    if (spanContext.isValid()) {
+                        externalTask.setTraceParent("00-" + spanContext.getTraceId() + "-" + spanContext.getSpanId()
+                                + (spanContext.isSampled() ? "-01" : "-00"));
+                    }
                     externalTaskRepository.save(externalTask);
                     log.info("Created external task {} for topic {}", externalTask.getId(),
                             serviceTaskMeta.topicName());
@@ -642,6 +647,23 @@ public class AbadaEngine {
     public Page<ProcessInstance> getProcessInstances(Pageable pageable) {
         return persistenceService.findProcessInstances(pageable)
                 .map(this::materializeProcessInstance);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProcessInstance> getProcessInstances(com.abada.engine.core.model.ProcessStatus status,
+            String processDefinitionId, Pageable pageable) {
+        return persistenceService.findProcessInstances(status, processDefinitionId, pageable)
+                .map(this::materializeProcessInstance);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProcessDefinitionEntity> getDeployedProcesses(Pageable pageable) {
+        return persistenceService.findProcessDefinitions(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProcessDefinitionEntity> getDeployedProcesses(String processKey, Pageable pageable) {
+        return persistenceService.findProcessDefinitions(processKey, pageable);
     }
 
     @Transactional(readOnly = true)

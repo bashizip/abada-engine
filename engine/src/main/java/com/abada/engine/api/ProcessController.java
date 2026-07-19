@@ -5,13 +5,19 @@ import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.dto.Mapper;
+import com.abada.engine.dto.DeploymentResponse;
+import com.abada.engine.dto.ProcessActionResponse;
+import com.abada.engine.dto.ProcessDefinitionDto;
 import com.abada.engine.dto.ProcessInstanceDTO;
+import com.abada.engine.dto.ProcessStartResponse;
+import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.bpmn.compatibility.BpmnParseOptions;
 import com.abada.engine.bpmn.compatibility.CompatibilityProfiles;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +27,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.ByteArrayInputStream;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -60,7 +65,7 @@ public class ProcessController {
      * @throws IOException If the file cannot be read.
      */
     @PostMapping(value = "/deploy", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> deploy(@RequestParam("file") MultipartFile file,
+    public ResponseEntity<DeploymentResponse> deploy(@RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String profiles,
             @RequestParam(defaultValue = "false") boolean strict,
             @RequestParam(defaultValue = "false") boolean rejectVendorExtensions,
@@ -70,28 +75,24 @@ public class ProcessController {
         byte[] source = file.getBytes();
         Map<String, Object> request = Map.of("source", source, "profiles", selectedProfiles,
                 "strict", strict, "rejectVendorExtensions", rejectVendorExtensions);
-        return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "process.deploy", request, () -> {
+        return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "process.deploy", request,
+                new TypeReference<DeploymentResponse>() {}, () -> {
             ProcessDefinitionEntity deployed = engine.deploy(new ByteArrayInputStream(source),
                     new BpmnParseOptions(selectedProfiles, rejectVendorExtensions, strict));
             return deploymentResponse(deployed);
         }));
     }
 
-    private Map<String, Object> deploymentResponse(ProcessDefinitionEntity deployed) {
-        Map<String, Object> response = new java.util.LinkedHashMap<>();
-        response.put("status", "Deployed");
-        response.put("processDefinitionId", deployed.getProcessKey());
-        response.put("deploymentId", deployed.getDeploymentId());
-        response.put("version", deployed.getVersion());
-        response.put("definitionFormatVersion", deployed.getDefinitionFormatVersion());
-        response.put("compatibilityProfiles", List.of(deployed.getCompatibilityProfiles().split(",")));
+    private DeploymentResponse deploymentResponse(ProcessDefinitionEntity deployed) {
         try {
-            response.put("compatibilityReport", objectMapper.readValue(deployed.getCompatibilityReport(),
-                    new TypeReference<Map<String, Object>>() {}));
+            Map<String, Object> compatibilityReport = objectMapper.readValue(deployed.getCompatibilityReport(),
+                    new TypeReference<>() {});
+            return new DeploymentResponse("Deployed", deployed.getProcessKey(), deployed.getDeploymentId(),
+                    deployed.getVersion(), deployed.getDefinitionFormatVersion(),
+                    List.of(deployed.getCompatibilityProfiles().split(",")), compatibilityReport);
         } catch (IOException exception) {
             throw new IllegalStateException("Stored compatibility report is invalid", exception);
         }
-        return response;
     }
 
     /**
@@ -101,8 +102,15 @@ public class ProcessController {
      * @return A list of all process definitions.
      */
     @GetMapping
-    public List<ProcessDefinitionEntity> listProcesses() {
-        return engine.getDeployedProcesses();
+    public ResponseEntity<List<ProcessDefinitionDto>> listProcesses(
+            @RequestParam(required = false) String key,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = Pagination.DEFAULT_PAGE_SIZE) int size) {
+        Pageable pageable = Pagination.request(page, size,
+                Sort.by("processKey").ascending().and(Sort.by("version").descending()));
+        Page<ProcessDefinitionEntity> definitions = engine.getDeployedProcesses(key, pageable);
+        return ResponseEntity.ok().headers(Pagination.headers(definitions))
+                .body(definitions.stream().map(ProcessDefinitionDto::from).toList());
     }
 
     /**
@@ -116,18 +124,19 @@ public class ProcessController {
      * @return A JSON object with the new process instance ID.
      */
     @PostMapping("/start")
-    public ResponseEntity<Map<String, Object>> startProcess(
+    public ResponseEntity<ProcessStartResponse> startProcess(
             @RequestParam String processId,
             @RequestParam(required = false) String username,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestBody(required = false) Map<String, Object> variablesMap) {
 
         Map<String, Object> variables = variablesMap == null ? Map.of() : variablesMap;
-        Map<String, Object> response = idempotencyService.execute(idempotencyKey, "process.start",
+        ProcessStartResponse response = idempotencyService.execute(idempotencyKey, "process.start",
                 Map.of("processId", processId, "username", username == null ? "" : username, "variables", variables),
+                new TypeReference<ProcessStartResponse>() {},
                 () -> {
                     ProcessInstance instance = engine.startProcess(processId, username, variables);
-                    return Map.of("processInstanceId", instance.getId());
+                    return new ProcessStartResponse(instance.getId());
                 });
         return ResponseEntity.ok(response);
     }
@@ -140,11 +149,13 @@ public class ProcessController {
      */
     @GetMapping("/instances")
     public ResponseEntity<List<ProcessInstanceDTO>> listProcessInstances(
+            @RequestParam(required = false) ProcessStatus status,
+            @RequestParam(required = false) String processDefinitionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = Pagination.DEFAULT_PAGE_SIZE) int size) {
         Pageable pageable = Pagination.request(page, size,
                 Sort.by("startDate").descending().and(Sort.by("id").ascending()));
-        Page<ProcessInstance> instancePage = engine.getProcessInstances(pageable);
+        Page<ProcessInstance> instancePage = engine.getProcessInstances(status, processDefinitionId, pageable);
         List<ProcessInstanceDTO> instances = instancePage.stream()
                 .map(Mapper.ProcessInstanceMapper::toDto)
                 .collect(Collectors.toList());
@@ -164,7 +175,8 @@ public class ProcessController {
     public ResponseEntity<ProcessInstanceDTO> getProcessInstance(@PathVariable String instanceId) {
         ProcessInstance instance = engine.getProcessInstanceById(instanceId);
         if (instance == null) {
-            return ResponseEntity.notFound().build();
+            throw new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.RESOURCE_NOT_FOUND,
+                    "Process instance not found: " + instanceId);
         }
         return ResponseEntity.ok(Mapper.ProcessInstanceMapper.toDto(instance));
     }
@@ -177,15 +189,18 @@ public class ProcessController {
      * @return A JSON object confirming the status change.
      */
     @PostMapping("/instance/{id}/fail")
-    public ResponseEntity<Map<String, Object>> failInstance(@PathVariable String id,
+    public ResponseEntity<ProcessActionResponse> failInstance(@PathVariable String id,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
-        Map<String, Object> response = idempotencyService.execute(idempotencyKey, "process.fail",
-                Map.of("processInstanceId", id), () -> {
+        ProcessActionResponse response = idempotencyService.execute(idempotencyKey, "process.fail",
+                Map.of("processInstanceId", id), new TypeReference<ProcessActionResponse>() {}, () -> {
                     boolean failed = engine.failProcess(id);
-                    return failed ? Map.of("status", "Failed", "processInstanceId", id)
-                            : Map.of("error", "Cannot fail process instance", "processInstanceId", id);
+                    if (!failed) {
+                        throw new com.abada.engine.core.exception.ProcessEngineException(
+                                "Cannot fail process instance: " + id);
+                    }
+                    return new ProcessActionResponse("Failed", id);
                 });
-        return response.containsKey("error") ? ResponseEntity.badRequest().body(response) : ResponseEntity.ok(response);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -196,21 +211,12 @@ public class ProcessController {
      *         the full 'bpmnXml'. Returns 404 Not Found if the ID is not found.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getProcessById(@PathVariable String id) {
+    public ResponseEntity<ProcessDefinitionDto> getProcessById(@PathVariable String id) {
         return engine.getProcessDefinitionById(id)
-                .map(def -> {
-                    Map<String, Object> responseMap = new HashMap<>();
-                    responseMap.put("id", def.getId());
-                    responseMap.put("name", def.getName());
-                    responseMap.put("documentation", def.getDocumentation()); // Safely handles null
-                    responseMap.put("bpmnXml", def.getBpmnXml());
-                    responseMap.put("deploymentId", def.getDeploymentId());
-                    responseMap.put("version", def.getVersion());
-                    responseMap.put("createdAt", def.getCreatedAt());
-                    return responseMap;
-                })
+                .map(ProcessDefinitionDto::from)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.RESOURCE_NOT_FOUND,
+                        "Process definition not found: " + id));
     }
 
 }
