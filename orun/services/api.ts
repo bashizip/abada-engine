@@ -5,6 +5,7 @@ import {
   Job,
   Variable,
   ActivityInstance,
+  ActivityHistory,
 } from "../types";
 import { calculateDuration } from "../utils";
 import { keycloak, refreshToken } from "@/keycloak/keycloakClient";
@@ -23,11 +24,32 @@ interface ApiProcessInstance {
   variables: Record<string, unknown>;
 }
 
+interface ApiError {
+  code: string;
+  message: string;
+  traceId?: string;
+}
+
+interface ApiFailedJob {
+  jobId: string;
+  processInstanceId: string;
+  activityId: string;
+  exceptionMessage: string;
+  retries: number;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorText = await response.text();
+    let detail = errorText;
+    try {
+      const error = JSON.parse(errorText) as ApiError;
+      detail = `${error.code}: ${error.message}${error.traceId ? ` (trace ${error.traceId})` : ""}`;
+    } catch {
+      // Preserve non-JSON responses such as stack traces from legacy deployments.
+    }
     throw new Error(
-      `API Error: ${response.status} ${response.statusText} - ${errorText}`,
+      `API Error: ${response.status} ${response.statusText} - ${detail}`,
     );
   }
   // Check if response has content before trying to parse JSON
@@ -172,7 +194,14 @@ export const api = {
     const response = await fetch(`${API_BASE_URL}/v1/jobs`, {
       headers: await getAuthHeaders(),
     });
-    return handleResponse<Job[]>(response);
+    const jobs = await handleResponse<ApiFailedJob[]>(response);
+    return jobs.map((job) => ({
+      id: job.jobId,
+      processInstanceId: job.processInstanceId,
+      activityId: job.activityId,
+      exceptionMessage: job.exceptionMessage,
+      retries: job.retries,
+    }));
   },
 
   retryJob: async (jobId: string, retries: number = 3): Promise<void> => {
@@ -236,5 +265,13 @@ export const api = {
       },
     );
     return handleResponse<void>(response);
+  },
+
+  getProcessHistory: async (id: string): Promise<ActivityHistory[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/v1/process-instances/${id}/history?page=0&size=100`,
+      { headers: await getAuthHeaders() },
+    );
+    return handleResponse<ActivityHistory[]>(response);
   },
 };

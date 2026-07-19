@@ -21,7 +21,7 @@ class PostgresSchemaUpgradeTest {
             .withPassword("abada");
 
     @ParameterizedTest(name = "upgrades schema v{0} to latest")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7})
+    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8})
     void upgradesEveryPreviouslyPublishedSchemaVersion(int sourceVersion) throws Exception {
         String schema = "upgrade_from_v" + sourceVersion;
         Flyway.configure()
@@ -38,7 +38,7 @@ class PostgresSchemaUpgradeTest {
                 .load();
         assertThat(latest.migrate().success).isTrue();
         assertThat(latest.validateWithResult().validationSuccessful).isTrue();
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("8");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("9");
 
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -61,7 +61,12 @@ class PostgresSchemaUpgradeTest {
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              var indexes = connection.getMetaData().getIndexInfo(null, schema, "external_tasks", false, false)) {
-            assertThat(indexNames(indexes)).contains("idx_external_tasks_acquisition");
+            assertThat(indexNames(indexes)).contains("idx_external_tasks_acquisition", "idx_external_tasks_worker_lock");
+        }
+        try (var connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+             var columns = connection.getMetaData().getColumns(null, schema, "external_tasks", "trace_parent")) {
+            assertThat(columns.next()).isTrue();
         }
     }
 

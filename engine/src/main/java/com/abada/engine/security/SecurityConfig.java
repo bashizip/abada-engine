@@ -4,29 +4,79 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
-            @Value("${abada.security.mode:disabled}") String mode) throws Exception {
-        http.csrf(csrf -> csrf.disable());
+            @Value("${abada.security.mode:disabled}") String mode, ObjectMapper objectMapper) throws Exception {
+        http.csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint(ApiSecurityHandlers.authenticationEntryPoint(objectMapper))
+                        .accessDeniedHandler(ApiSecurityHandlers.accessDeniedHandler(objectMapper)));
 
         if ("oidc".equalsIgnoreCase(mode)) {
-            http.authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/v1/info", "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/v1/processes/deploy").hasAuthority("SCOPE_process:deploy")
-                    .requestMatchers("/v1/jobs/**", "/v1/process-instances/**").hasAuthority("SCOPE_operations:write")
-                    .requestMatchers("/v1/external-tasks/**").hasAuthority("SCOPE_worker:execute")
-                    .anyRequest().authenticated())
-                    .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
+            authorize(http);
+            http.oauth2ResourceServer(oauth2 -> oauth2
+                    .authenticationEntryPoint(ApiSecurityHandlers.authenticationEntryPoint(objectMapper))
+                    .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+        } else if ("proxy".equalsIgnoreCase(mode)) {
+            authorize(http);
+            http.addFilterBefore(new ProxyHeaderAuthenticationFilter(objectMapper), AnonymousAuthenticationFilter.class);
         } else {
-            // "proxy" is valid only when the engine is unreachable except through the
-            // authenticated reverse proxy. "disabled" is intended for local/test use.
+            // "disabled" is restricted to local and automated test profiles.
             http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         }
         return http.build();
+    }
+
+    private void authorize(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/v1", "/v1/info", "/actuator/health", "/swagger-ui/**", "/swagger-ui.html",
+                        "/v3/api-docs/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/v1/processes/deploy")
+                        .hasAnyAuthority("SCOPE_process:deploy", AbadaRoles.DEPLOYER, AbadaRoles.ADMIN)
+                .requestMatchers(HttpMethod.POST, "/v1/processes/start", "/v1/processes/instance/*/fail",
+                        "/v1/events/**")
+                        .hasAnyAuthority("SCOPE_process:control", AbadaRoles.PROCESS_CONTROLLER, AbadaRoles.ADMIN)
+                .requestMatchers(HttpMethod.GET, "/v1/processes/**")
+                        .hasAnyAuthority("SCOPE_process:read", AbadaRoles.TASK_USER, AbadaRoles.PROCESS_CONTROLLER,
+                                AbadaRoles.OPERATOR, AbadaRoles.DEPLOYER, AbadaRoles.ADMIN)
+                .requestMatchers(HttpMethod.GET, "/v1/tasks/**")
+                        .hasAnyAuthority("SCOPE_task:read", AbadaRoles.TASK_USER, AbadaRoles.ADMIN)
+                .requestMatchers("/v1/tasks/**")
+                        .hasAnyAuthority("SCOPE_task:write", AbadaRoles.TASK_USER, AbadaRoles.ADMIN)
+                .requestMatchers(HttpMethod.GET, "/v1/jobs/**", "/v1/process-instances/**")
+                        .hasAnyAuthority("SCOPE_operations:read", AbadaRoles.OPERATOR, AbadaRoles.ADMIN)
+                .requestMatchers("/v1/jobs/**", "/v1/process-instances/**")
+                        .hasAnyAuthority("SCOPE_operations:write", AbadaRoles.OPERATOR, AbadaRoles.ADMIN)
+                .requestMatchers("/v1/external-tasks/**")
+                        .hasAnyAuthority("SCOPE_worker:execute", AbadaRoles.WORKER, AbadaRoles.ADMIN)
+                .anyRequest().denyAll());
+    }
+
+    @Bean
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter scopes = new JwtGrantedAuthoritiesConverter();
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setPrincipalClaimName("preferred_username");
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            var authorities = new java.util.ArrayList<>(scopes.convert(jwt));
+            java.util.List<String> groups = jwt.getClaimAsStringList("groups");
+            if (groups != null) {
+                groups.stream().map(AbadaRoles::fromGroup).filter(java.util.Objects::nonNull)
+                        .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                        .forEach(authorities::add);
+            }
+            return authorities;
+        });
+        return converter;
     }
 }

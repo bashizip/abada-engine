@@ -1,11 +1,24 @@
 package com.abada.engine.dto;
 
-/**
- * A standardized JSON response for returning API errors.
- *
- * @param status  The HTTP status code.
- * @param message A clear, user-friendly error message.
- * @param path    The URL path where the error occurred.
- */
-public record ErrorResponse(int status, String message, String path) {
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
+import java.util.Map;
+
+/** Stable error envelope for every public API failure. */
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@Schema(name = "ApiError", description = "Machine-readable API error")
+public record ErrorResponse(
+        Instant timestamp,
+        int status,
+        String code,
+        String message,
+        String path,
+        String traceId,
+        Map<String, Object> details) {
+
+    public ErrorResponse(int status, String code, String message, String path, String traceId,
+            Map<String, Object> details) {
+        this(Instant.now(), status, code, message, path, traceId, details == null ? Map.of() : Map.copyOf(details));
+    }
 }

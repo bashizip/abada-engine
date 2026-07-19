@@ -8,11 +8,17 @@ import com.abada.engine.dto.VariableValue;
 import com.abada.engine.dto.CancelRequest;
 import com.abada.engine.dto.SuspensionRequest;
 import com.abada.engine.dto.ActivityInstanceTree;
+import com.abada.engine.dto.ActivityHistoryDto;
 import com.abada.engine.dto.ChildActivityInstance;
 import com.abada.engine.persistence.entity.ActivityHistoryEntity;
 import com.abada.engine.persistence.repository.ActivityHistoryRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -30,12 +36,14 @@ public class CockpitController {
     private final AbadaEngine engine;
     private final ActivityHistoryRepository historyRepository;
     private final IdempotencyService idempotency;
+    private final ObjectMapper objectMapper;
 
     public CockpitController(AbadaEngine engine, ActivityHistoryRepository historyRepository,
-            IdempotencyService idempotency) {
+            IdempotencyService idempotency, ObjectMapper objectMapper) {
         this.engine = engine;
         this.historyRepository = historyRepository;
         this.idempotency = idempotency;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -49,7 +57,7 @@ public class CockpitController {
     public ResponseEntity<Map<String, VariableValue>> getProcessVariables(@PathVariable String instanceId) {
         ProcessInstance instance = engine.getProcessInstanceById(instanceId);
         if (instance == null) {
-            return ResponseEntity.notFound().build();
+            throw notFound(instanceId);
         }
 
         Map<String, VariableValue> typedVariables = instance.getVariables().entrySet().stream()
@@ -74,10 +82,7 @@ public class CockpitController {
             @RequestBody VariablePatchRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
 
-        ProcessInstance instance = engine.getProcessInstanceById(instanceId);
-        if (instance == null) {
-            return ResponseEntity.notFound().build();
-        }
+        requireInstance(instanceId);
 
         // Apply the variable modifications
         Map<String, Object> modifications = request.modifications().entrySet().stream()
@@ -107,18 +112,12 @@ public class CockpitController {
             @RequestBody(required = false) CancelRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         String reason = request != null && request.reason() != null ? request.reason() : "Cancelled via API";
-        try {
-            idempotency.execute(idempotencyKey, "process.cancel", Map.of("id", id, "reason", reason), () -> {
-                engine.cancelProcessInstance(id, reason);
-                return Map.of("status", "Cancelled", "processInstanceId", id);
-            });
-            return ResponseEntity.noContent().build();
-        } catch (com.abada.engine.core.exception.ProcessEngineException e) {
-            if (e.getMessage().contains("not found")) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.badRequest().build();
-        }
+        requireInstance(id);
+        idempotency.execute(idempotencyKey, "process.cancel", Map.of("id", id, "reason", reason), () -> {
+            engine.cancelProcessInstance(id, reason);
+            return Map.of("status", "Cancelled", "processInstanceId", id);
+        });
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -133,17 +132,14 @@ public class CockpitController {
     public ResponseEntity<Void> setSuspension(@PathVariable String id,
             @RequestBody SuspensionRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
-        try {
-            idempotency.execute(idempotencyKey, "process.suspension",
-                    Map.of("id", id, "suspended", request.suspended()), () -> {
-                        engine.suspendProcessInstance(id, request.suspended());
-                        return Map.of("status", request.suspended() ? "Suspended" : "Active",
-                                "processInstanceId", id);
-                    });
-            return ResponseEntity.ok().build();
-        } catch (com.abada.engine.core.exception.ProcessEngineException e) {
-            return ResponseEntity.notFound().build();
-        }
+        requireInstance(id);
+        idempotency.execute(idempotencyKey, "process.suspension",
+                Map.of("id", id, "suspended", request.suspended()), () -> {
+                    engine.suspendProcessInstance(id, request.suspended());
+                    return Map.of("status", request.suspended() ? "Suspended" : "Active",
+                            "processInstanceId", id);
+                });
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -157,7 +153,7 @@ public class CockpitController {
     public ResponseEntity<ActivityInstanceTree> getActivityInstances(@PathVariable String id) {
         ProcessInstance instance = engine.getProcessInstanceById(id);
         if (instance == null) {
-            return ResponseEntity.notFound().build();
+            throw notFound(id);
         }
 
         List<ChildActivityInstance> children = instance.getActiveTokens().stream()
@@ -175,8 +171,25 @@ public class CockpitController {
     }
 
     @GetMapping("/{id}/history")
-    public ResponseEntity<List<ActivityHistoryEntity>> getHistory(@PathVariable String id) {
-        if (engine.getProcessInstanceById(id) == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(historyRepository.findByProcessInstanceIdOrderByOccurredAtAsc(id));
+    public ResponseEntity<List<ActivityHistoryDto>> getHistory(@PathVariable String id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = Pagination.DEFAULT_PAGE_SIZE) int size) {
+        requireInstance(id);
+        Pageable pageable = Pagination.request(page, size,
+                Sort.by("occurredAt").ascending().and(Sort.by("id").ascending()));
+        Page<ActivityHistoryEntity> history = historyRepository.findByProcessInstanceId(id, pageable);
+        return ResponseEntity.ok().headers(Pagination.headers(history))
+                .body(history.stream().map(entity -> ActivityHistoryDto.from(entity, objectMapper)).toList());
+    }
+
+    private ProcessInstance requireInstance(String id) {
+        ProcessInstance instance = engine.getProcessInstanceById(id);
+        if (instance == null) throw notFound(id);
+        return instance;
+    }
+
+    private ApiException notFound(String id) {
+        return new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.RESOURCE_NOT_FOUND,
+                "Process instance not found: " + id);
     }
 }

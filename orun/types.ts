@@ -8,8 +8,10 @@ export type ProcessStatus =
 export interface ProcessDefinition {
   id: string;
   name: string;
-  key: string;
+  key?: string;
   version: number;
+  deploymentId?: string;
+  createdAt?: string;
   bpmnXml?: string;
 }
 
@@ -28,13 +30,25 @@ export interface ProcessInstance {
 export interface Job {
   id: string;
   processInstanceId: string;
-  processDefinitionName: string;
+  processDefinitionName?: string;
   activityId: string;
-  activityName: string;
+  activityName?: string;
   exceptionMessage: string;
   retries: number;
   dueDate?: string;
-  failureTime: string;
+  failureTime?: string;
+}
+
+export interface ActivityHistory {
+  id: string;
+  processInstanceId: string;
+  processDefinitionId: string;
+  activityId?: string;
+  eventType: string;
+  actor: string;
+  occurredAt: string;
+  traceId?: string;
+  details: Record<string, unknown>;
 }
 
 export interface Variable {

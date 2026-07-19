@@ -32,15 +32,16 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
-                .allowedHeaders("*")
-                .exposedHeaders("X-Page", "X-Page-Size", "X-Total-Count", "X-Total-Pages")
+                .allowedHeaders("Authorization", "Content-Type", "Idempotency-Key", "traceparent", "tracestate",
+                        "X-Abada-Worker-Protocol-Version")
+                .exposedHeaders("X-Page", "X-Page-Size", "X-Total-Count", "X-Total-Pages",
+                        "X-Abada-Worker-Protocol-Version")
                 .allowCredentials(true);
     }
 
     /**
-     * Creates a filter bean to log incoming request details for debugging purposes.
-     * This provides a clear, detailed view of every request, including headers and
-     * payload.
+     * Logs only the request path and query string. Headers and payloads stay disabled
+     * so credentials and workflow variables cannot enter request logs.
      *
      * @return The configured logging filter.
      */

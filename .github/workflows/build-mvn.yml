@@ -28,6 +28,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
       # Step 3: Set up Maven
+      - name: Validate generated OpenAPI v1 contract
+        working-directory: engine
+        run: ./mvnw -q -Dtest=OpenApiContractTest test
       - name: Build with Maven
         working-directory: engine
         run: ./mvnw clean verify
@@ -57,3 +60,16 @@ jobs:
       - name: Build
         working-directory: ${{ matrix.app }}
         run: npm run build
+
+  java-worker-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+      - name: Test Java worker SDK
+        run: engine/mvnw -f sdk/java/pom.xml verify

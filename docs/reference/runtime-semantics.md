@@ -1,6 +1,6 @@
 # Runtime Semantics Contract
 
-This document defines the behavior guaranteed by the Abada 0.10 cluster-safe
+This document defines the behavior guaranteed by the Abada 0.11 stable-contract
 runtime. PostgreSQL is the production authority; H2 is a development
 convenience and does not define concurrency behavior.
 

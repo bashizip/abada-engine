@@ -11,6 +11,8 @@ import org.springframework.data.jpa.repository.Lock;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface ExternalTaskRepository extends JpaRepository<ExternalTaskEntity, String> {
@@ -40,4 +42,12 @@ public interface ExternalTaskRepository extends JpaRepository<ExternalTaskEntity
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select task from ExternalTaskEntity task where task.id = :id")
     Optional<ExternalTaskEntity> findByIdForUpdate(@Param("id") String id);
+
+    @Query("select task from ExternalTaskEntity task where "
+            + "(task.status = com.abada.engine.persistence.entity.ExternalTaskEntity.Status.FAILED "
+            + "or (task.retries is not null and task.retries <= 0)) "
+            + "and (:withException = false or task.exceptionMessage is not null) "
+            + "and (:active = false or (task.retries is not null and task.retries >= 0))")
+    Page<ExternalTaskEntity> findIncidents(@Param("withException") boolean withException,
+            @Param("active") boolean active, Pageable pageable);
 }

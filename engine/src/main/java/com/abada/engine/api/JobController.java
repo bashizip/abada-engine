@@ -9,9 +9,12 @@ import com.abada.engine.persistence.repository.ExternalTaskRepository;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.Map;
 
 /**
@@ -45,15 +48,12 @@ public class JobController {
         @GetMapping
         public ResponseEntity<List<FailedJobDTO>> listFailedJobs(
                         @RequestParam(defaultValue = "true") boolean withException,
-                        @RequestParam(defaultValue = "true") boolean active) {
-
-                List<ExternalTaskEntity> failedTasks = externalTaskRepository.findAll().stream()
-                                .filter(task -> task.getStatus() == ExternalTaskEntity.Status.FAILED ||
-                                                (task.getRetries() != null && task.getRetries() <= 0))
-                                .filter(task -> !withException || task.getExceptionMessage() != null)
-                                .filter(task -> !active || (task.getRetries() != null && task.getRetries() >= 0))
-                                .collect(Collectors.toList());
-
+                        @RequestParam(defaultValue = "true") boolean active,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = Pagination.DEFAULT_PAGE_SIZE) int size) {
+                Pageable pageable = Pagination.request(page, size, Sort.by("id").ascending());
+                Page<ExternalTaskEntity> failedTasks = externalTaskRepository.findIncidents(withException, active,
+                                pageable);
                 List<FailedJobDTO> response = failedTasks.stream()
                                 .map(task -> new FailedJobDTO(
                                                 task.getId(),
@@ -61,9 +61,9 @@ public class JobController {
                                                 task.getActivityId(),
                                                 task.getExceptionMessage(),
                                                 task.getRetries()))
-                                .collect(Collectors.toList());
+                                .toList();
 
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok().headers(Pagination.headers(failedTasks)).body(response);
         }
 
         /**
@@ -98,7 +98,8 @@ public class JobController {
         @GetMapping(value = "/{jobId}/stacktrace", produces = MediaType.TEXT_PLAIN_VALUE)
         public ResponseEntity<String> getStacktrace(@PathVariable String jobId) {
                 ExternalTaskEntity task = externalTaskRepository.findById(jobId)
-                                .orElseThrow(() -> new RuntimeException("Job not found: " + jobId));
+                                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,
+                                                ApiErrorCode.RESOURCE_NOT_FOUND, "Job not found: " + jobId));
 
                 String stacktrace = task.getExceptionStacktrace();
                 if (stacktrace == null || stacktrace.isEmpty()) {

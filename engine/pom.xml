@@ -11,7 +11,7 @@
     </parent>
     <groupId>dev.abada</groupId>
     <artifactId>abada-engine</artifactId>
-    <version>0.10.0-alpha</version>
+    <version>0.11.0-alpha</version>
     <name>Abada Engine</name>
     <description>Lightweight, pluggable BPMN-based workflow engine</description>
     <url />
@@ -52,6 +52,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

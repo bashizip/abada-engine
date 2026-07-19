@@ -13,7 +13,12 @@ import {
   GitBranch,
   Loader2,
 } from "lucide-react";
-import { ProcessInstance, Variable, ActivityInstance } from "../types.ts";
+import {
+  ProcessInstance,
+  Variable,
+  ActivityInstance,
+  ActivityHistory,
+} from "../types.ts";
 import { api } from "../services/api.ts";
 import { DataSurgeryModal } from "./DataSurgeryModal.tsx";
 import { BPMNViewer } from "./BPMNViewer.tsx";
@@ -30,6 +35,7 @@ export const InstanceDetail: React.FC = () => {
   const [activityInstances, setActivityInstances] = useState<
     ActivityInstance[]
   >([]);
+  const [history, setHistory] = useState<ActivityHistory[]>([]);
   const [isSurgeryOpen, setIsSurgeryOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +54,11 @@ export const InstanceDetail: React.FC = () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [instData, varsData, activitiesData] = await Promise.all([
+      const [instData, varsData, activitiesData, historyData] = await Promise.all([
         api.getProcessInstance(id),
         api.getProcessVariables(id),
         api.getActivityInstances(id),
+        api.getProcessHistory(id),
       ]);
       console.log("varsData:", varsData);
       console.log("Instance Data:", instData);
@@ -63,11 +70,11 @@ export const InstanceDetail: React.FC = () => {
         setVariables([]);
       }
       setActivityInstances(activitiesData);
+      setHistory(historyData);
 
       // Fetch definition to get XML
       // Check for definitionId or processDefinitionId
-      const defId =
-        instData.definitionId || (instData as any).processDefinitionId;
+      const defId = instData.definitionId;
 
       if (defId) {
         console.log("Fetching definition for:", defId);
@@ -539,12 +546,14 @@ export const InstanceDetail: React.FC = () => {
           <Card>
             <div className="p-6">
               <ol className="relative border-l border-slate-700 ml-3">
-                {activityInstances.map((hist, i) => (
-                  <li className="mb-8 ml-6" key={i}>
+                {history.map((hist) => {
+                  const failed = hist.eventType.includes("FAILED") || hist.eventType.includes("ERROR");
+                  return (
+                  <li className="mb-8 ml-6" key={hist.id}>
                     <span
-                      className={`absolute flex items-center justify-center w-6 h-6 rounded-full -left-3 ring-8 ring-slate-900 ${hist.status === "FAILED" ? "bg-red-500" : "bg-emerald-500"}`}
+                      className={`absolute flex items-center justify-center w-6 h-6 rounded-full -left-3 ring-8 ring-slate-900 ${failed ? "bg-red-500" : "bg-emerald-500"}`}
                     >
-                      {hist.status === "FAILED" ? (
+                      {failed ? (
                         <XCircle size={14} className="text-white" />
                       ) : (
                         <Activity size={14} className="text-white" />
@@ -553,22 +562,23 @@ export const InstanceDetail: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                       <div>
                         <h3 className="flex items-center mb-1 text-lg font-semibold text-slate-100">
-                          {hist.activityName}{" "}
+                          {hist.eventType}{" "}
                           <span className="text-xs font-normal text-slate-500 ml-2 font-mono">
-                            ({hist.activityId})
+                            ({hist.activityId || "process"})
                           </span>
                         </h3>
                         <time className="block mb-2 text-sm font-normal leading-none text-slate-400">
-                          {new Date(hist.startTime).toLocaleString()}
+                          {new Date(hist.occurredAt).toLocaleString()} · {hist.actor}
                         </time>
                       </div>
-                      <Badge status={hist.status} />
+                      <Badge status={failed ? "FAILED" : "COMPLETED"} />
                     </div>
                     <div className="p-3 text-xs italic font-mono text-slate-400 bg-slate-950 rounded border border-slate-800 mt-2">
-                      Type: {hist.type}
+                      {JSON.stringify(hist.details)}
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             </div>
           </Card>

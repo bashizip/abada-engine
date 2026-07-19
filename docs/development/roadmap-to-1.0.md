@@ -1,8 +1,8 @@
 # Abada Reliable OSS Core Roadmap
 
 This is the authoritative checklist for the Abada 1.0 reliable open-source
-core. The current completed milestone is **0.10 — Cluster safety**; the next
-milestone is **0.11 — Stable contracts and security**.
+core. The current completed milestone is **0.11 — Stable contracts and
+security**; the next milestone is **1.0 RC — Evidence and operations**.
 
 Last reviewed: 2026-07-19.
 
@@ -166,16 +166,20 @@ Last reviewed: 2026-07-19.
 
 ### Public API and worker protocol
 
-- [ ] Freeze a consistent `/api/v1` contract with pagination, filtering,
+- [x] Freeze a consistent `/api/v1` contract with pagination, filtering,
   stable DTOs and typed errors.
   - [x] Add bounded page/size queries and pagination metadata to public task
     and process-instance lists without changing their list-shaped JSON body.
-- [ ] Validate generated OpenAPI and API compatibility in CI.
+- [x] Validate generated OpenAPI and API compatibility in CI. Evidence:
+  [`OpenApiContractTest`](../../engine/src/test/java/com/abada/engine/api/OpenApiContractTest.java)
+  and the machine-readable
+  [API v1 manifest](../../engine/src/test/resources/contracts/api-v1-contract.json).
 - [x] Add optional `Idempotency-Key` support to all applicable mutation
   endpoints.
-- [ ] Freeze a versioned worker protocol for fetch-and-lock, heartbeat, lock
+- [x] Freeze a versioned worker protocol for fetch-and-lock, heartbeat, lock
   extension, completion, BPMN error, technical failure, retry and trace
-  propagation.
+  propagation. Evidence: [worker protocol v1](../reference/external-worker-protocol-v1.md)
+  and [`ExternalTaskTest`](../../engine/src/test/java/com/abada/engine/api/ExternalTaskTest.java).
 
 ### Authentication, authorization and audit
 
@@ -185,19 +189,26 @@ Last reviewed: 2026-07-19.
   payloads.
 - [x] Record actor, action, timestamps, workflow identifiers and trace data in
   activity history.
-- [ ] Enforce and test permissions for deployment, process control, task
-  actions, operations access and external workers.
-- [ ] Test forged proxy headers, invalid and expired JWTs, role boundaries,
+- [x] Enforce and test permissions for deployment, process control, task
+  actions, operations access and external workers. Evidence:
+  [security and RBAC contract](../reference/security-and-rbac.md).
+- [x] Test forged proxy headers, invalid and expired JWTs, role boundaries,
   CORS, sensitive logging and unauthorized cross-user task actions.
+  Evidence:
+  [`SecurityAuthorizationContractTest`](../../engine/src/test/java/com/abada/engine/security/SecurityAuthorizationContractTest.java),
+  [`ProxyHeaderAuthenticationFilterTest`](../../engine/src/test/java/com/abada/engine/security/ProxyHeaderAuthenticationFilterTest.java),
+  and [`TaskControllerTest`](../../engine/src/test/java/com/abada/engine/api/TaskControllerTest.java).
 
 ### Clients and product integration
 
-- [ ] Publish a Java external-worker SDK against the frozen protocol.
-- [ ] Align Tenda with the guaranteed task APIs.
-- [ ] Align Orun with durable history, incidents, jobs and instance state.
+- [x] Publish a Java external-worker SDK against the frozen protocol. Source
+  and executable tests: [`sdk/java`](../../sdk/java/).
+- [x] Align Tenda with the guaranteed task APIs.
+- [x] Align Orun with durable history, incidents, jobs and instance state.
 
-- [ ] **0.11 release gate:** REST and worker contracts are frozen; OIDC, RBAC,
-  security tests, the Java SDK and frontends are aligned.
+- [x] **0.11 release gate:** REST and worker contracts are frozen; OIDC, RBAC,
+  security tests, the Java SDK and frontends are aligned. Evidence is recorded
+  in the [0.11 release notes](../release-notes/0.11.0-alpha-release-notes.md).
 
 ## 1.0 — BPMN dialects and compatibility profiles
 

@@ -36,6 +36,15 @@ public class ExternalTaskEntity {
     @Column(name = "activity_id")
     private String activityId; // BPMN element ID for visualization
 
+    @Column(name = "bpmn_error_code")
+    private String bpmnErrorCode;
+
+    @Column(name = "bpmn_error_message", columnDefinition = "TEXT")
+    private String bpmnErrorMessage;
+
+    @Column(name = "trace_parent", length = 128)
+    private String traceParent;
+
     @Version
     @Column(name = "entity_version", nullable = false)
     private long entityVersion;
@@ -44,7 +53,8 @@ public class ExternalTaskEntity {
         OPEN,
         LOCKED,
         COMPLETED,
-        FAILED // Added for failed jobs tracking
+        FAILED,
+        BPMN_ERROR
     }
 
     public ExternalTaskEntity() {
@@ -139,6 +149,13 @@ public class ExternalTaskEntity {
     public void setActivityId(String activityId) {
         this.activityId = activityId;
     }
+
+    public String getBpmnErrorCode() { return bpmnErrorCode; }
+    public void setBpmnErrorCode(String value) { bpmnErrorCode = value; }
+    public String getBpmnErrorMessage() { return bpmnErrorMessage; }
+    public void setBpmnErrorMessage(String value) { bpmnErrorMessage = value; }
+    public String getTraceParent() { return traceParent; }
+    public void setTraceParent(String value) { traceParent = value; }
 
     public long getEntityVersion() { return entityVersion; }
 }

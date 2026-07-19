@@ -3,6 +3,7 @@ package com.abada.engine.persistence;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
 import com.abada.engine.persistence.entity.ProcessInstanceEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
+import com.abada.engine.core.model.ProcessStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -29,7 +30,14 @@ public interface PersistenceService {
 
     List<ProcessDefinitionEntity> findAllProcessDefinitions();
 
+    Page<ProcessDefinitionEntity> findProcessDefinitions(Pageable pageable);
+
     Page<ProcessInstanceEntity> findProcessInstances(Pageable pageable);
+
+    Page<ProcessInstanceEntity> findProcessInstances(ProcessStatus status, String processDefinitionId,
+            Pageable pageable);
+
+    Page<ProcessDefinitionEntity> findProcessDefinitions(String processKey, Pageable pageable);
 
     List<ProcessInstanceEntity> findProcessInstancesByIds(Collection<String> instanceIds);
 

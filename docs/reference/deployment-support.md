@@ -3,8 +3,8 @@
 | Mode | Intended use | Authentication | Runtime guarantee |
 |---|---|---|---|
 | H2, one engine | Local development and tests | Disabled or trusted local proxy | Restart recovery; not a production topology |
-| PostgreSQL, one engine | Self-hosted production | Direct OIDC JWT validation | 0.10 durable runtime: atomic commands, restart recovery, versioned definitions and transactional outbox |
-| PostgreSQL, multiple engines | Self-hosted production | Direct OIDC JWT validation | 0.10 cluster-safe acquisition, correlation, idempotency, lease recovery and outbox delivery |
+| PostgreSQL, one engine | Self-hosted production | Direct OIDC JWT validation with 0.11 RBAC | Durable runtime: atomic commands, restart recovery, versioned definitions, transactional outbox and stable API v1 |
+| PostgreSQL, multiple engines | Self-hosted production | Direct OIDC JWT validation with 0.11 RBAC | Cluster-safe acquisition, correlation, idempotency, lease recovery, outbox delivery and worker protocol v1 |
 | Trusted proxy | Controlled private network only | OAuth2 Proxy headers | Engine must not be reachable except through the proxy |
 
 Production defaults to `ABADA_SECURITY_MODE=oidc` and requires

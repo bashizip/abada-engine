@@ -7,6 +7,7 @@ import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.core.model.TaskStatus;
 import com.abada.engine.dto.ErrorResponse;
+import com.abada.engine.dto.TaskActionResponse;
 import com.abada.engine.dto.TaskDetailsDto;
 import com.abada.engine.dto.UserStatsDto;
 import com.abada.engine.util.BpmnTestUtils;
@@ -414,12 +415,46 @@ public class TaskControllerTest {
 
         // --- Step 3: Verify the error response ---
         assertThat(errorResponse.getStatusCode()).isEqualTo(
-            HttpStatus.BAD_REQUEST
+            HttpStatus.FORBIDDEN
         );
         assertThat(errorResponse.getBody()).isNotNull();
         assertThat(errorResponse.getBody().message()).contains(
             "is not authorized to complete task"
         );
+    }
+
+    @Test
+    @DisplayName("Task details and failure reject unauthorized cross-user access")
+    void shouldRejectUnauthorizedCrossUserTaskAccess() {
+        abadaEngine.startProcess("recipe-cook");
+
+        HttpHeaders aliceHeaders = new HttpHeaders();
+        aliceHeaders.set("X-User", "alice");
+        aliceHeaders.set("X-Groups", "customers");
+        ResponseEntity<List<TaskDetailsDto>> listResponse = restTemplate.exchange(
+                "/v1/tasks", HttpMethod.GET, new HttpEntity<>(aliceHeaders),
+                new ParameterizedTypeReference<>() {});
+        String taskId = listResponse.getBody().getFirst().id();
+        restTemplate.exchange("/v1/tasks/claim?taskId={taskId}", HttpMethod.POST,
+                new HttpEntity<>(aliceHeaders), TaskActionResponse.class, taskId);
+
+        HttpHeaders bobHeaders = new HttpHeaders();
+        bobHeaders.set("X-User", "bob");
+        bobHeaders.set("X-Groups", "customers");
+
+        ResponseEntity<ErrorResponse> readResponse = restTemplate.exchange(
+                "/v1/tasks/{id}", HttpMethod.GET, new HttpEntity<>(bobHeaders),
+                ErrorResponse.class, taskId);
+        ResponseEntity<ErrorResponse> failResponse = restTemplate.exchange(
+                "/v1/tasks/fail?taskId={taskId}", HttpMethod.POST, new HttpEntity<>(bobHeaders),
+                ErrorResponse.class, taskId);
+
+        assertThat(readResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(readResponse.getBody()).isNotNull();
+        assertThat(readResponse.getBody().code()).isEqualTo("ACCESS_DENIED");
+        assertThat(failResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(failResponse.getBody()).isNotNull();
+        assertThat(failResponse.getBody().code()).isEqualTo("ACCESS_DENIED");
     }
 
     @Test

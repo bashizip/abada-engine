@@ -24,7 +24,7 @@ services:
       MANAGEMENT_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.1"
-      OTEL_RESOURCE_ATTRIBUTES: project=abada,service.version=0.10.0-alpha
+      OTEL_RESOURCE_ATTRIBUTES: project=abada,service.version=0.11.0-alpha
       OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT: prod
       OTEL_SERVICE_NAME: abada-engine-prod
       SERVER_PORT: "5601"
@@ -45,7 +45,7 @@ services:
       timeout: 10s
       interval: 30s
       retries: 3
-    image: ghcr.io/bashizip/abada-engine:0.10.0-alpha
+    image: ghcr.io/bashizip/abada-engine:0.11.0-alpha
     labels:
       traefik.enable: "true"
       traefik.docker.network: abada-engine_abada-internal
