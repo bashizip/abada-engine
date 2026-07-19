@@ -4,9 +4,19 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export interface ApiResponse<T> {
   data?: T;
-  error?: unknown;
+  error?: ApiError | string;
   status: number;
   pagination?: PaginationMetadata;
+}
+
+export interface ApiError {
+  timestamp: string;
+  status: number;
+  code: string;
+  message: string;
+  path: string;
+  traceId?: string;
+  details?: Record<string, unknown>;
 }
 
 export interface PaginationMetadata {
@@ -43,11 +53,15 @@ export interface TaskDetailsDto {
 
 export interface ProcessInstanceDTO {
   id: string;
-  currentActivityId: string;
-  variables: Record<string, unknown>;
-  isCompleted: boolean;
+  processDefinitionId: string;
+  processDefinitionName: string;
+  currentActivityId?: string;
+  status: "RUNNING" | "COMPLETED" | "FAILED" | "SUSPENDED" | "CANCELLED";
+  suspended: boolean;
   startDate: string;
   endDate?: string;
+  startedBy: string;
+  variables: Record<string, unknown>;
 }
 
 export interface ProcessDefinition {
@@ -55,6 +69,9 @@ export interface ProcessDefinition {
   name: string;
   documentation?: string;
   bpmnXml?: string;
+  deploymentId: string;
+  version: number;
+  createdAt: string;
 }
 
 export interface ProcessInstanceDetailsDto {
@@ -191,7 +208,7 @@ class ApiClient {
       let errorPayload: unknown = `HTTP ${response.status}: ${response.statusText}`;
       try {
         const errorData = await response.json();
-        errorPayload = errorData;
+        errorPayload = errorData as ApiError;
         if (response.status === 400) {
           console.error("API Error (400):", errorData);
         }
