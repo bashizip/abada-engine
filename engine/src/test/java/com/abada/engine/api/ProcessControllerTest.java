@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.*;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.util.LinkedMultiValueMap;
@@ -105,6 +106,25 @@ public class ProcessControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().get("processInstanceId")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("POST /v1/processes/start should replay the response for an Idempotency-Key")
+    void shouldReplayAnIdempotentProcessStart() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.addAll(authHeaders);
+        headers.set("Idempotency-Key", "process-controller-start");
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> first = restTemplate.postForEntity(
+                "/v1/processes/start?processId=recipe-cook", request, Map.class);
+        ResponseEntity<Map> replay = restTemplate.postForEntity(
+                "/v1/processes/start?processId=recipe-cook", request, Map.class);
+
+        assertThat(first.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(replay.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(replay.getBody()).isEqualTo(first.getBody());
+        assertThat(abadaEngine.getProcessInstances(PageRequest.of(0, 10)).getTotalElements()).isEqualTo(1);
     }
 
     @Test
