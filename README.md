@@ -219,9 +219,11 @@ Generate trusted localhost certificates.
 
 ---
 
-# Current Status (v0.10.0-alpha)
+# Current Status (v0.11.0-alpha)
 
-Abada 0.10 provides the durable, cluster-safe PostgreSQL runtime milestone.
+Abada 0.11 adds stable REST and external-worker contracts, direct OIDC JWT
+validation, backend RBAC and a Java worker SDK to the durable, cluster-safe
+PostgreSQL runtime.
 Two or more replicas can contend safely for timers, external tasks, messages,
 signals and user-task transitions. Public mutation retries can use
 `Idempotency-Key` for a deterministic response.
@@ -250,6 +252,9 @@ The BPMN execution core is operational, while APIs and platform capabilities con
 - ✅ Docker
 - ✅ Traefik
 - ✅ Keycloak Authentication
+- ✅ Stable API v1 and worker protocol v1
+- ✅ Java external-worker SDK
+- ✅ OIDC JWT validation and backend RBAC
 
 The exact guaranteed semantics are published in the
 [BPMN support matrix](docs/reference/bpmn-support.md). Unsupported constructs
@@ -257,15 +262,14 @@ are rejected at deployment instead of being silently ignored.
 
 ## Planned
 
-- ⏳ Complete BPMN 2.0 coverage
-- ⏳ Stable SDKs
+- ⏳ Additional BPMN compatibility profiles
+- ⏳ TypeScript and Python SDKs
 - ⏳ DMN
 - ⏳ CMMN
 - ⏳ Public Agentic Runtime
 - ⏳ AI Worker SDK
 - ⏳ Agent Memory Integrations
 - ⏳ Policy Engine
-- ⏳ Stable 1.0 APIs
 
 ---
 

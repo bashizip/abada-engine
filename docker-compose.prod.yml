@@ -29,12 +29,12 @@ services:
       - abada-internal
     restart: unless-stopped
 
-  # Abada Engine 0.10 cluster-safe production profile
+  # Abada Engine 0.11 stable-contracts production profile
   abada-engine:
     build:
       context: ./engine
       dockerfile: Dockerfile.prod.engine
-    image: ghcr.io/bashizip/abada-engine:${VERSION:-0.10.0-alpha}
+    image: ghcr.io/bashizip/abada-engine:${VERSION:-0.11.0-alpha}
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SERVER_PORT=5601
@@ -48,7 +48,7 @@ services:
       - MANAGEMENT_OTLP_METRICS_ENDPOINT=http://otel-collector:4318/v1/metrics
       - OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT=prod
       - OTEL_SERVICE_NAME=abada-engine-prod
-      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.10.0-alpha
+      - OTEL_RESOURCE_ATTRIBUTES=project=abada,service.version=0.11.0-alpha
     deploy:
       replicas: 1
       resources:
