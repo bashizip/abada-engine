@@ -3,6 +3,7 @@ package com.abada.engine.api;
 import com.abada.engine.dto.FailedJobDTO;
 import com.abada.engine.dto.RetriesRequest;
 import com.abada.engine.core.ExternalTaskCommandService;
+import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.persistence.entity.ExternalTaskEntity;
 import com.abada.engine.persistence.repository.ExternalTaskRepository;
 import org.springframework.http.MediaType;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 /**
  * REST controller for job/incident management in Orun Operations Cockpit.
@@ -22,10 +24,13 @@ public class JobController {
 
         private final ExternalTaskRepository externalTaskRepository;
         private final ExternalTaskCommandService commands;
+        private final IdempotencyService idempotency;
 
-        public JobController(ExternalTaskRepository externalTaskRepository, ExternalTaskCommandService commands) {
+        public JobController(ExternalTaskRepository externalTaskRepository, ExternalTaskCommandService commands,
+                        IdempotencyService idempotency) {
                 this.externalTaskRepository = externalTaskRepository;
                 this.commands = commands;
+                this.idempotency = idempotency;
         }
 
         /**
@@ -72,9 +77,14 @@ public class JobController {
         @PostMapping("/{jobId}/retries")
         public ResponseEntity<Void> setRetries(
                         @PathVariable String jobId,
-                        @RequestBody RetriesRequest request) {
+                        @RequestBody RetriesRequest request,
+                        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
 
-                commands.setRetries(jobId, request.retries());
+                idempotency.execute(idempotencyKey, "external-task.retries",
+                                Map.of("jobId", jobId, "retries", request.retries()), () -> {
+                                        commands.setRetries(jobId, request.retries());
+                                        return Map.of("status", "Retries updated", "jobId", jobId);
+                                });
                 return ResponseEntity.ok().build();
         }
 
