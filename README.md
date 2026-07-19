@@ -219,10 +219,12 @@ Generate trusted localhost certificates.
 
 ---
 
-# Current Status (v0.9.0-alpha)
+# Current Status (v0.10.0-alpha)
 
-Abada 0.9 provides the durable PostgreSQL runtime milestone. Multi-replica
-cluster certification remains the 0.10 milestone.
+Abada 0.10 provides the durable, cluster-safe PostgreSQL runtime milestone.
+Two or more replicas can contend safely for timers, external tasks, messages,
+signals and user-task transitions. Public mutation retries can use
+`Idempotency-Key` for a deterministic response.
 
 The BPMN execution core is operational, while APIs and platform capabilities continue to evolve.
 
@@ -269,14 +271,15 @@ are rejected at deployment instead of being silently ignored.
 
 # Deployment and High Availability
 
-Abada is being hardened for production deployment. PostgreSQL is authoritative,
-definitions are versioned immutably, and runtime records use optimistic
-concurrency. Complete multi-replica certification remains a 0.10 release gate.
+PostgreSQL is authoritative, definitions are versioned immutably, and runtime
+records use deliberate row locking, optimistic versions and durable leases.
+The 0.10 PostgreSQL topology is certified for multiple engine replicas.
 
 Current capabilities include:
 
 - Durable PostgreSQL runtime state
-- Leased timer acquisition and durable event subscriptions
+- Cluster-safe timer/external-task acquisition and durable event subscriptions
+- Deterministic mutation replay through `Idempotency-Key`
 - Traefik load balancing
 - PostgreSQL persistence
 - Connection pooling

@@ -1,9 +1,10 @@
 # Abada Reliable OSS Core Roadmap
 
 This is the authoritative checklist for the Abada 1.0 reliable open-source
-core. The current milestone is **0.9 — Durable runtime**.
+core. The current completed milestone is **0.10 — Cluster safety**; the next
+milestone is **0.11 — Stable contracts and security**.
 
-Last reviewed: 2026-07-14.
+Last reviewed: 2026-07-19.
 
 ## How to use this roadmap
 
@@ -118,12 +119,15 @@ Last reviewed: 2026-07-14.
 - [x] Recover expired job leases for reprocessing.
 - [x] Support external-task fetch-and-lock, lock extension, completion and
   technical failure.
-- [ ] Atomically claim timers, continuations and external work across two or
-  more replicas without duplicate state transitions.
-- [ ] Use a PostgreSQL work-acquisition strategy whose contention behavior is
-  covered by concurrent tests.
-- [ ] Recover work when a worker or engine replica dies while holding a lease.
-- [ ] Deliver transactional-outbox records reliably and idempotently.
+- [x] Atomically claim timers and external work across two or more replicas
+  without duplicate state transitions. The supported core has no deferred
+  asynchronous-continuation job type; synchronous continuations advance in
+  their owning command transaction.
+- [x] Use PostgreSQL `FOR UPDATE SKIP LOCKED` acquisition with V8 indexes and
+  concurrent contention tests.
+- [x] Recover work when a worker or engine replica dies while holding a lease.
+- [x] Deliver transactional-outbox records with independent leases, retry and
+  stable event IDs used as the consumer deduplication key.
 
 ### Idempotency and concurrent commands
 
@@ -132,25 +136,31 @@ Last reviewed: 2026-07-14.
   application contexts, with one committed transition and one completion
   history event. Evidence:
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Define and implement idempotency for every public mutation command,
+- [x] Define and implement idempotency for every public mutation command,
   message correlation and external-task completion.
-- [ ] Return deterministic results for duplicate and concurrently repeated
+- [x] Return deterministic results for duplicate and concurrently repeated
   requests.
-- [ ] Correlate durable message and signal subscriptions transactionally.
-- [ ] Prevent lost updates during concurrent completion, cancellation,
+- [x] Correlate durable message and signal subscriptions transactionally.
+- [x] Prevent lost updates during concurrent completion, cancellation,
   correlation and timer firing.
 
 ### Multi-replica acceptance
 
-- [ ] Run two or more engine replicas against one PostgreSQL database in CI.
-- [ ] Concurrently claim timers, messages, user tasks and external work.
-- [ ] Kill replicas before and after commits and verify recovery.
-- [ ] Demonstrate exactly-once workflow state transitions while documenting
+- [x] Run two or more engine application contexts against one PostgreSQL
+  Testcontainer in the Maven CI suite.
+- [x] Concurrently claim timers, messages, signals, user tasks and external
+  work.
+- [x] Terminate a replica while it owns a timer lease, simulate failures before
+  and after commits, and verify recovery.
+- [x] Demonstrate exactly-once workflow state transitions while documenting
   at-least-once external side-effect semantics.
-- [ ] Pass replica failover and concurrent-correlation Testcontainers suites.
+- [x] Pass replica failover and concurrent-correlation Testcontainers suites.
 
-- [ ] **0.10 release gate:** multi-replica acquisition, leases, idempotency,
-  failover and concurrent-command correctness pass on PostgreSQL.
+- [x] **0.10 release gate:** multi-replica acquisition, leases, idempotency,
+  failover and concurrent-command correctness pass on PostgreSQL. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java),
+  [`PostgresSchemaUpgradeTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresSchemaUpgradeTest.java),
+  and [`MutationIdempotencyContractTest`](../../engine/src/test/java/com/abada/engine/api/MutationIdempotencyContractTest.java).
 
 ## 0.11 — Stable contracts and security
 
@@ -161,7 +171,7 @@ Last reviewed: 2026-07-14.
   - [x] Add bounded page/size queries and pagination metadata to public task
     and process-instance lists without changing their list-shaped JSON body.
 - [ ] Validate generated OpenAPI and API compatibility in CI.
-- [ ] Add optional `Idempotency-Key` support to all applicable mutation
+- [x] Add optional `Idempotency-Key` support to all applicable mutation
   endpoints.
 - [ ] Freeze a versioned worker protocol for fetch-and-lock, heartbeat, lock
   extension, completion, BPMN error, technical failure, retry and trace

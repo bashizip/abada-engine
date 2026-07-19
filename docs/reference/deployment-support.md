@@ -3,8 +3,8 @@
 | Mode | Intended use | Authentication | Runtime guarantee |
 |---|---|---|---|
 | H2, one engine | Local development and tests | Disabled or trusted local proxy | Restart recovery; not a production topology |
-| PostgreSQL, one engine | Self-hosted production candidate | Direct OIDC JWT validation | 0.9 durable runtime: atomic commands, restart recovery, versioned definitions and transactional outbox |
-| PostgreSQL, multiple engines | Pre-production/experimental | Direct OIDC JWT validation | Database-authoritative commands and leased work are present; replica termination and comprehensive concurrent acquisition remain the 0.10 certification gate |
+| PostgreSQL, one engine | Self-hosted production | Direct OIDC JWT validation | 0.10 durable runtime: atomic commands, restart recovery, versioned definitions and transactional outbox |
+| PostgreSQL, multiple engines | Self-hosted production | Direct OIDC JWT validation | 0.10 cluster-safe acquisition, correlation, idempotency, lease recovery and outbox delivery |
 | Trusted proxy | Controlled private network only | OAuth2 Proxy headers | Engine must not be reachable except through the proxy |
 
 Production defaults to `ABADA_SECURITY_MODE=oidc` and requires
@@ -12,10 +12,10 @@ Production defaults to `ABADA_SECURITY_MODE=oidc` and requires
 `X-Auth-Request-*` headers and is unsafe when clients can reach the engine
 directly. `disabled` is only for local development and automated tests.
 
-PostgreSQL is the intended production source of truth. Flyway owns the schema
+PostgreSQL is the production source of truth. Flyway owns the schema
 and Hibernate validates it at startup. H2 is not used as evidence of
-PostgreSQL concurrency correctness. Mutable task and process-instance state is
-command-local, while correlation and work-acquisition correctness still need
-the 0.10 acceptance evidence; see the
+PostgreSQL concurrency correctness. Mutable workflow state is command-local;
+two-replica correlation, work acquisition, duplicate-request and failover
+behavior is covered by PostgreSQL Testcontainers acceptance tests. See the
 [runtime state architecture](../architecture/runtime-state.md) for the exact
 boundary.

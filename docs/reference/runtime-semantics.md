@@ -1,6 +1,6 @@
 # Runtime Semantics Contract
 
-This document defines the behavior guaranteed by the Abada 0.9 durable
+This document defines the behavior guaranteed by the Abada 0.10 cluster-safe
 runtime. PostgreSQL is the production authority; H2 is a development
 convenience and does not define concurrency behavior.
 
@@ -11,7 +11,11 @@ and locks its authoritative rows, validates the transition, advances BPMN,
 persists resulting state and work, appends activity history and an outbox
 event, then commits. An exception before commit rolls all of those writes
 back. A client that loses the response after commit may repeat the request;
-operations that accept `Idempotency-Key` return their stored logical result.
+all public HTTP mutations accept an optional `Idempotency-Key` and return their
+stored logical result when the same key, operation and request are replayed.
+Reuse for a different operation or request is rejected. The reservation,
+workflow mutation and stored response commit together, so concurrent replicas
+cannot both execute the command. Records expire after 24 hours.
 
 Exactly-once means one committed workflow-state transition. Embedded delegate
 side effects are not undone by a database rollback. Remote or retryable work
@@ -38,6 +42,8 @@ should use external tasks and an idempotent worker operation.
   is still available. Completion locks both task and process rows.
 - A completed or failed task cannot transition again.
 - Failure is terminal for the task but does not implicitly fail the process.
+- Claim, unclaim, completion and failure reject suspended or terminal process
+  instances after locking both task and process state.
 
 ## Process control
 
@@ -69,20 +75,29 @@ should use external tasks and an idempotent worker operation.
   `correlationKey` variable, locks the subscription, marks it consumed and
   advances the instance in one transaction.
 - A signal catch creates a durable subscription. Broadcast locks the matching
-  unconsumed subscriptions and advances every matched instance atomically as
-  one command. A failure rolls the broadcast command back.
+  unconsumed subscriptions in stable ID order and advances every matched
+  instance atomically as one command. Competing broadcasts observe consumed
+  rows after the winner commits. A failure rolls the broadcast command back.
 - A duration timer accepts an ISO-8601 duration and creates a durable job in
   the same transaction as the waiting token. Invalid duration or job creation
   failure aborts the command.
-- A timer job is retained as `COMPLETED` after successful advancement. Failed
-  advancement rolls back before a separate transaction increments its attempt
-  and schedules retry or marks it `FAILED`.
+- Due or expired timer jobs are claimed in bounded batches with PostgreSQL
+  `FOR UPDATE SKIP LOCKED`. Claiming records a 120-second lease owner and one
+  attempt before the acquisition transaction commits. A different replica may
+  reclaim the job after lease expiry.
+- A leased timer job is retained as `COMPLETED` after successful advancement.
+  Failed advancement rolls back before a separate transaction releases the
+  lease and schedules retry or marks it `FAILED`; the attempt is not counted
+  twice.
+- Timer polling defaults to a 60-second initial delay and interval, configurable
+  with `abada.jobs.initial-delay-ms` and `abada.jobs.poll-interval-ms`.
 
 ## External tasks and retries
 
 - Reaching a `camunda:topic` service task creates one durable external task.
-- Fetch-and-lock selects an open or expired task under a database write lock,
-  records worker and expiry, and returns a snapshot of process variables.
+- Fetch-and-lock selects an open or expired task with PostgreSQL `FOR UPDATE
+  SKIP LOCKED`, records worker and expiry, and returns a snapshot of process
+  variables. Competing workers receive disjoint work.
 - Only a live locked task can complete. Completion and process advancement
   commit together; a repeated completion of an already completed task is a
   no-op success.

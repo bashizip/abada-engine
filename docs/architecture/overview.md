@@ -20,13 +20,14 @@
 ## Overview
 
 The Abada Engine executes a documented BPMN 2.0 subset on Spring Boot 3, with
-OpenTelemetry observability and Docker-based deployment. Kubernetes and full
-multi-replica certification are future release gates.
+OpenTelemetry observability and Docker-based deployment. PostgreSQL
+multi-replica execution is certified at the 0.10 gate; Kubernetes packaging is
+still deferred.
 
 ### Key Features
 
 - **BPMN 2.0 Subset**: Explicitly supported tasks, gateways, and events
-- **Durable Design**: PostgreSQL-backed state with cluster hardening in progress
+- **Durable Design**: PostgreSQL-backed, cluster-safe state and work acquisition
 - **Comprehensive Observability**: Metrics, traces, and logs via OpenTelemetry
 - **Multi-Environment Support**: Development, test, and production configurations
 - **Load Balancing**: Traefik-based load balancing for high availability
@@ -694,17 +695,16 @@ Traefik sends distributed traces to the OTEL Collector using OTLP protocol, whic
 
 **Horizontal Scaling:**
 
-Do not scale the engine above one replica for guaranteed deployments yet. The
-PostgreSQL lease and locking foundation is present, but multi-replica failover,
-duplicate-request and concurrent-correlation acceptance tests are still a 0.10
-release gate.
+The 0.10 PostgreSQL profile supports multiple engine replicas. All replicas
+must run the same application version during ordinary operation, use the same
+database, and expose mutation retries through stable idempotency keys.
 
 **Runtime State:**
 
 - No session affinity required
 - Shared authoritative PostgreSQL state
 - Immutable parsed definitions may be cached per replica
-- Automatic failover is not yet a published guarantee
+- Expired timer and external-task leases are recoverable by another replica
 
 ## Security Considerations
 
@@ -791,15 +791,16 @@ JAVA_OPTS=-Xms512m -Xmx1g -XX:+UseG1GC -XX:+UseStringDeduplication
 
 **Application Scaling:**
 
-- Keep one engine replica for the currently supported topology
-- Load balancers and health checks do not themselves make workflow execution
-  cluster-safe
-- Follow the versioned release gates before enabling multiple replicas
+- Scale engine replicas against one PostgreSQL authority
+- Size each replica's connection pool so aggregate connections remain within
+  the database limit
+- Use stable idempotency keys for retried client mutations
 
 ### Auto-Scaling (Kubernetes)
 
-Kubernetes packaging and auto-scaling are deferred until the same engine image
-passes multi-replica PostgreSQL acceptance tests under Docker/Testcontainers.
+Kubernetes packaging and auto-scaling remain deferred even though the same
+engine application passes multi-replica PostgreSQL acceptance tests. Resource
+limits, disruption budgets and rolling-upgrade evidence are separate 1.0 work.
 
 **HPA Configuration:**
 

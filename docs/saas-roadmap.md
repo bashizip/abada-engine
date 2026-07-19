@@ -138,10 +138,11 @@ Docker Compose with 3 replicas and Traefik. Good for demo, not for SaaS scale.
 - Multi-AZ deployment
 - RTO/RPO targets defined for each plan tier
 
-**4e. State Management Fix** ⚠️
-> The engine currently stores process instances in an in-memory `HashMap` inside `AbadaEngine.java`. This works for a single instance but is a **critical issue** for SaaS:
-> - A pod restart loses all in-memory state (mitigated today by `StateReloadService` but it reloads all instances into memory — doesn't scale to thousands of tenants)
-> - Fix: move to **fully database-driven state** on the hot path, use Redis for session/lock management
+**4e. State Management Foundation** ✅
+> The 0.10 OSS core loads mutable process and task state from PostgreSQL per
+> command and uses database locks, leases and idempotency records across
+> replicas. Redis is not required for workflow correctness. SaaS work must
+> preserve that authority while adding tenant isolation and capacity controls.
 
 ---
 
@@ -182,7 +183,7 @@ Docker Compose with 3 replicas and Traefik. Good for demo, not for SaaS scale.
 ### What's Needed
 
 **6a. API Versioning & Stability**
-- Stabilize all REST contracts (targeted in `0.9.0-alpha`)
+- Stabilize all REST contracts (targeted by the 0.11 gate)
 - Strict API versioning (`/api/v1/`, `/api/v2/`)
 - OpenAPI spec published and versioned (Swagger already exists)
 - Deprecation policy documented
@@ -271,6 +272,7 @@ These don't require major architecture changes and unblock everything else:
 
 1. **Add `tenant_id` column** to all JPA entities — schema-level change, establishes the tenancy contract
 2. **API Key model** — simple table + hash-based lookup, unblocks external worker auth
-3. **Fix `HashMap` in-memory state** — move to fully DB-driven, critical for multi-tenant correctness
+3. **Preserve database-authoritative execution** while adding tenant-scoped
+   queries, locks, leases and capacity limits
 4. **GitHub Actions CI** — ensure engine tests pass on every PR before any new feature work
 5. **Stripe account setup** — register, define products/prices, get webhook endpoints ready

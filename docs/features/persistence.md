@@ -48,14 +48,17 @@ redeployments can therefore change which version new instances use without
 changing the execution model of existing instances. Losing the parsed cache
 only causes the pinned XML to be loaded and parsed again.
 
-## Guarantees and remaining work
+## Cluster guarantees
 
-PostgreSQL tests currently cover restart recovery and concurrent task claim,
-completion and failure across two application contexts. Full multi-replica
-certification still requires database-authoritative process commands, atomic
-event correlation, timer/external-work acquisition and failure testing around
-transaction commits.
+PostgreSQL tests cover restart recovery; concurrent task claim, completion and
+failure; message and signal correlation; `SKIP LOCKED` timer/external-work
+acquisition; expired lease recovery; cancellation races; concurrent
+idempotency reservations; and outbox acquisition across two application
+contexts. Failures before and after transaction commit are also covered.
+
+Exactly-once applies to committed workflow state. External side effects and
+outbox transport remain at-least-once and require consumer deduplication.
 
 See [Runtime State Architecture](../architecture/runtime-state.md) and the
 [Reliable OSS Core Roadmap](../development/roadmap-to-1.0.md) for the exact migration
-boundary and acceptance gates.
+boundary and later acceptance gates.
