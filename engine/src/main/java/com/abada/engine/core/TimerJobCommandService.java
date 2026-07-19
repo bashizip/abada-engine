@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Lazy;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 
 @Service
 public class TimerJobCommandService {
@@ -22,15 +23,24 @@ public class TimerJobCommandService {
 
     /** Executes one timer and its workflow advancement in a single transaction. */
     @AtomicRuntimeCommand
+    public List<JobEntity> claimDue(String leaseOwner, Instant now, int batchSize) {
+        List<JobEntity> jobs = repository.findClaimableForUpdate(now, batchSize);
+        for (JobEntity job : jobs) {
+            job.setStatus(JobEntity.Status.LEASED);
+            job.setLeaseOwner(leaseOwner);
+            job.setLeaseExpiresAt(now.plusSeconds(120));
+            job.setAttempts(job.getAttempts() + 1);
+        }
+        return repository.saveAll(jobs);
+    }
+
+    /** Executes one already-leased timer and its workflow advancement atomically. */
+    @AtomicRuntimeCommand
     public boolean execute(String jobId, String leaseOwner, Instant now) {
         JobEntity job = repository.findByIdForUpdate(jobId).orElse(null);
-        if (job == null || !isClaimable(job, now)) return false;
-
-        job.setStatus(JobEntity.Status.LEASED);
-        job.setLeaseOwner(leaseOwner);
-        job.setLeaseExpiresAt(now.plusSeconds(120));
-        job.setAttempts(job.getAttempts() + 1);
-        repository.save(job);
+        if (job == null || job.getStatus() != JobEntity.Status.LEASED
+                || !leaseOwner.equals(job.getLeaseOwner()) || job.getLeaseExpiresAt() == null
+                || !job.getLeaseExpiresAt().isAfter(now)) return false;
 
         engine.resumeFromEvent(job.getProcessInstanceId(), job.getEventId(), Map.of());
         job.setStatus(JobEntity.Status.COMPLETED);
@@ -49,7 +59,6 @@ public class TimerJobCommandService {
         JobEntity job = repository.findByIdForUpdate(jobId).orElse(null);
         if (job == null || job.getStatus() == JobEntity.Status.COMPLETED) return;
 
-        job.setAttempts(job.getAttempts() + 1);
         job.setLastError(error);
         job.setLeaseOwner(null);
         job.setLeaseExpiresAt(null);
@@ -61,11 +70,4 @@ public class TimerJobCommandService {
                 Map.of("jobId", jobId, "attempts", job.getAttempts(), "error", error == null ? "" : error));
     }
 
-    private boolean isClaimable(JobEntity job, Instant now) {
-        if (job.getStatus() == JobEntity.Status.AVAILABLE) {
-            return !job.getExecutionTimestamp().isAfter(now);
-        }
-        return job.getStatus() == JobEntity.Status.LEASED
-                && job.getLeaseExpiresAt() != null && !job.getLeaseExpiresAt().isAfter(now);
-    }
 }

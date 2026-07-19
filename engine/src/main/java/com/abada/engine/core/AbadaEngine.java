@@ -228,6 +228,7 @@ public class AbadaEngine {
     @AtomicRuntimeCommand
     public void claim(String taskId, String user, List<String> groups) {
         TaskInstance task = loadTaskForUpdate(taskId);
+        requireActiveProcessForTask(task);
         taskManager.claimTask(task, user, groups);
         persistTask(task);
         historyService.record("TASK_CLAIMED", loadProcessInstance(task.getProcessInstanceId()),
@@ -237,6 +238,7 @@ public class AbadaEngine {
     @AtomicRuntimeCommand
     public void unclaim(String taskId, String user) {
         TaskInstance task = loadTaskForUpdate(taskId);
+        requireActiveProcessForTask(task);
         taskManager.unclaimTask(task, user);
         persistTask(task);
         historyService.record("TASK_UNCLAIMED", loadProcessInstance(task.getProcessInstanceId()),
@@ -258,9 +260,7 @@ public class AbadaEngine {
         }
         ProcessInstance instance = materializeProcessInstance(authoritativeInstance);
 
-        if (instance.isSuspended()) {
-            throw new ProcessEngineException("Process instance is suspended: " + processInstanceId);
-        }
+        requireActive(instance);
 
         if (variables != null && !variables.isEmpty()) {
             instance.putAllVariables(variables);
@@ -289,6 +289,7 @@ public class AbadaEngine {
     @AtomicRuntimeCommand
     public void failTask(String taskId) {
         TaskInstance task = loadTaskForUpdate(taskId);
+        requireActiveProcessForTask(task);
         taskManager.failTask(task);
         persistTask(task);
         historyService.record("TASK_FAILED", loadProcessInstance(task.getProcessInstanceId()),
@@ -386,9 +387,7 @@ public class AbadaEngine {
             throw new ProcessEngineException("No process instance found for id=" + processInstanceId);
         }
 
-        if (instance.isSuspended()) {
-            throw new ProcessEngineException("Process instance is suspended: " + processInstanceId);
-        }
+        requireActive(instance);
 
         if (variables != null && !variables.isEmpty()) {
             instance.putAllVariables(variables);
@@ -408,6 +407,23 @@ public class AbadaEngine {
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
         createExternalTaskJobs(instance);
+    }
+
+    private ProcessInstance requireActiveProcessForTask(TaskInstance task) {
+        ProcessInstance instance = loadProcessInstanceForUpdate(task.getProcessInstanceId());
+        if (instance == null) throw new IllegalStateException(
+                "Task references missing process instance: " + task.getProcessInstanceId());
+        requireActive(instance);
+        return instance;
+    }
+
+    private void requireActive(ProcessInstance instance) {
+        if (instance.isSuspended() || instance.getStatus() == ProcessStatus.SUSPENDED)
+            throw new ProcessEngineException("Process instance is suspended: " + instance.getId());
+        if (instance.getStatus() == ProcessStatus.COMPLETED || instance.getStatus() == ProcessStatus.FAILED
+                || instance.getStatus() == ProcessStatus.CANCELLED)
+            throw new ProcessEngineException("Process instance is already in a terminal state: "
+                    + instance.getStatus());
     }
 
     private ProcessInstance materializeProcessInstance(ProcessInstanceEntity entity) {

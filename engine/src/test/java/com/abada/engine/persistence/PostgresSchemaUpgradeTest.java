@@ -21,7 +21,7 @@ class PostgresSchemaUpgradeTest {
             .withPassword("abada");
 
     @ParameterizedTest(name = "upgrades schema v{0} to latest")
-    @ValueSource(ints = {1, 2, 3, 4, 5, 6})
+    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7})
     void upgradesEveryPreviouslyPublishedSchemaVersion(int sourceVersion) throws Exception {
         String schema = "upgrade_from_v" + sourceVersion;
         Flyway.configure()
@@ -38,7 +38,7 @@ class PostgresSchemaUpgradeTest {
                 .load();
         assertThat(latest.migrate().success).isTrue();
         assertThat(latest.validateWithResult().validationSuccessful).isTrue();
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("7");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("8");
 
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -52,5 +52,25 @@ class PostgresSchemaUpgradeTest {
                      "compatibility_profiles")) {
             assertThat(columns.next()).isTrue();
         }
+        try (var connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+             var indexes = connection.getMetaData().getIndexInfo(null, schema, "jobs", false, false)) {
+            assertThat(indexNames(indexes)).contains(
+                    "idx_jobs_available_acquisition", "idx_jobs_expired_lease_acquisition");
+        }
+        try (var connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+             var indexes = connection.getMetaData().getIndexInfo(null, schema, "external_tasks", false, false)) {
+            assertThat(indexNames(indexes)).contains("idx_external_tasks_acquisition");
+        }
+    }
+
+    private java.util.Set<String> indexNames(java.sql.ResultSet indexes) throws Exception {
+        java.util.Set<String> names = new java.util.HashSet<>();
+        while (indexes.next()) {
+            String name = indexes.getString("INDEX_NAME");
+            if (name != null) names.add(name);
+        }
+        return names;
     }
 }

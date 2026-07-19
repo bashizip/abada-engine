@@ -16,6 +16,6 @@ public interface EventSubscriptionRepository extends JpaRepository<EventSubscrip
             EventSubscriptionEntity.Type type, String eventName, String correlationKey);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    List<EventSubscriptionEntity> findByEventTypeAndEventNameAndConsumedAtIsNull(
+    List<EventSubscriptionEntity> findByEventTypeAndEventNameAndConsumedAtIsNullOrderByIdAsc(
             EventSubscriptionEntity.Type type, String eventName);
 }

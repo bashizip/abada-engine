@@ -25,11 +25,9 @@ public interface ExternalTaskRepository extends JpaRepository<ExternalTaskEntity
      * @param now        The current time, to check for expired locks.
      * @return An Optional containing an available task, if one exists.
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select task from ExternalTaskEntity task where task.topicName = :topic "
-            + "and (task.status = com.abada.engine.persistence.entity.ExternalTaskEntity.Status.OPEN "
-            + "or (task.status = com.abada.engine.persistence.entity.ExternalTaskEntity.Status.LOCKED "
-            + "and task.lockExpirationTime < :now)) order by task.id")
+    @Query(value = "select * from external_tasks where topic_name = :topic "
+            + "and (status = 'OPEN' or (status = 'LOCKED' and lock_expiration_time <= :now)) "
+            + "order by id limit 1 for update skip locked", nativeQuery = true)
     List<ExternalTaskEntity> findAvailableForUpdate(@Param("topic") String topic, @Param("now") Instant now);
 
     default Optional<ExternalTaskEntity> findFirstAvailableForUpdate(String topic, Instant now) {
