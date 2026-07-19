@@ -62,6 +62,9 @@ public class EngineMetrics {
     private final Counter jobsExecuted;
     private final Counter jobsFailed;
     private final Timer jobExecutionTime;
+    private final Counter bpmnDeploymentsSucceeded;
+    private final Counter bpmnDeploymentsFailed;
+    private final Timer bpmnDeploymentDuration;
 
     public EngineMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
@@ -149,6 +152,21 @@ public class EngineMetrics {
         this.jobExecutionTime = Timer.builder("abada.job.execution_time")
                 .description("Job execution duration")
                 .register(meterRegistry);
+        this.bpmnDeploymentsSucceeded = Counter.builder("abada.bpmn.deployments")
+                .tag("outcome", "success").description("Successful BPMN compilation and deployments")
+                .register(meterRegistry);
+        this.bpmnDeploymentsFailed = Counter.builder("abada.bpmn.deployments")
+                .tag("outcome", "failure").description("Rejected or failed BPMN deployments")
+                .register(meterRegistry);
+        this.bpmnDeploymentDuration = Timer.builder("abada.bpmn.deployment.duration")
+                .description("Bounded BPMN parse, validation, compilation and persistence duration")
+                .register(meterRegistry);
+    }
+
+    public Timer.Sample startBpmnDeploymentTimer() { return Timer.start(meterRegistry); }
+    public void recordBpmnDeployment(Timer.Sample sample, boolean success) {
+        sample.stop(bpmnDeploymentDuration);
+        (success ? bpmnDeploymentsSucceeded : bpmnDeploymentsFailed).increment();
     }
 
     // Process Metrics Methods

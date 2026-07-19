@@ -20,9 +20,11 @@ Abada 1.0 must satisfy all of these invariants:
 4. **Conflicts are explicit.** Row locks serialize operations that must have a
    single winner; optimistic versions detect stale writes elsewhere. A retry or
    deterministic conflict response must never silently lose progress.
-5. **Work is durable.** Timers, continuations and external work are database
-   jobs with status, due time, lease owner, lease expiry, attempt count and
-   retry data. Expired leases can be recovered by another replica.
+5. **Work is durable.** Timers and external work are database records with
+   status, due/lock time, lease owner, lease expiry, attempt/retry data and
+   indexed acquisition paths. Expired leases can be recovered by another
+   replica. The supported core has no separate asynchronous-continuation job;
+   synchronous continuations advance inside the owning command.
 6. **External publication follows commit.** Lifecycle events and webhooks are
    written to a transactional outbox. No external observer is told about state
    that later rolls back.
@@ -79,14 +81,26 @@ longer own external-task or retry state transitions.
 | Process control | Process-instance row | Cancellation, failure, suspension or variables and activity history |
 | Message and signal | Unconsumed subscription rows, then process-instance rows | Subscription consumption, BPMN advancement, successor work and history |
 | External work | External-task row | Lease/failure/retry transition and history; completion also locks and advances the process instance |
-| Timers | Timer-job row, then process-instance row | Lease, attempt, BPMN advancement, successor work, completion and history |
+| Timers | `SKIP LOCKED` claim transaction, then leased timer and process rows | Lease and attempt commit before execution; advancement, successor work, completion and history commit together |
 | Idempotent API wrapper | Idempotency-key record plus the nested command locks | Workflow mutation and its stored deterministic response |
 
-Timer polling is deliberately not one large transaction. It finds candidate
-IDs without retaining locks, then executes each candidate through a separate
-atomic command. If advancement throws, that transaction rolls back completely;
-only then does a second transaction record the failed attempt. This prevents a
-caught exception from committing half-advanced workflow state.
+Timer polling is deliberately not one large transaction. A short acquisition
+transaction locks a bounded batch with `FOR UPDATE SKIP LOCKED`, records each
+120-second lease and commits. Each leased timer then executes through a
+separate atomic command. If advancement throws, that transaction rolls back
+completely; only then does a second transaction release or fail the job. This
+prevents a caught exception from committing half-advanced workflow state and
+allows another replica to recover an expired lease.
+
+External-task fetch-and-lock uses the same contention principle and returns
+disjoint work to concurrent replicas. V8 indexes cover available/expired timer
+and external-task acquisition. Message and signal subscriptions use
+pessimistic locks; signal rows are locked in stable ID order.
+
+Idempotency keys are reserved with PostgreSQL `INSERT ... ON CONFLICT`. A
+concurrent insert waits for the winning transaction and then replays its stored
+response, while a rollback removes the reservation with the command. H2 uses a
+single-process compatibility path and is not evidence for this guarantee.
 
 Definition cache insertion occurs only after a successful deployment commit.
 Failures while creating required timers are no longer logged and ignored: they
@@ -153,18 +167,18 @@ on a later read or command.
 | Area | Current behavior | 1.0 target |
 |---|---|---|
 | Parsed process definitions | One lazy replica-local cache is keyed by immutable deployment ID; latest-version selection is a PostgreSQL lookup and instances are foreign-key pinned | Retain this model and add bounded-cache telemetry if operational evidence requires it |
-| User-task lifecycle | Claim, completion and failure lock PostgreSQL task rows and mutate command-local snapshots | Add deterministic idempotency to claim/failure and retain this command model |
+| User-task lifecycle | Claim, unclaim, completion and failure lock task and process rows, mutate command-local snapshots and support deterministic replay | Retain this command model |
 | Startup | Preloads no workflow or definition objects; active process/task gauges use aggregate queries | Retain this model and extend durable recovery evidence |
-| Process control | Instance mutations load and lock PostgreSQL rows and use command-local state | Add deterministic idempotency and transaction-aware metrics |
+| Process control | Instance mutations load and lock PostgreSQL rows, use command-local state and support deterministic replay | Make metrics transaction-aware |
 | Query APIs | Public task and instance lists use bounded PostgreSQL pages, stable ordering and batch process hydration; detail reads return detached snapshots | Add purpose-built summary projections where full variables or candidate metadata are unnecessary |
-| Message/signal correlation | Locked subscriptions are consumed with process advancement in one command transaction | Add duplicate-correlation semantics and multi-replica contention evidence |
-| Timers/external work | Per-item command transactions lock work rows and atomically persist transition, advancement and history | Add `SKIP LOCKED` acquisition, replica-death recovery and idempotent completion evidence |
+| Message/signal correlation | Locked subscriptions are consumed with process advancement in one command transaction; duplicate and cancellation races are covered across replicas | Retain this model and add operational contention telemetry if needed |
+| Timers/external work | `SKIP LOCKED` acquisition, durable leases, replica-death recovery and per-item atomic advancement are covered across replicas | Retain this model and tune batch/lease settings from production evidence |
 | Metrics | Some counters are changed before transaction outcome is known | Derive durable facts or update transaction-aware metrics after commit |
 | Lifecycle delivery | History and outbox records commit together; dispatchers use PostgreSQL `SKIP LOCKED` leases, retry delays and stable delivery IDs | Add destination-specific operational dashboards during 0.11 productization |
 
-Consequently, PostgreSQL is the intended production authority, but the whole
-runtime does **not yet** satisfy the target invariants. Multi-replica operation
-remains experimental until the 0.10 acceptance gate passes.
+The PostgreSQL runtime now satisfies the 0.10 cluster-safety gate for the
+documented BPMN subset. API freezing, security/RBAC completion and rolling
+upgrade certification remain later release gates; see the roadmap.
 
 ## Concurrency policy
 
@@ -211,4 +225,4 @@ The migration is complete only when:
   PostgreSQL acceptance suites.
 
 Progress and test evidence are tracked in the
-[Reliable OSS Core roadmap](../development/roadmap.md).
+[Reliable OSS Core roadmap](../development/roadmap-to-1.0.md).

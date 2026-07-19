@@ -5,17 +5,23 @@ import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.EventManager;
 import com.abada.engine.core.ExternalTaskCommandService;
 import com.abada.engine.core.JobScheduler;
+import com.abada.engine.core.TimerJobCommandService;
+import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.core.OutboxService;
 import com.abada.engine.core.ProcessInstance;
 import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
+import com.abada.engine.core.model.ProcessStatus;
 import com.abada.engine.persistence.entity.ActivityHistoryEntity;
+import com.abada.engine.persistence.entity.ExternalTaskEntity;
 import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.ActivityHistoryRepository;
 import com.abada.engine.persistence.repository.ProcessInstanceRepository;
 import com.abada.engine.persistence.repository.TaskRepository;
 import com.abada.engine.persistence.repository.OutboxEventRepository;
+import com.abada.engine.persistence.repository.JobRepository;
+import com.abada.engine.persistence.repository.ExternalTaskRepository;
 import com.abada.engine.dto.FetchAndLockRequest;
 import com.abada.engine.util.DatabaseTestHelper;
 import org.junit.jupiter.api.Test;
@@ -43,6 +49,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -85,11 +93,11 @@ class PostgresRestartRecoveryTest {
             assertThat(context.getBean(ActivityHistoryRepository.class)
                     .findByProcessInstanceIdOrderByOccurredAtAsc(instance.getId()))
                     .extracting(ActivityHistoryEntity::getEventType)
-                    .containsExactly("PROCESS_STARTED");
+                    .containsExactly("PROCESS_STARTED", "TASK_CREATED", "TASK_ASSIGNED");
             assertThat(context.getBean(OutboxEventRepository.class)
                     .findByAggregateIdOrderByOccurredAt(instance.getId()))
                     .extracting(event -> event.getEventType())
-                    .containsExactly("PROCESS_STARTED");
+                    .containsExactly("PROCESS_STARTED", "TASK_CREATED", "TASK_ASSIGNED");
         }
     }
 
@@ -145,9 +153,13 @@ class PostgresRestartRecoveryTest {
                     .findFirst().orElseThrow();
             var instanceEvent = firstLease.stream()
                     .filter(event -> event.aggregateId().equals(instance.getId()))
+                    .filter(event -> event.eventType().equals("PROCESS_STARTED"))
                     .findFirst().orElseThrow();
-            outbox.markPublished(definitionEvent.id(), "replica-a", now);
-            outbox.markFailed(instanceEvent.id(), "replica-a", "temporary transport failure", now);
+            for (var event : firstLease) {
+                if (event.id().equals(instanceEvent.id()))
+                    outbox.markFailed(event.id(), "replica-a", "temporary transport failure", now);
+                else outbox.markPublished(event.id(), "replica-a", now);
+            }
 
             assertThat(outbox.claim("replica-b", 100, now.plusSeconds(1))).isEmpty();
             var retry = outbox.claim("replica-b", 100, now.plusSeconds(301));
@@ -351,7 +363,7 @@ class PostgresRestartRecoveryTest {
                     .findByProcessInstanceIdOrderByOccurredAtAsc(processInstanceId);
             assertThat(history)
                     .extracting(ActivityHistoryEntity::getEventType)
-                    .containsExactly("PROCESS_STARTED", "TASK_CLAIMED", "TASK_COMPLETED");
+                    .containsExactly("PROCESS_STARTED", "TASK_CREATED", "TASK_CLAIMED", "TASK_COMPLETED");
         }
     }
 
@@ -492,6 +504,309 @@ class PostgresRestartRecoveryTest {
                         .hasSize(2);
             }
         }
+    }
+
+    @Test
+    void atomicallyAcquiresOneTimerAcrossTwoReplicasWithoutDuplicateTransition() throws Exception {
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/timer-event-test.bpmn");
+            String instanceId = engine.startProcess("TimerEventProcess", "test-user", Map.of()).getId();
+            TaskInstance initial = engine.getTaskManager().getTasksForProcessInstance(instanceId).getFirst();
+            engine.completeTask(initial.getId(), "test-user", List.of(), Map.of());
+            Thread.sleep(1100);
+
+            try (ConfigurableApplicationContext second = startApplication()) {
+                assertThat(runConcurrentAttempts(
+                        () -> { first.getBean(JobScheduler.class).executeDueJobs(); return true; },
+                        () -> { second.getBean(JobScheduler.class).executeDueJobs(); return true; }))
+                        .containsExactly(true, true);
+
+                assertThat(engine.getTaskManager().getTasksForProcessInstance(instanceId))
+                        .extracting(TaskInstance::getTaskDefinitionKey).containsExactly("FinalTask");
+                assertThat(first.getBean(JobRepository.class).findAll())
+                        .singleElement().satisfies(job -> {
+                            assertThat(job.getStatus().name()).isEqualTo("COMPLETED");
+                            assertThat(job.getAttempts()).isEqualTo(1);
+                        });
+                assertThat(first.getBean(ActivityHistoryRepository.class)
+                        .findByProcessInstanceIdOrderByOccurredAtAsc(instanceId))
+                        .filteredOn(event -> "TIMER_JOB_COMPLETED".equals(event.getEventType())).hasSize(1);
+            }
+        }
+    }
+
+    @Test
+    void recoversExpiredTimerLeaseAfterReplicaTermination() throws Exception {
+        String instanceId;
+        Instant claimedAt;
+        try (ConfigurableApplicationContext deadReplica = startApplication()) {
+            deadReplica.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = deadReplica.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/timer-event-test.bpmn");
+            instanceId = engine.startProcess("TimerEventProcess", "test-user", Map.of()).getId();
+            TaskInstance initial = engine.getTaskManager().getTasksForProcessInstance(instanceId).getFirst();
+            engine.completeTask(initial.getId(), "test-user", List.of(), Map.of());
+            claimedAt = Instant.now().plusSeconds(2);
+            assertThat(deadReplica.getBean(TimerJobCommandService.class)
+                    .claimDue("dead-replica", claimedAt, 10)).hasSize(1);
+        }
+
+        try (ConfigurableApplicationContext survivor = startApplication()) {
+            TimerJobCommandService commands = survivor.getBean(TimerJobCommandService.class);
+            Instant recoveredAt = claimedAt.plusSeconds(121);
+            var recovered = commands.claimDue("surviving-replica", recoveredAt, 10);
+            assertThat(recovered).hasSize(1);
+            assertThat(commands.execute(recovered.getFirst().getId(), "surviving-replica", recoveredAt)).isTrue();
+            assertThat(survivor.getBean(AbadaEngine.class).getTaskManager().getTasksForProcessInstance(instanceId))
+                    .extracting(TaskInstance::getTaskDefinitionKey).containsExactly("FinalTask");
+        }
+    }
+
+    @Test
+    void atomicallyFetchesOneExternalTaskAcrossTwoReplicasAndRecoversExpiredWorkerLock() throws Exception {
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/external-task-test.bpmn");
+            String instanceId = engine.startProcess("ExternalTaskTestProcess", "worker-user", Map.of()).getId();
+
+            try (ConfigurableApplicationContext second = startApplication()) {
+                ExternalTaskCommandService firstCommands = first.getBean(ExternalTaskCommandService.class);
+                ExternalTaskCommandService secondCommands = second.getBean(ExternalTaskCommandService.class);
+                CountDownLatch ready = new CountDownLatch(2);
+                CountDownLatch start = new CountDownLatch(1);
+                try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+                    Future<List<com.abada.engine.dto.LockedExternalTask>> a = executor.submit(() -> {
+                        ready.countDown(); start.await(10, TimeUnit.SECONDS);
+                        return firstCommands.fetchAndLock(
+                                new FetchAndLockRequest("worker-a", List.of("test-topic"), 10_000));
+                    });
+                    Future<List<com.abada.engine.dto.LockedExternalTask>> b = executor.submit(() -> {
+                        ready.countDown(); start.await(10, TimeUnit.SECONDS);
+                        return secondCommands.fetchAndLock(
+                                new FetchAndLockRequest("worker-b", List.of("test-topic"), 10_000));
+                    });
+                    assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+                    start.countDown();
+                    assertThat(a.get(10, TimeUnit.SECONDS).size() + b.get(10, TimeUnit.SECONDS).size()).isEqualTo(1);
+                }
+                TransactionTemplate transaction = first.getBean(TransactionTemplate.class);
+                ExternalTaskRepository repository = first.getBean(ExternalTaskRepository.class);
+                transaction.executeWithoutResult(ignored -> {
+                    ExternalTaskEntity lockedTask = repository.findAll().getFirst();
+                    lockedTask.setLockExpirationTime(Instant.now().minusSeconds(1));
+                    repository.save(lockedTask);
+                });
+                var recovered = secondCommands.fetchAndLock(
+                        new FetchAndLockRequest("recovery-worker", List.of("test-topic"), 10_000));
+                assertThat(recovered).hasSize(1);
+                secondCommands.complete(recovered.getFirst().id(), Map.of("recovered", true));
+                assertThat(engine.getProcessInstanceById(instanceId).getVariables()).containsEntry("recovered", true);
+            }
+        }
+    }
+
+    @Test
+    void correlatesOneMessageExactlyOnceAcrossTwoReplicas() throws Exception {
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/message-event-test.bpmn");
+            String instanceId = engine.startProcess("MessageEventProcess", "test-user",
+                    Map.of("correlationKey", "cluster-order")).getId();
+            TaskInstance initial = engine.getTaskManager().getTasksForProcessInstance(instanceId).getFirst();
+            engine.completeTask(initial.getId(), "test-user", List.of(), Map.of());
+
+            try (ConfigurableApplicationContext second = startApplication()) {
+                assertThat(runConcurrentAttempts(
+                        () -> { first.getBean(EventManager.class).correlateMessage(
+                                "OrderPaid", "cluster-order", Map.of("replica", "a")); return true; },
+                        () -> { second.getBean(EventManager.class).correlateMessage(
+                                "OrderPaid", "cluster-order", Map.of("replica", "b")); return true; }))
+                        .containsExactly(true, true);
+                assertThat(engine.getTaskManager().getTasksForProcessInstance(instanceId))
+                        .extracting(TaskInstance::getTaskDefinitionKey).containsExactly("Task_FulfillOrder");
+                assertThat(first.getBean(ActivityHistoryRepository.class)
+                        .findByProcessInstanceIdOrderByOccurredAtAsc(instanceId))
+                        .filteredOn(event -> "EVENT_CORRELATED".equals(event.getEventType())).hasSize(1);
+            }
+        }
+    }
+
+    @Test
+    void broadcastsOneSignalExactlyOnceAcrossTwoReplicas() throws Exception {
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/signal-event-test.bpmn");
+            String instanceId = engine.startProcess("SignalEventProcess", "test-user", Map.of()).getId();
+            TaskInstance initial = engine.getTaskManager().getTasksForProcessInstance(instanceId).getFirst();
+            engine.completeTask(initial.getId(), "test-user", List.of(), Map.of());
+
+            try (ConfigurableApplicationContext second = startApplication()) {
+                assertThat(runConcurrentAttempts(
+                        () -> { first.getBean(EventManager.class).broadcastSignal(
+                                "SignalGo", Map.of("replica", "a")); return true; },
+                        () -> { second.getBean(EventManager.class).broadcastSignal(
+                                "SignalGo", Map.of("replica", "b")); return true; }))
+                        .containsExactly(true, true);
+                assertThat(engine.getTaskManager().getTasksForProcessInstance(instanceId))
+                        .extracting(TaskInstance::getTaskDefinitionKey).containsExactly("FinalTask");
+                assertThat(first.getBean(ActivityHistoryRepository.class)
+                        .findByProcessInstanceIdOrderByOccurredAtAsc(instanceId))
+                        .filteredOn(event -> "EVENT_CORRELATED".equals(event.getEventType())).hasSize(1);
+            }
+        }
+    }
+
+    @Test
+    void serializesCancellationAgainstMessageCorrelationWithoutResurrectingTheInstance() throws Exception {
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deploy(engine, "/bpmn/message-event-test.bpmn");
+            String instanceId = engine.startProcess("MessageEventProcess", "test-user",
+                    Map.of("correlationKey", "cancel-order")).getId();
+            TaskInstance initial = engine.getTaskManager().getTasksForProcessInstance(instanceId).getFirst();
+            engine.completeTask(initial.getId(), "test-user", List.of(), Map.of());
+
+            try (ConfigurableApplicationContext second = startApplication()) {
+                List<Boolean> results = runConcurrentAttempts(
+                        () -> { engine.cancelProcessInstance(instanceId, "cluster cancellation"); return true; },
+                        () -> {
+                            try {
+                                second.getBean(EventManager.class).correlateMessage(
+                                        "OrderPaid", "cancel-order", Map.of("paid", true));
+                                return true;
+                            } catch (ProcessEngineException terminalInstance) {
+                                return false;
+                            }
+                        });
+                assertThat(results.getFirst()).isTrue();
+                assertThat(engine.getProcessInstanceById(instanceId)).satisfies(cancelled -> {
+                    assertThat(cancelled.getStatus()).isEqualTo(ProcessStatus.CANCELLED);
+                    assertThat(cancelled.getActiveTokens()).isEmpty();
+                });
+                List<ActivityHistoryEntity> history = first.getBean(ActivityHistoryRepository.class)
+                        .findByProcessInstanceIdOrderByOccurredAtAsc(instanceId);
+                assertThat(history).filteredOn(event -> "PROCESS_CANCELLED".equals(event.getEventType())).hasSize(1);
+                assertThat(history).filteredOn(event -> "EVENT_CORRELATED".equals(event.getEventType())).hasSizeLessThanOrEqualTo(1);
+            }
+        }
+    }
+
+    @Test
+    void returnsOneDeterministicProcessStartForConcurrentDuplicateRequests() throws Exception {
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deployRestartProcess(engine);
+            try (ConfigurableApplicationContext second = startApplication()) {
+                CountDownLatch ready = new CountDownLatch(2);
+                CountDownLatch start = new CountDownLatch(1);
+                Callable<Map<String, Object>> firstCall = idempotentStart(first, ready, start);
+                Callable<Map<String, Object>> secondCall = idempotentStart(second, ready, start);
+                try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+                    Future<Map<String, Object>> a = executor.submit(firstCall);
+                    Future<Map<String, Object>> b = executor.submit(secondCall);
+                    assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+                    start.countDown();
+                    assertThat(a.get(10, TimeUnit.SECONDS)).isEqualTo(b.get(10, TimeUnit.SECONDS));
+                }
+                assertThat(first.getBean(ProcessInstanceRepository.class).count()).isEqualTo(1);
+            }
+        }
+    }
+
+    @Test
+    void rejectsAnIdempotencyKeyReusedForADifferentRequest() {
+        try (ConfigurableApplicationContext context = startApplication()) {
+            context.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = context.getBean(AbadaEngine.class);
+            deployRestartProcess(engine);
+            IdempotencyService idempotency = context.getBean(IdempotencyService.class);
+
+            idempotency.execute("reused-key", "process.start", Map.of("request", 1), () ->
+                    Map.of("processInstanceId", engine.startProcess(
+                            "postgres-restart-recovery", "alice", Map.of()).getId()));
+
+            assertThatThrownBy(() -> idempotency.execute(
+                    "reused-key", "process.start", Map.of("request", 2), Map::of))
+                    .isInstanceOf(ProcessEngineException.class)
+                    .hasMessageContaining("different request");
+            assertThat(context.getBean(ProcessInstanceRepository.class).count()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void treatsEquivalentRequestMapsAsTheSameIdempotentRequestRegardlessOfKeyOrder() {
+        try (ConfigurableApplicationContext context = startApplication()) {
+            context.getBean(DatabaseTestHelper.class).cleanup();
+            IdempotencyService idempotency = context.getBean(IdempotencyService.class);
+            Map<String, Object> firstOrder = new LinkedHashMap<>();
+            firstOrder.put("alpha", 1);
+            firstOrder.put("beta", 2);
+            Map<String, Object> secondOrder = new LinkedHashMap<>();
+            secondOrder.put("beta", 2);
+            secondOrder.put("alpha", 1);
+
+            Map<String, Object> first = idempotency.execute(
+                    "canonical-request", "test.canonical", firstOrder, () -> Map.of("result", "stored"));
+            Map<String, Object> replay = idempotency.execute(
+                    "canonical-request", "test.canonical", secondOrder, () -> Map.of("result", "not-run"));
+
+            assertThat(replay).isEqualTo(first).containsEntry("result", "stored");
+        }
+    }
+
+    @Test
+    void concurrentlyLeasesOutboxEventsWithoutOverlap() throws Exception {
+        try (ConfigurableApplicationContext first = startApplication()) {
+            first.getBean(DatabaseTestHelper.class).cleanup();
+            AbadaEngine engine = first.getBean(AbadaEngine.class);
+            deployRestartProcess(engine);
+            engine.startProcess("postgres-restart-recovery", "alice", Map.of());
+            try (ConfigurableApplicationContext second = startApplication()) {
+                Instant now = Instant.now();
+                CountDownLatch ready = new CountDownLatch(2);
+                CountDownLatch start = new CountDownLatch(1);
+                try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+                    Future<List<com.abada.engine.core.PublishedLifecycleEvent>> a = executor.submit(() -> {
+                        ready.countDown(); start.await(10, TimeUnit.SECONDS);
+                        return first.getBean(OutboxService.class).claim("replica-a", 2, now);
+                    });
+                    Future<List<com.abada.engine.core.PublishedLifecycleEvent>> b = executor.submit(() -> {
+                        ready.countDown(); start.await(10, TimeUnit.SECONDS);
+                        return second.getBean(OutboxService.class).claim("replica-b", 2, now);
+                    });
+                    assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+                    start.countDown();
+                    var firstLease = a.get(10, TimeUnit.SECONDS);
+                    var secondLease = b.get(10, TimeUnit.SECONDS);
+                    HashSet<String> ids = new HashSet<>();
+                    firstLease.forEach(event -> assertThat(ids.add(event.id())).isTrue());
+                    secondLease.forEach(event -> assertThat(ids.add(event.id())).isTrue());
+                    assertThat(ids).hasSize(firstLease.size() + secondLease.size());
+                    assertThat(firstLease.size() + secondLease.size()).isGreaterThanOrEqualTo(3);
+                }
+            }
+        }
+    }
+
+    private Callable<Map<String, Object>> idempotentStart(ConfigurableApplicationContext context,
+            CountDownLatch ready, CountDownLatch start) {
+        return () -> {
+            ready.countDown();
+            assertThat(start.await(10, TimeUnit.SECONDS)).isTrue();
+            return context.getBean(IdempotencyService.class).execute("cluster-start-key", "process.start",
+                    Map.of("processId", "postgres-restart-recovery", "variables", Map.of()), () -> {
+                        String id = context.getBean(AbadaEngine.class)
+                                .startProcess("postgres-restart-recovery", "alice", Map.of()).getId();
+                        return Map.of("processInstanceId", id);
+                    });
+        };
     }
 
     private Callable<Boolean> completionAttempt(AbadaEngine engine, String taskId,

@@ -122,10 +122,24 @@ public class TaskController {
      */
     @PostMapping("/claim")
     public ResponseEntity<Map<String, Object>> claim(
-        @RequestParam String taskId
+        @RequestParam String taskId,
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
-        engine.claim(taskId, context.getUsername(), context.getGroups());
-        return ResponseEntity.ok(Map.of("status", "Claimed", "taskId", taskId));
+        return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "task.claim",
+                Map.of("taskId", taskId, "user", context.getUsername()), () -> {
+                    engine.claim(taskId, context.getUsername(), context.getGroups());
+                    return Map.of("status", "Claimed", "taskId", taskId);
+                }));
+    }
+
+    @PostMapping("/unclaim")
+    public ResponseEntity<Map<String, Object>> unclaim(@RequestParam String taskId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "task.unclaim",
+                Map.of("taskId", taskId, "user", context.getUsername()), () -> {
+                    engine.unclaim(taskId, context.getUsername());
+                    return Map.of("status", "Unclaimed", "taskId", taskId);
+                }));
     }
 
     /**
@@ -144,7 +158,7 @@ public class TaskController {
     ) {
         Map<String, Object> body = variables == null ? Map.of() : variables;
         Map<String, Object> response = idempotencyService.execute(idempotencyKey, "task.complete",
-                Map.of("taskId", taskId, "variables", body), () -> {
+                Map.of("taskId", taskId, "user", context.getUsername(), "variables", body), () -> {
                     engine.completeTask(taskId, context.getUsername(), context.getGroups(), body);
                     return Map.of("status", "Completed", "taskId", taskId);
                 });
@@ -160,10 +174,14 @@ public class TaskController {
      */
     @PostMapping("/fail")
     public ResponseEntity<Map<String, Object>> fail(
-        @RequestParam String taskId
+        @RequestParam String taskId,
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
-        engine.failTask(taskId);
-        return ResponseEntity.ok(Map.of("status", "Failed", "taskId", taskId));
+        return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "task.fail",
+                Map.of("taskId", taskId), () -> {
+                    engine.failTask(taskId);
+                    return Map.of("status", "Failed", "taskId", taskId);
+                }));
     }
 
     /**

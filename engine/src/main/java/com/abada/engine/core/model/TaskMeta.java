@@ -2,13 +2,13 @@ package com.abada.engine.core.model;
 
 import java.io.Serializable;
 import java.util.List;
+import com.abada.engine.core.model.assignment.ProcessExpression;
+import com.abada.engine.core.model.assignment.UserTaskAssignment;
 
 public class TaskMeta implements Serializable {
     private String id;
     private String name;
-    private String assignee;
-    private List<String> candidateUsers;
-    private List<String> candidateGroups;
+    private UserTaskAssignment assignment = UserTaskAssignment.EMPTY;
     private String formKey;
     private String dueDate;
     private String followUpDate;
@@ -25,9 +25,9 @@ public class TaskMeta implements Serializable {
     public TaskMeta(String id, String name, String assignee, List<String> candidateUsers, List<String> candidateGroups, String formKey, String dueDate, String followUpDate, String priority, String documentation) {
         this.id = id;
         this.name = name;
-        this.assignee = assignee;
-        this.candidateUsers = candidateUsers;
-        this.candidateGroups = candidateGroups;
+        setAssignee(assignee);
+        setCandidateUsers(candidateUsers);
+        setCandidateGroups(candidateGroups);
         this.formKey = formKey;
         this.dueDate = dueDate;
         this.followUpDate = followUpDate;
@@ -52,27 +52,42 @@ public class TaskMeta implements Serializable {
     }
 
     public String getAssignee() {
-        return assignee;
+        return assignment.assignee().map(ProcessExpression::source).orElse(null);
     }
 
     public void setAssignee(String assignee) {
-        this.assignee = assignee;
+        this.assignment = new UserTaskAssignment(
+                assignee == null || assignee.isBlank() ? java.util.Optional.empty()
+                        : java.util.Optional.of(com.abada.engine.core.model.assignment.ProcessExpressions.parse(assignee)),
+                assignment.candidateUsers(), assignment.candidateGroups(), assignment.strategy());
     }
 
     public List<String> getCandidateUsers() {
-        return candidateUsers;
+        return assignment.candidateUsers().stream().map(ProcessExpression::source).toList();
     }
 
     public void setCandidateUsers(List<String> candidateUsers) {
-        this.candidateUsers = candidateUsers;
+        this.assignment = new UserTaskAssignment(assignment.assignee(),
+                candidateUsers == null ? List.of() : candidateUsers.stream()
+                        .map(com.abada.engine.core.model.assignment.ProcessExpressions::parse).toList(),
+                assignment.candidateGroups(), assignment.strategy());
     }
 
     public List<String> getCandidateGroups() {
-        return candidateGroups;
+        return assignment.candidateGroups().stream().map(ProcessExpression::source).toList();
     }
 
     public void setCandidateGroups(List<String> candidateGroups) {
-        this.candidateGroups = candidateGroups;
+        this.assignment = new UserTaskAssignment(assignment.assignee(), assignment.candidateUsers(),
+                candidateGroups == null ? List.of() : candidateGroups.stream()
+                        .map(com.abada.engine.core.model.assignment.ProcessExpressions::parse).toList(),
+                assignment.strategy());
+    }
+
+    public UserTaskAssignment getAssignment() { return assignment; }
+
+    public void setAssignment(UserTaskAssignment assignment) {
+        this.assignment = assignment == null ? UserTaskAssignment.EMPTY : assignment;
     }
 
     public String getFormKey() {

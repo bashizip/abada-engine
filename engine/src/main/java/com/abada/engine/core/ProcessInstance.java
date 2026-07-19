@@ -2,6 +2,7 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.*;
 import com.abada.engine.dto.UserTaskPayload;
+import com.abada.engine.core.assignment.AssignmentEvaluator;
 import com.abada.engine.spi.DelegateExecution;
 import com.abada.engine.spi.JavaDelegate;
 import java.time.Instant;
@@ -201,8 +202,9 @@ public class ProcessInstance {
                         activeTokens.add(pointer);
                         if (definition.isUserTask(pointer)) {
                             TaskMeta ut = definition.getUserTask(pointer);
-                            newUserTasks.add(new UserTaskPayload(ut.getId(), ut.getName(), ut.getAssignee(),
-                                    ut.getCandidateUsers(), ut.getCandidateGroups()));
+                            var resolved = new AssignmentEvaluator().evaluate(ut.getAssignment(), variables);
+                            newUserTasks.add(new UserTaskPayload(ut.getId(), ut.getName(), resolved.assignee(),
+                                    resolved.candidateUsers(), resolved.candidateGroups(), resolved.strategy()));
                         }
                         current = null;
                     }

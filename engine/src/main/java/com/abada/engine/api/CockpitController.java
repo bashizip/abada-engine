@@ -2,6 +2,7 @@ package com.abada.engine.api;
 
 import com.abada.engine.core.AbadaEngine;
 import com.abada.engine.core.ProcessInstance;
+import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.dto.VariablePatchRequest;
 import com.abada.engine.dto.VariableValue;
 import com.abada.engine.dto.CancelRequest;
@@ -28,10 +29,13 @@ public class CockpitController {
 
     private final AbadaEngine engine;
     private final ActivityHistoryRepository historyRepository;
+    private final IdempotencyService idempotency;
 
-    public CockpitController(AbadaEngine engine, ActivityHistoryRepository historyRepository) {
+    public CockpitController(AbadaEngine engine, ActivityHistoryRepository historyRepository,
+            IdempotencyService idempotency) {
         this.engine = engine;
         this.historyRepository = historyRepository;
+        this.idempotency = idempotency;
     }
 
     /**
@@ -67,7 +71,8 @@ public class CockpitController {
     @PatchMapping("/{instanceId}/variables")
     public ResponseEntity<Void> patchProcessVariables(
             @PathVariable String instanceId,
-            @RequestBody VariablePatchRequest request) {
+            @RequestBody VariablePatchRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
 
         ProcessInstance instance = engine.getProcessInstanceById(instanceId);
         if (instance == null) {
@@ -80,7 +85,11 @@ public class CockpitController {
                         Map.Entry::getKey,
                         entry -> entry.getValue().toObject()));
 
-        engine.updateProcessVariables(instanceId, modifications);
+        idempotency.execute(idempotencyKey, "process.variables.patch",
+                Map.of("instanceId", instanceId, "modifications", modifications), () -> {
+                    engine.updateProcessVariables(instanceId, modifications);
+                    return Map.of("status", "Updated", "processInstanceId", instanceId);
+                });
 
         return ResponseEntity.ok().build();
     }
@@ -95,10 +104,14 @@ public class CockpitController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> cancelProcess(@PathVariable String id,
-            @RequestBody(required = false) CancelRequest request) {
-        String reason = request != null ? request.reason() : "Cancelled via API";
+            @RequestBody(required = false) CancelRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        String reason = request != null && request.reason() != null ? request.reason() : "Cancelled via API";
         try {
-            engine.cancelProcessInstance(id, reason);
+            idempotency.execute(idempotencyKey, "process.cancel", Map.of("id", id, "reason", reason), () -> {
+                engine.cancelProcessInstance(id, reason);
+                return Map.of("status", "Cancelled", "processInstanceId", id);
+            });
             return ResponseEntity.noContent().build();
         } catch (com.abada.engine.core.exception.ProcessEngineException e) {
             if (e.getMessage().contains("not found")) {
@@ -118,9 +131,15 @@ public class CockpitController {
      */
     @PutMapping("/{id}/suspension")
     public ResponseEntity<Void> setSuspension(@PathVariable String id,
-            @RequestBody SuspensionRequest request) {
+            @RequestBody SuspensionRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         try {
-            engine.suspendProcessInstance(id, request.suspended());
+            idempotency.execute(idempotencyKey, "process.suspension",
+                    Map.of("id", id, "suspended", request.suspended()), () -> {
+                        engine.suspendProcessInstance(id, request.suspended());
+                        return Map.of("status", request.suspended() ? "Suspended" : "Active",
+                                "processInstanceId", id);
+                    });
             return ResponseEntity.ok().build();
         } catch (com.abada.engine.core.exception.ProcessEngineException e) {
             return ResponseEntity.notFound().build();

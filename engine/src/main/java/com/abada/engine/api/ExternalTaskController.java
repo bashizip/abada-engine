@@ -1,6 +1,8 @@
 package com.abada.engine.api;
 
 import com.abada.engine.core.ExternalTaskCommandService;
+import com.abada.engine.core.IdempotencyService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.abada.engine.dto.ExternalTaskFailureDto;
 import com.abada.engine.dto.FetchAndLockRequest;
 import com.abada.engine.dto.LockedExternalTask;
@@ -22,9 +24,11 @@ import java.util.Map;
 public class ExternalTaskController {
 
     private final ExternalTaskCommandService commands;
+    private final IdempotencyService idempotency;
 
-    public ExternalTaskController(ExternalTaskCommandService commands) {
+    public ExternalTaskController(ExternalTaskCommandService commands, IdempotencyService idempotency) {
         this.commands = commands;
+        this.idempotency = idempotency;
     }
 
     /**
@@ -41,8 +45,10 @@ public class ExternalTaskController {
      *         or be empty if no tasks are available for the given topics.
      */
     @PostMapping("/fetch-and-lock")
-    public ResponseEntity<List<LockedExternalTask>> fetchAndLock(@RequestBody FetchAndLockRequest request) {
-        return ResponseEntity.ok(commands.fetchAndLock(request));
+    public ResponseEntity<List<LockedExternalTask>> fetchAndLock(@RequestBody FetchAndLockRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.ok(idempotency.execute(idempotencyKey, "external-task.fetch-and-lock", request,
+                new TypeReference<List<LockedExternalTask>>() {}, () -> commands.fetchAndLock(request)));
     }
 
     /**
@@ -61,8 +67,12 @@ public class ExternalTaskController {
      * @return An HTTP 200 OK response on successful completion.
      */
     @PostMapping("/{id}/complete")
-    public ResponseEntity<Void> complete(@PathVariable String id, @RequestBody Map<String, Object> variables) {
-        commands.complete(id, variables);
+    public ResponseEntity<Void> complete(@PathVariable String id, @RequestBody Map<String, Object> variables,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        idempotency.execute(idempotencyKey, "external-task.complete", Map.of("id", id, "variables", variables), () -> {
+            commands.complete(id, variables);
+            return Map.of("status", "Completed", "externalTaskId", id);
+        });
         return ResponseEntity.ok().build();
     }
 
@@ -75,14 +85,22 @@ public class ExternalTaskController {
      * @return An HTTP 200 OK response.
      */
     @PostMapping("/{id}/failure")
-    public ResponseEntity<Void> handleFailure(@PathVariable String id, @RequestBody ExternalTaskFailureDto failureDto) {
-        commands.handleFailure(id, failureDto);
+    public ResponseEntity<Void> handleFailure(@PathVariable String id, @RequestBody ExternalTaskFailureDto failureDto,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        idempotency.execute(idempotencyKey, "external-task.failure", Map.of("id", id, "failure", failureDto), () -> {
+            commands.handleFailure(id, failureDto);
+            return Map.of("status", "Failure recorded", "externalTaskId", id);
+        });
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/extend-lock")
-    public ResponseEntity<Void> extendLock(@PathVariable String id, @RequestBody ExtendLockRequest request) {
-        commands.extendLock(id, request);
+    public ResponseEntity<Void> extendLock(@PathVariable String id, @RequestBody ExtendLockRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        idempotency.execute(idempotencyKey, "external-task.extend-lock", Map.of("id", id, "request", request), () -> {
+            commands.extendLock(id, request);
+            return Map.of("status", "Lock extended", "externalTaskId", id);
+        });
         return ResponseEntity.noContent().build();
     }
 }

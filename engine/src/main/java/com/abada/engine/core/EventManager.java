@@ -139,7 +139,8 @@ public class EventManager {
             engineMetrics.recordEventConsumed("SIGNAL", signalName);
             
             List<EventSubscriptionEntity> subs = subscriptionRepository
-                    .findByEventTypeAndEventNameAndConsumedAtIsNull(EventSubscriptionEntity.Type.SIGNAL, signalName);
+                    .findByEventTypeAndEventNameAndConsumedAtIsNullOrderByIdAsc(
+                            EventSubscriptionEntity.Type.SIGNAL, signalName);
             if (subs != null && !subs.isEmpty()) {
                 span.setAttribute("instances.count", subs.size());
                 log.info("Broadcasting signal '{}' to {} waiting instances.", signalName, subs.size());

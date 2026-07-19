@@ -1,6 +1,8 @@
 package com.abada.engine.core;
 
 import com.abada.engine.core.exception.ProcessEngineException;
+import com.abada.engine.bpmn.compatibility.BpmnParseOptions;
+import com.abada.engine.bpmn.compatibility.BpmnParseResult;
 import com.abada.engine.core.model.EventMeta;
 import com.abada.engine.core.model.ParsedProcessDefinition;
 import com.abada.engine.core.model.ServiceTaskMeta;
@@ -86,10 +88,18 @@ public class AbadaEngine {
 
     @AtomicRuntimeCommand
     public ProcessDefinitionEntity deploy(InputStream bpmnXml) {
+        return deploy(bpmnXml, BpmnParseOptions.defaults());
+    }
+
+    @AtomicRuntimeCommand
+    public ProcessDefinitionEntity deploy(InputStream bpmnXml, BpmnParseOptions options) {
         Span span = tracer.spanBuilder("abada.process.deploy").startSpan();
+        Timer.Sample deploymentSample = engineMetrics.startBpmnDeploymentTimer();
+        boolean succeeded = false;
         try (var scope = span.makeCurrent()) {
-            ParsedProcessDefinition definition = parser.parse(bpmnXml);
-            ProcessDefinitionEntity persisted = saveProcessDefinition(definition);
+            BpmnParseResult parseResult = parser.parseDetailed(bpmnXml, options);
+            ParsedProcessDefinition definition = parseResult.definition();
+            ProcessDefinitionEntity persisted = saveProcessDefinition(parseResult);
             historyService.record("PROCESS_DEFINITION_DEPLOYED", null, definition.getId(), null,
                     Map.of("deploymentId", persisted.getDeploymentId(), "version", persisted.getVersion()));
             registerDefinitionAfterCommit(definition, persisted);
@@ -99,12 +109,14 @@ public class AbadaEngine {
             span.setAttribute("process.definition.version", "1.0");
 
             log.info("Deployed process definition: {}", definition.getId());
+            succeeded = true;
             return persisted;
         } catch (Exception e) {
             span.recordException(e);
             span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
             throw e;
         } finally {
+            engineMetrics.recordBpmnDeployment(deploymentSample, succeeded);
             span.end();
         }
     }
@@ -187,15 +199,15 @@ public class AbadaEngine {
             entity.setStartedBy(instance.getStartedBy());
             persistRuntimeState(instance, entity);
 
+            historyService.record("PROCESS_STARTED", instance, definition.getStartEventId(), Map.of());
+
             for (UserTaskPayload task : userTasks) {
-                createAndPersistTask(task, instance.getId());
+                createAndPersistTask(task, instance);
             }
 
             eventManager.registerWaitStates(instance);
             scheduleWaitingTimerEvents(instance);
             createExternalTaskJobs(instance);
-            historyService.record("PROCESS_STARTED", instance, definition.getStartEventId(), Map.of());
-
             engineMetrics.recordProcessDuration(sample, processDefinitionId);
             return instance;
         } catch (Exception e) {
@@ -216,10 +228,21 @@ public class AbadaEngine {
     @AtomicRuntimeCommand
     public void claim(String taskId, String user, List<String> groups) {
         TaskInstance task = loadTaskForUpdate(taskId);
+        requireActiveProcessForTask(task);
         taskManager.claimTask(task, user, groups);
         persistTask(task);
         historyService.record("TASK_CLAIMED", loadProcessInstance(task.getProcessInstanceId()),
                 task.getTaskDefinitionKey(), Map.of("assignee", user));
+    }
+
+    @AtomicRuntimeCommand
+    public void unclaim(String taskId, String user) {
+        TaskInstance task = loadTaskForUpdate(taskId);
+        requireActiveProcessForTask(task);
+        taskManager.unclaimTask(task, user);
+        persistTask(task);
+        historyService.record("TASK_UNCLAIMED", loadProcessInstance(task.getProcessInstanceId()),
+                task.getTaskDefinitionKey(), Map.of("previousAssignee", user));
     }
 
     @AtomicRuntimeCommand
@@ -237,9 +260,7 @@ public class AbadaEngine {
         }
         ProcessInstance instance = materializeProcessInstance(authoritativeInstance);
 
-        if (instance.isSuspended()) {
-            throw new ProcessEngineException("Process instance is suspended: " + processInstanceId);
-        }
+        requireActive(instance);
 
         if (variables != null && !variables.isEmpty()) {
             instance.putAllVariables(variables);
@@ -257,10 +278,7 @@ public class AbadaEngine {
         persistRuntimeState(instance);
 
         for (UserTaskPayload task : nextTasks) {
-            TaskInstance createdTask = taskManager.createTaskSnapshot(
-                    task.taskDefinitionKey(), task.name(), processInstanceId, task.assignee(),
-                    task.candidateUsers(), task.candidateGroups());
-            persistTask(createdTask);
+            createAndPersistTask(task, instance);
         }
 
         eventManager.registerWaitStates(instance);
@@ -271,6 +289,7 @@ public class AbadaEngine {
     @AtomicRuntimeCommand
     public void failTask(String taskId) {
         TaskInstance task = loadTaskForUpdate(taskId);
+        requireActiveProcessForTask(task);
         taskManager.failTask(task);
         persistTask(task);
         historyService.record("TASK_FAILED", loadProcessInstance(task.getProcessInstanceId()),
@@ -368,9 +387,7 @@ public class AbadaEngine {
             throw new ProcessEngineException("No process instance found for id=" + processInstanceId);
         }
 
-        if (instance.isSuspended()) {
-            throw new ProcessEngineException("Process instance is suspended: " + processInstanceId);
-        }
+        requireActive(instance);
 
         if (variables != null && !variables.isEmpty()) {
             instance.putAllVariables(variables);
@@ -384,12 +401,29 @@ public class AbadaEngine {
         historyService.record("EVENT_CORRELATED", instance, eventId, Map.of());
 
         for (UserTaskPayload task : nextTasks) {
-            createAndPersistTask(task, processInstanceId);
+            createAndPersistTask(task, instance);
         }
 
         eventManager.registerWaitStates(instance);
         scheduleWaitingTimerEvents(instance);
         createExternalTaskJobs(instance);
+    }
+
+    private ProcessInstance requireActiveProcessForTask(TaskInstance task) {
+        ProcessInstance instance = loadProcessInstanceForUpdate(task.getProcessInstanceId());
+        if (instance == null) throw new IllegalStateException(
+                "Task references missing process instance: " + task.getProcessInstanceId());
+        requireActive(instance);
+        return instance;
+    }
+
+    private void requireActive(ProcessInstance instance) {
+        if (instance.isSuspended() || instance.getStatus() == ProcessStatus.SUSPENDED)
+            throw new ProcessEngineException("Process instance is suspended: " + instance.getId());
+        if (instance.getStatus() == ProcessStatus.COMPLETED || instance.getStatus() == ProcessStatus.FAILED
+                || instance.getStatus() == ProcessStatus.CANCELLED)
+            throw new ProcessEngineException("Process instance is already in a terminal state: "
+                    + instance.getStatus());
     }
 
     private ProcessInstance materializeProcessInstance(ProcessInstanceEntity entity) {
@@ -438,19 +472,30 @@ public class AbadaEngine {
 
     private ParsedProcessDefinition cacheDefinition(ProcessDefinitionEntity entity) {
         return definitionsByDeploymentId.computeIfAbsent(entity.getDeploymentId(), ignored ->
-                parser.parse(new java.io.ByteArrayInputStream(
-                        entity.getBpmnXml().getBytes(StandardCharsets.UTF_8))));
+                parser.parseDetailed(new java.io.ByteArrayInputStream(
+                                entity.getBpmnXml().getBytes(StandardCharsets.UTF_8)),
+                        new BpmnParseOptions(Arrays.stream(entity.getCompatibilityProfiles().split(","))
+                                .map(String::trim).filter(value -> !value.isEmpty()).toList(), false, false))
+                        .definition());
     }
 
-    private void createAndPersistTask(UserTaskPayload task, String processInstanceId) {
+    private void createAndPersistTask(UserTaskPayload task, ProcessInstance instance) {
         TaskInstance createdTask = taskManager.createTaskSnapshot(
                 task.taskDefinitionKey(),
                 task.name(),
-                processInstanceId,
+                instance.getId(),
                 task.assignee(),
                 task.candidateUsers(),
-                task.candidateGroups());
+                task.candidateGroups(),
+                task.assignmentStrategy());
         persistTask(createdTask);
+        historyService.record("TASK_CREATED", instance, task.taskDefinitionKey(),
+                Map.of("assignee", task.assignee() == null ? "" : task.assignee(),
+                        "assignmentStrategy", task.assignmentStrategy().name()));
+        if (task.assignee() != null && !task.assignee().isBlank()) {
+            historyService.record("TASK_ASSIGNED", instance, task.taskDefinitionKey(),
+                    Map.of("assignee", task.assignee()));
+        }
     }
 
     private void scheduleWaitingTimerEvents(ProcessInstance instance) {
@@ -534,6 +579,7 @@ public class AbadaEngine {
         entity.setTaskDefinitionKey(taskInstance.getTaskDefinitionKey());
         entity.setName(taskInstance.getName());
         entity.setAssignee(taskInstance.getAssignee());
+        entity.setAssignmentStrategy(taskInstance.getAssignmentStrategy());
         entity.setStatus(taskInstance.getStatus());
         entity.setStartDate(taskInstance.getStartDate());
         entity.setEndDate(taskInstance.getEndDate());
@@ -616,7 +662,8 @@ public class AbadaEngine {
         return taskManager.getTask(taskId);
     }
 
-    private ProcessDefinitionEntity saveProcessDefinition(ParsedProcessDefinition definition) {
+    private ProcessDefinitionEntity saveProcessDefinition(BpmnParseResult parseResult) {
+        ParsedProcessDefinition definition = parseResult.definition();
         String checksum = sha256(definition.getRawXml());
         ProcessDefinitionEntity latest = persistenceService.findProcessDefinitionById(definition.getId());
         if (latest != null && checksum.equals(latest.getChecksum())) {
@@ -629,6 +676,15 @@ public class AbadaEngine {
         entity.setName(definition.getName());
         entity.setDocumentation(definition.getDocumentation());
         entity.setBpmnXml(definition.getRawXml());
+        entity.setDefinitionFormatVersion("canonical-1");
+        entity.setCompatibilityProfiles(String.join(",", parseResult.activeProfiles()));
+        entity.setDetectedNamespaces(String.join(",", new TreeSet<>(parseResult.detectedNamespaces())));
+        entity.setCompilerVersion("1");
+        try {
+            entity.setCompatibilityReport(om.writeValueAsString(parseResult.report()));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Serialize BPMN compatibility report failed", exception);
+        }
 
         // Save candidate starter groups and users as comma-separated strings
         if (definition.getCandidateStarterGroups() != null && !definition.getCandidateStarterGroups().isEmpty()) {

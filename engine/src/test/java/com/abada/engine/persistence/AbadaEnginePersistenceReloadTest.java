@@ -21,11 +21,13 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-@SpringBootTest
+@SpringBootTest(properties = "abada.outbox.dispatcher.enabled=false")
 @ActiveProfiles("integration-persistence")
 public class AbadaEnginePersistenceReloadTest {
 
@@ -108,6 +110,33 @@ public class AbadaEnginePersistenceReloadTest {
 
         ProcessInstance reloadedInstance = abadaEngine.getProcessInstanceById(processInstance.getId());
         assertTrue(reloadedInstance.isCompleted(), "Process should be isCompleted after Bob's task");
+    }
+
+    @Test
+    void deploymentPersistsCanonicalCompilerAndCompatibilityMetadata() {
+        var deployed = abadaEngine.deploy(BpmnTestUtils.loadBpmnStream("recipe-cook.bpmn"));
+
+        assertEquals("canonical-1", deployed.getDefinitionFormatVersion());
+        assertEquals("1", deployed.getCompilerVersion());
+        assertTrue(deployed.getCompatibilityProfiles().contains("standard-bpmn-2.0"));
+        assertTrue(deployed.getCompatibilityProfiles().contains("camunda-7"));
+        assertTrue(deployed.getDetectedNamespaces().contains("http://camunda.org/schema/1.0/bpmn"));
+        assertTrue(deployed.getCompatibilityReport().contains("canonical process model"));
+    }
+
+    @Test
+    void allAssignmentDialectsPersistEquivalentCandidateGroups() throws Exception {
+        for (String fixture : List.of("standard-assignment.bpmn", "abada-native-assignment.bpmn",
+                "camunda-7-assignment.bpmn")) {
+            try (var input = Files.newInputStream(Path.of("../examples/bpmn", fixture))) {
+                var deployment = abadaEngine.deploy(input);
+                abadaEngine.startProcess(deployment.getProcessKey());
+            }
+        }
+
+        var tasks = abadaEngine.getTaskManager().getVisibleTasksForUser("reviewer", List.of("finance"));
+        assertEquals(3, tasks.size());
+        tasks.forEach(task -> assertEquals(List.of("finance"), task.getCandidateGroups()));
     }
 
     @AfterAll

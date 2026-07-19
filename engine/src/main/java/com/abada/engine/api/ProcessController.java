@@ -7,6 +7,10 @@ import com.abada.engine.core.IdempotencyService;
 import com.abada.engine.dto.Mapper;
 import com.abada.engine.dto.ProcessInstanceDTO;
 import com.abada.engine.persistence.entity.ProcessDefinitionEntity;
+import com.abada.engine.bpmn.compatibility.BpmnParseOptions;
+import com.abada.engine.bpmn.compatibility.CompatibilityProfiles;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,11 +42,14 @@ public class ProcessController {
     private final AbadaEngine engine;
     private final UserContextProvider context;
     private final IdempotencyService idempotencyService;
+    private final ObjectMapper objectMapper;
 
-    public ProcessController(AbadaEngine engine, UserContextProvider context, IdempotencyService idempotencyService) {
+    public ProcessController(AbadaEngine engine, UserContextProvider context, IdempotencyService idempotencyService,
+            ObjectMapper objectMapper) {
         this.engine = engine;
         this.context = context;
         this.idempotencyService = idempotencyService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -52,13 +60,38 @@ public class ProcessController {
      * @throws IOException If the file cannot be read.
      */
     @PostMapping(value = "/deploy", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> deploy(@RequestParam("file") MultipartFile file) throws IOException {
-        ProcessDefinitionEntity deployed = engine.deploy(file.getInputStream());
-        return ResponseEntity.ok(Map.of(
-                "status", "Deployed",
-                "processDefinitionId", deployed.getProcessKey(),
-                "deploymentId", deployed.getDeploymentId(),
-                "version", deployed.getVersion()));
+    public ResponseEntity<Map<String, Object>> deploy(@RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String profiles,
+            @RequestParam(defaultValue = "false") boolean strict,
+            @RequestParam(defaultValue = "false") boolean rejectVendorExtensions,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) throws IOException {
+        List<String> selectedProfiles = profiles == null || profiles.isBlank() ? CompatibilityProfiles.DEFAULT
+                : java.util.Arrays.stream(profiles.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
+        byte[] source = file.getBytes();
+        Map<String, Object> request = Map.of("source", source, "profiles", selectedProfiles,
+                "strict", strict, "rejectVendorExtensions", rejectVendorExtensions);
+        return ResponseEntity.ok(idempotencyService.execute(idempotencyKey, "process.deploy", request, () -> {
+            ProcessDefinitionEntity deployed = engine.deploy(new ByteArrayInputStream(source),
+                    new BpmnParseOptions(selectedProfiles, rejectVendorExtensions, strict));
+            return deploymentResponse(deployed);
+        }));
+    }
+
+    private Map<String, Object> deploymentResponse(ProcessDefinitionEntity deployed) {
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("status", "Deployed");
+        response.put("processDefinitionId", deployed.getProcessKey());
+        response.put("deploymentId", deployed.getDeploymentId());
+        response.put("version", deployed.getVersion());
+        response.put("definitionFormatVersion", deployed.getDefinitionFormatVersion());
+        response.put("compatibilityProfiles", List.of(deployed.getCompatibilityProfiles().split(",")));
+        try {
+            response.put("compatibilityReport", objectMapper.readValue(deployed.getCompatibilityReport(),
+                    new TypeReference<Map<String, Object>>() {}));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Stored compatibility report is invalid", exception);
+        }
+        return response;
     }
 
     /**
@@ -144,14 +177,15 @@ public class ProcessController {
      * @return A JSON object confirming the status change.
      */
     @PostMapping("/instance/{id}/fail")
-    public ResponseEntity<Map<String, Object>> failInstance(@PathVariable String id) {
-        boolean failed = engine.failProcess(id);
-        if (failed) {
-            return ResponseEntity.ok(Map.of("status", "Failed", "processInstanceId", id));
-        } else {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Cannot fail process instance", "processInstanceId", id));
-        }
+    public ResponseEntity<Map<String, Object>> failInstance(@PathVariable String id,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        Map<String, Object> response = idempotencyService.execute(idempotencyKey, "process.fail",
+                Map.of("processInstanceId", id), () -> {
+                    boolean failed = engine.failProcess(id);
+                    return failed ? Map.of("status", "Failed", "processInstanceId", id)
+                            : Map.of("error", "Cannot fail process instance", "processInstanceId", id);
+                });
+        return response.containsKey("error") ? ResponseEntity.badRequest().body(response) : ResponseEntity.ok(response);
     }
 
     /**

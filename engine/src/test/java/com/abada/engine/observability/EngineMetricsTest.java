@@ -23,6 +23,16 @@ class EngineMetricsTest {
         metrics = new EngineMetrics(registry);
     }
 
+    @Test
+    void recordsBoundedBpmnDeploymentOutcomesAndDuration() {
+        metrics.recordBpmnDeployment(metrics.startBpmnDeploymentTimer(), true);
+        metrics.recordBpmnDeployment(metrics.startBpmnDeploymentTimer(), false);
+
+        assertThat(registry.get("abada.bpmn.deployments").tag("outcome", "success").counter().count()).isOne();
+        assertThat(registry.get("abada.bpmn.deployments").tag("outcome", "failure").counter().count()).isOne();
+        assertThat(registry.get("abada.bpmn.deployment.duration").timer().count()).isEqualTo(2);
+    }
+
     @Nested
     class ProcessMetricsTests {
         

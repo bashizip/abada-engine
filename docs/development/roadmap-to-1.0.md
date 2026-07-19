@@ -1,9 +1,10 @@
 # Abada Reliable OSS Core Roadmap
 
 This is the authoritative checklist for the Abada 1.0 reliable open-source
-core. The current milestone is **0.9 — Durable runtime**.
+core. The current completed milestone is **0.10 — Cluster safety**; the next
+milestone is **0.11 — Stable contracts and security**.
 
-Last reviewed: 2026-07-14.
+Last reviewed: 2026-07-19.
 
 ## How to use this roadmap
 
@@ -118,12 +119,15 @@ Last reviewed: 2026-07-14.
 - [x] Recover expired job leases for reprocessing.
 - [x] Support external-task fetch-and-lock, lock extension, completion and
   technical failure.
-- [ ] Atomically claim timers, continuations and external work across two or
-  more replicas without duplicate state transitions.
-- [ ] Use a PostgreSQL work-acquisition strategy whose contention behavior is
-  covered by concurrent tests.
-- [ ] Recover work when a worker or engine replica dies while holding a lease.
-- [ ] Deliver transactional-outbox records reliably and idempotently.
+- [x] Atomically claim timers and external work across two or more replicas
+  without duplicate state transitions. The supported core has no deferred
+  asynchronous-continuation job type; synchronous continuations advance in
+  their owning command transaction.
+- [x] Use PostgreSQL `FOR UPDATE SKIP LOCKED` acquisition with V8 indexes and
+  concurrent contention tests.
+- [x] Recover work when a worker or engine replica dies while holding a lease.
+- [x] Deliver transactional-outbox records with independent leases, retry and
+  stable event IDs used as the consumer deduplication key.
 
 ### Idempotency and concurrent commands
 
@@ -132,25 +136,31 @@ Last reviewed: 2026-07-14.
   application contexts, with one committed transition and one completion
   history event. Evidence:
   [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java).
-- [ ] Define and implement idempotency for every public mutation command,
+- [x] Define and implement idempotency for every public mutation command,
   message correlation and external-task completion.
-- [ ] Return deterministic results for duplicate and concurrently repeated
+- [x] Return deterministic results for duplicate and concurrently repeated
   requests.
-- [ ] Correlate durable message and signal subscriptions transactionally.
-- [ ] Prevent lost updates during concurrent completion, cancellation,
+- [x] Correlate durable message and signal subscriptions transactionally.
+- [x] Prevent lost updates during concurrent completion, cancellation,
   correlation and timer firing.
 
 ### Multi-replica acceptance
 
-- [ ] Run two or more engine replicas against one PostgreSQL database in CI.
-- [ ] Concurrently claim timers, messages, user tasks and external work.
-- [ ] Kill replicas before and after commits and verify recovery.
-- [ ] Demonstrate exactly-once workflow state transitions while documenting
+- [x] Run two or more engine application contexts against one PostgreSQL
+  Testcontainer in the Maven CI suite.
+- [x] Concurrently claim timers, messages, signals, user tasks and external
+  work.
+- [x] Terminate a replica while it owns a timer lease, simulate failures before
+  and after commits, and verify recovery.
+- [x] Demonstrate exactly-once workflow state transitions while documenting
   at-least-once external side-effect semantics.
-- [ ] Pass replica failover and concurrent-correlation Testcontainers suites.
+- [x] Pass replica failover and concurrent-correlation Testcontainers suites.
 
-- [ ] **0.10 release gate:** multi-replica acquisition, leases, idempotency,
-  failover and concurrent-command correctness pass on PostgreSQL.
+- [x] **0.10 release gate:** multi-replica acquisition, leases, idempotency,
+  failover and concurrent-command correctness pass on PostgreSQL. Evidence:
+  [`PostgresRestartRecoveryTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresRestartRecoveryTest.java),
+  [`PostgresSchemaUpgradeTest`](../../engine/src/test/java/com/abada/engine/persistence/PostgresSchemaUpgradeTest.java),
+  and [`MutationIdempotencyContractTest`](../../engine/src/test/java/com/abada/engine/api/MutationIdempotencyContractTest.java).
 
 ## 0.11 — Stable contracts and security
 
@@ -161,7 +171,7 @@ Last reviewed: 2026-07-14.
   - [x] Add bounded page/size queries and pagination metadata to public task
     and process-instance lists without changing their list-shaped JSON body.
 - [ ] Validate generated OpenAPI and API compatibility in CI.
-- [ ] Add optional `Idempotency-Key` support to all applicable mutation
+- [x] Add optional `Idempotency-Key` support to all applicable mutation
   endpoints.
 - [ ] Freeze a versioned worker protocol for fetch-and-lock, heartbeat, lock
   extension, completion, BPMN error, technical failure, retry and trace
@@ -188,6 +198,76 @@ Last reviewed: 2026-07-14.
 
 - [ ] **0.11 release gate:** REST and worker contracts are frozen; OIDC, RBAC,
   security tests, the Java SDK and frontends are aligned.
+
+## 1.0 — BPMN dialects and compatibility profiles
+
+Specification: [BPMN dialects and compatibility](../specifications/bpmn-dialects-and-compatibility.md).
+
+This is a release-blocking 1.0 feature. The repository-grounded delivery plan
+is [BPMN dialect implementation plan](bpmn-dialects-implementation-plan.md).
+
+### Canonical model and parsing
+
+- [x] Define vendor-neutral `ProcessExpression` and `UserTaskAssignment`
+  models and use them from `TaskMeta` and runtime task creation.
+- [x] Detect the `standard-bpmn-2.0`, `abada-native-1`, and `camunda-7`
+  profiles explicitly.
+- [x] Route user-task assignment through a deterministic extension-parser
+  registry; runtime code must not execute vendor XML semantics.
+- [x] Keep existing Camunda assignee/candidate definitions operational with
+  Abada expression semantics reported transparently.
+- [x] Parse standard BPMN `potentialOwner`/`humanPerformer` expressions for the
+  documented `user:<id>` and `group:<id>` subset.
+- [x] Parse both compact and nested `abada:assignment` forms under the stable
+  `https://abada.io/schema/bpmn` namespace.
+
+### Validation, execution and persistence
+
+- [x] Reject conflicting assignment representations, malformed expressions,
+  invalid strategies and unsupported execution-relevant directives with
+  stable `ABADA-BPMN-*` codes.
+- [x] Secure XML parsing against XXE, entity expansion, remote schema loading
+  and unbounded deployment input.
+- [x] Evaluate assignment expressions once at task creation; normalize and
+  deterministically deduplicate candidate identities.
+- [x] Preserve candidates when assigned, reject claiming assigned tasks, and
+  retain current claim authorization semantics.
+- [x] Add authorized unclaim behavior and assignment audit events where the
+  existing task API permits a backward-compatible extension.
+- [x] Keep deployment validation, definition persistence, history and cache
+  registration atomic.
+- [x] Add a Flyway migration for definition format/profile/namespace/compiler/
+  report metadata and task assignment strategy; preserve all existing rows.
+- [x] Prove fresh and V1–V6 PostgreSQL upgrades through the new schema.
+
+### Reports, migration and public contracts
+
+- [x] Produce programmatic compatibility reports with detected profiles,
+  mappings and structured validation issues.
+- [x] Extend the existing multipart deployment API with optional profiles and
+  strict mode without breaking current clients; return compatibility data.
+- [x] Provide deterministic Camunda 7 → Abada-native migration while
+  preserving the original input and failing on uncertain execution semantics.
+- [x] Provide `abada bpmn migrate` CLI behavior and machine-readable/reporting
+  output without introducing a separate repository module.
+- [x] Add bounded parsing/deployment/migration metrics and structured logs.
+
+### Evidence and documentation
+
+- [x] Add unit tests for all parsers, expressions, normalization, conflicts,
+  unknown directives, reports, serialization and migration.
+- [x] Prove standard, Abada-native and Camunda fixtures create equivalent
+  persisted task assignments.
+- [x] Prove native and migrated round trips preserve canonical assignments.
+- [x] Add malformed/unsafe XML and atomic failed-deployment tests.
+- [x] Publish the required ADR, native extension, Camunda profile,
+  compatibility profile, migration and assignment-semantics documentation.
+- [x] Add runnable examples and map every acceptance criterion to executable
+  evidence.
+
+- [x] **BPMN compatibility release gate:** every normative acceptance criterion
+  is implemented and verified, or explicitly documented as blocked with
+  concrete technical evidence.
 
 ## 1.0 RC — Evidence and operations
 

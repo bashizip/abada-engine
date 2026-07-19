@@ -1,6 +1,7 @@
 package com.abada.engine.persistence.entity;
 
 import com.abada.engine.core.model.TaskStatus;
+import com.abada.engine.core.model.assignment.AssignmentStrategy;
 import jakarta.persistence.*;
 
 import java.time.Instant;
@@ -47,6 +48,10 @@ public class TaskEntity {
 
     @Column(name = "end_date")
     private Instant endDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "assignment_strategy", nullable = false)
+    private AssignmentStrategy assignmentStrategy = AssignmentStrategy.CLAIM;
 
     @Version
     @Column(name = "entity_version", nullable = false)
@@ -135,4 +140,6 @@ public class TaskEntity {
 
     public long getEntityVersion() { return entityVersion; }
     public void setEntityVersion(long entityVersion) { this.entityVersion = entityVersion; }
+    public AssignmentStrategy getAssignmentStrategy() { return assignmentStrategy; }
+    public void setAssignmentStrategy(AssignmentStrategy value) { this.assignmentStrategy = value; }
 }

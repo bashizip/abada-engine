@@ -1,21 +1,75 @@
 package com.abada.engine.parser;
 
+import com.abada.engine.bpmn.compatibility.*;
 import com.abada.engine.core.model.*;
 import com.abada.engine.core.model.SequenceFlow;
+import com.abada.engine.parser.assignment.AssignmentParserRegistry;
+import com.abada.engine.parser.assignment.AssignmentXml;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.*;
 import org.camunda.bpm.model.bpmn.instance.Process;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class BpmnParser {
+    static final int MAX_DEPLOYMENT_BYTES = 10 * 1024 * 1024;
+    private final AssignmentParserRegistry assignmentParsers = new AssignmentParserRegistry();
 
     public ParsedProcessDefinition parse(InputStream bpmnXml) {
+        return parseDetailed(bpmnXml, BpmnParseOptions.defaults()).definition();
+    }
+
+    public BpmnParseResult parseDetailed(InputStream bpmnXml, BpmnParseOptions options) {
         try {
+            byte[] source = bpmnXml.readNBytes(MAX_DEPLOYMENT_BYTES + 1);
+            if (source.length > MAX_DEPLOYMENT_BYTES) {
+                throw BpmnValidationException.single(new BpmnValidationIssue(
+                        BpmnErrorCodes.XML_SECURITY, ValidationSeverity.ERROR,
+                        "BPMN deployment exceeds the 10 MiB input limit", null, null, null, null,
+                        "Reduce the model size or split it into separate process definitions."));
+            }
+            String sourceXml = new String(source, StandardCharsets.UTF_8);
+            BpmnCompatibilityDetector.Detection detection = new BpmnCompatibilityDetector().detect(sourceXml);
+            List<BpmnValidationIssue> issues = new ArrayList<>();
+            issues.addAll(new BpmnDirectiveValidator().validate(sourceXml, options));
+            for (String detectedProfile : detection.profiles()) {
+                if (!options.compatibilityProfiles().contains(detectedProfile)
+                        && !CompatibilityProfiles.STANDARD.equals(detectedProfile)) {
+                    issues.add(new BpmnValidationIssue(BpmnErrorCodes.UNSUPPORTED_EXTENSION,
+                            ValidationSeverity.ERROR,
+                            "BPMN uses disabled compatibility profile '" + detectedProfile + "'",
+                            null, null, null, null,
+                            "Enable the profile explicitly or migrate the vendor directives."));
+                }
+            }
+            if (issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.ERROR))
+                throw new BpmnValidationException(issues);
+
+            ParsedProcessDefinition definition = parseDefinition(new ByteArrayInputStream(source), sourceXml,
+                    options.compatibilityProfiles());
+            List<CompatibilityMapping> mappings = new ArrayList<>();
+            if (detection.profiles().contains(CompatibilityProfiles.CAMUNDA_7)) {
+                mappings.add(new CompatibilityMapping("camunda-7 XML directives",
+                        "Abada canonical process model", definition.getId(),
+                        "Vendor directives are translated during deployment and are not executed as XML."));
+            }
+            CompatibilityReport report = new CompatibilityReport(detection.profiles(), mappings, issues);
+            return new BpmnParseResult(definition, report, options.compatibilityProfiles(), detection.namespaces());
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse BPMN", e);
+        }
+    }
+
+    private ParsedProcessDefinition parseDefinition(InputStream bpmnXml, String sourceXml, List<String> activeProfiles) {
+        try {
+            AssignmentXml assignmentXml = AssignmentXml.parse(sourceXml);
             BpmnModelInstance model = Bpmn.readModelFromStream(bpmnXml);
             SupportedBpmnValidator.validate(model);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -47,17 +101,7 @@ public class BpmnParser {
                 TaskMeta meta = new TaskMeta();
                 meta.setId(userTask.getId());
                 meta.setName(userTask.getName());
-                meta.setAssignee(userTask.getCamundaAssignee());
-
-                String candidates = userTask.getCamundaCandidateUsers();
-                if (candidates != null && !candidates.isBlank()) {
-                    meta.setCandidateUsers(Arrays.asList(candidates.split("\\s*,\\s*")));
-                }
-
-                String groups = userTask.getCamundaCandidateGroups();
-                if (groups != null && !groups.isBlank()) {
-                    meta.setCandidateGroups(Arrays.asList(groups.split("\\s*,\\s*")));
-                }
+                meta.setAssignment(assignmentParsers.parse(userTask, assignmentXml, activeProfiles));
                 userTasks.put(userTask.getId(), meta);
             }
 

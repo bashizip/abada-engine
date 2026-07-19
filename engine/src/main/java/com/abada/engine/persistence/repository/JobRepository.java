@@ -32,4 +32,9 @@ public interface JobRepository extends JpaRepository<JobEntity, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select job from JobEntity job where job.id = :id")
     Optional<JobEntity> findByIdForUpdate(@Param("id") String id);
+
+    @Query(value = "select * from jobs where ((status = 'AVAILABLE' and execution_timestamp <= :now) "
+            + "or (status = 'LEASED' and lease_expires_at <= :now)) "
+            + "order by execution_timestamp, id limit :batchSize for update skip locked", nativeQuery = true)
+    List<JobEntity> findClaimableForUpdate(@Param("now") Instant now, @Param("batchSize") int batchSize);
 }

@@ -3,6 +3,7 @@ package com.abada.engine.core;
 import com.abada.engine.core.exception.ProcessEngineException;
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
+import com.abada.engine.core.model.assignment.AssignmentStrategy;
 import com.abada.engine.observability.EngineMetrics;
 import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.TaskRepository;
@@ -58,7 +59,8 @@ public class TaskManager {
             @SpanTag("process.instance.id") String processInstanceId,
             String assignee,
             List<String> candidateUsers,
-            List<String> candidateGroups) {
+            List<String> candidateGroups,
+            AssignmentStrategy assignmentStrategy) {
 
         Timer.Sample waitingTimeSample = engineMetrics.startTaskWaitingTimer();
         Span span = tracer.spanBuilder("abada.task.create").startSpan();
@@ -70,6 +72,7 @@ public class TaskManager {
             task.setName(name);
             task.setProcessInstanceId(processInstanceId);
             task.setAssignee(assignee);
+            task.setAssignmentStrategy(assignmentStrategy);
             task.setStartDate(Instant.now());
             task.setStatus(assignee == null || assignee.isEmpty()
                     ? TaskStatus.AVAILABLE
@@ -141,6 +144,15 @@ public class TaskManager {
         } finally {
             span.end();
         }
+    }
+
+    public void unclaimTask(TaskInstance task, String user) {
+        if (task.getStatus() != TaskStatus.CLAIMED || task.getAssignee() == null)
+            throw new ProcessEngineException("Task is not currently assigned");
+        if (user == null || !user.equals(task.getAssignee()))
+            throw new ProcessEngineException("Only the current assignee may unclaim the task");
+        task.setAssignee(null);
+        task.setStatus(TaskStatus.AVAILABLE);
     }
 
     public void checkCanComplete(TaskInstance task, String user, List<String> userGroups) {
@@ -268,6 +280,7 @@ public class TaskManager {
         task.setTaskDefinitionKey(entity.getTaskDefinitionKey());
         task.setName(entity.getName());
         task.setAssignee(entity.getAssignee());
+        task.setAssignmentStrategy(entity.getAssignmentStrategy());
         task.setCandidateUsers(new ArrayList<>(entity.getCandidateUsers()));
         task.setCandidateGroups(new ArrayList<>(entity.getCandidateGroups()));
         task.setStatus(entity.getStatus());

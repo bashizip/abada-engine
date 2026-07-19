@@ -2,6 +2,7 @@ package com.abada.engine.core;
 
 import com.abada.engine.core.model.TaskInstance;
 import com.abada.engine.core.model.TaskStatus;
+import com.abada.engine.core.model.assignment.AssignmentStrategy;
 import com.abada.engine.observability.EngineMetrics;
 import com.abada.engine.persistence.entity.TaskEntity;
 import com.abada.engine.persistence.repository.TaskRepository;
@@ -59,12 +60,28 @@ class TaskManagerTest {
 
         TaskInstance task = taskManager.createTaskSnapshot(
                 "approveTask", "Approve Request", processInstanceId,
-                null, List.of("user1"), List.of("group1"));
+                null, List.of("user1"), List.of("group1"), AssignmentStrategy.CLAIM);
 
         assertThat(task.getTaskDefinitionKey()).isEqualTo("approveTask");
         assertThat(task.getProcessInstanceId()).isEqualTo(processInstanceId);
         assertThat(task.getStatus()).isEqualTo(TaskStatus.AVAILABLE);
         verifyNoInteractions(taskRepository);
+    }
+
+    @Test
+    void unclaimClearsAssigneeButPreservesCandidates() {
+        TaskInstance task = new TaskInstance();
+        task.setStatus(TaskStatus.CLAIMED);
+        task.setAssignee("alice");
+        task.getCandidateUsers().add("alice");
+        task.getCandidateGroups().add("finance");
+
+        taskManager.unclaimTask(task, "alice");
+
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.AVAILABLE);
+        assertThat(task.getAssignee()).isNull();
+        assertThat(task.getCandidateUsers()).containsExactly("alice");
+        assertThat(task.getCandidateGroups()).containsExactly("finance");
     }
 
     @Test

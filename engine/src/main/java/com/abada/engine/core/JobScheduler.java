@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.UUID;
 
 @Component
@@ -81,7 +80,9 @@ public class JobScheduler {
     /**
      * Periodically polls the database for due jobs.
      */
-    @Scheduled(fixedDelay = 60000) // Check every 60 seconds
+    @Scheduled(
+            fixedDelayString = "${abada.jobs.poll-interval-ms:60000}",
+            initialDelayString = "${abada.jobs.initial-delay-ms:60000}")
     @WithSpan("abada.job.execute.due")
     public void executeDueJobs() {
         Span span = tracer.spanBuilder("abada.job.execute.due").startSpan();
@@ -93,11 +94,7 @@ public class JobScheduler {
             }
             log.debug("Checking for due jobs...");
             Instant now = Instant.now();
-            List<JobEntity> dueJobs = new ArrayList<>(jobRepository
-                    .findByStatusAndExecutionTimestampLessThanEqualOrderByExecutionTimestampAsc(
-                            JobEntity.Status.AVAILABLE, now));
-            dueJobs.addAll(jobRepository.findByStatusAndLeaseExpiresAtLessThanEqualOrderByExecutionTimestampAsc(
-                    JobEntity.Status.LEASED, now));
+            List<JobEntity> dueJobs = commands.claimDue(leaseOwner, now, 50);
 
             span.setAttribute("due.jobs.count", dueJobs.size());
 

@@ -125,7 +125,7 @@ graph TB
 - OAuth2 Proxy for token validation
 
 ### Scalability
-- Durable database state with multi-replica certification in progress
+- Durable PostgreSQL state with 0.10 multi-replica certification
 - Shared database state for process persistence
 - Traefik-based load balancing for high availability
 - Connection pooling for database efficiency

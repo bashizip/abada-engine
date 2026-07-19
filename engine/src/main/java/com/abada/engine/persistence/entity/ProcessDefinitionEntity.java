@@ -40,6 +40,21 @@ public class ProcessDefinitionEntity {
     @Column(name = "candidate_starter_users")
     private String candidateStarterUsers;
 
+    @Column(name = "definition_format_version", nullable = false)
+    private String definitionFormatVersion = "legacy-1";
+
+    @Column(name = "compatibility_profiles", nullable = false, columnDefinition = "TEXT")
+    private String compatibilityProfiles = "standard-bpmn-2.0,abada-native-1,camunda-7";
+
+    @Column(name = "detected_namespaces", nullable = false, columnDefinition = "TEXT")
+    private String detectedNamespaces = "";
+
+    @Column(name = "compiler_version", nullable = false)
+    private String compilerVersion = "1";
+
+    @Column(name = "compatibility_report", nullable = false, columnDefinition = "TEXT")
+    private String compatibilityReport = "{\"detectedProfiles\":[],\"mappings\":[],\"issues\":[]}";
+
     public ProcessDefinitionEntity() {
         this.deploymentId = UUID.randomUUID().toString();
         this.createdAt = Instant.now();
@@ -132,5 +147,16 @@ public class ProcessDefinitionEntity {
     public void setCandidateStarterUsers(String candidateStarterUsers) {
         this.candidateStarterUsers = candidateStarterUsers;
     }
+
+    public String getDefinitionFormatVersion() { return definitionFormatVersion; }
+    public void setDefinitionFormatVersion(String value) { this.definitionFormatVersion = value; }
+    public String getCompatibilityProfiles() { return compatibilityProfiles; }
+    public void setCompatibilityProfiles(String value) { this.compatibilityProfiles = value; }
+    public String getDetectedNamespaces() { return detectedNamespaces; }
+    public void setDetectedNamespaces(String value) { this.detectedNamespaces = value; }
+    public String getCompilerVersion() { return compilerVersion; }
+    public void setCompilerVersion(String value) { this.compilerVersion = value; }
+    public String getCompatibilityReport() { return compatibilityReport; }
+    public void setCompatibilityReport(String value) { this.compatibilityReport = value; }
 
 }

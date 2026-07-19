@@ -1,0 +1,39 @@
+package com.abada.engine.cli;
+
+import com.abada.engine.bpmn.migration.BpmnMigrationService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/** Minimal product CLI; kept independent from the Spring server lifecycle. */
+public final class AbadaCli {
+    public static void main(String[] args) { System.exit(new AbadaCli().run(args, System.out, System.err)); }
+
+    int run(String[] args, PrintStream out, PrintStream err) {
+        if (args.length < 3 || !"bpmn".equals(args[0]) || !"migrate".equals(args[1])) {
+            err.println("Usage: abada bpmn migrate <input.bpmn> [--output <output.bpmn>] [--report <report.json>]");
+            return 2;
+        }
+        try {
+            Path input = Path.of(args[2]);
+            Path output = option(args, "--output", Path.of(args[2] + ".abada.bpmn"));
+            Path report = option(args, "--report", Path.of(output + ".report.json"));
+            var result = new BpmnMigrationService().migrate(Files.newInputStream(input));
+            Files.writeString(output, result.migratedXml());
+            Files.writeString(report, new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(result.report()));
+            out.println("Migrated BPMN: " + output);
+            out.println("Compatibility report: " + report);
+            return 0;
+        } catch (Exception exception) {
+            err.println("Migration failed: " + exception.getMessage());
+            return 1;
+        }
+    }
+
+    private Path option(String[] args, String name, Path fallback) {
+        for (int i = 3; i < args.length - 1; i++) if (name.equals(args[i])) return Path.of(args[i + 1]);
+        return fallback;
+    }
+}
